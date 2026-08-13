@@ -23,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -31,8 +30,9 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
 
 /**
  * Single-line terminal prompt input (`> Search Location _`): prompt glyph in gray,
- * typed text as a syntax string, blinking underscore cursor after the text. The
- * native caret is hidden — the underscore *is* the cursor.
+ * typed text as a syntax string. The blinking underscore plays the idle cursor while
+ * the field is empty; once there is text, the native caret (accent-colored) shows
+ * the real edit position — an underscore pinned at the end would lie about it.
  */
 @Composable
 fun TerminalInput(
@@ -71,7 +71,7 @@ fun TerminalInput(
         singleLine = true,
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
-        cursorBrush = SolidColor(Color.Transparent),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primaryContainer),
         decorationBox = { innerTextField ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (prompt.isNotEmpty()) {
@@ -92,12 +92,14 @@ fun TerminalInput(
                     }
                     innerTextField()
                 }
-                Text(
-                    text = "_",
-                    style = textStyle,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.alpha(cursorAlpha)
-                )
+                if (value.isEmpty()) {
+                    Text(
+                        text = "_",
+                        style = textStyle,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.alpha(cursorAlpha)
+                    )
+                }
             }
         }
     )

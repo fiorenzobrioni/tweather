@@ -109,6 +109,7 @@ private fun buildSearchLines(
     onSelect: (City) -> Unit,
     onRecent: (String) -> Unit
 ): List<CanvasLine> = buildList {
+    add(commentLine("// Tweather Search Query", syntax))
     add(punctLine("{", 0, syntax))
 
     add(WidgetLine(indent = 1) {

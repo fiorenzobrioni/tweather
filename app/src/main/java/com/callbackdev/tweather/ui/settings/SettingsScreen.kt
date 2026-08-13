@@ -1,7 +1,6 @@
 package com.callbackdev.tweather.ui.settings
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -9,7 +8,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -24,12 +22,9 @@ import com.callbackdev.tweather.data.WindSpeedUnit
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
-import com.callbackdev.tweather.ui.components.CodeToggle
 import com.callbackdev.tweather.ui.components.EditorTab
 import com.callbackdev.tweather.ui.components.StatusBarDivider
-import com.callbackdev.tweather.ui.components.SyntaxText
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
-import com.callbackdev.tweather.ui.components.WidgetLine
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
@@ -51,8 +46,9 @@ class SettingsActions(
 
 /**
  * Settings screen: the fake file `settings.config`, mockup format (JSON body with
- * `//` comments). Booleans are [CodeToggle]s, string/number values flip or cycle on
- * tap, theme profiles activate by tapping them in `available_profiles`. Everything
+ * `//` comments). Every editable value is a plain tappable code line (booleans flip,
+ * strings/numbers cycle) so word wrap works on them like on any other line; theme
+ * profiles also activate by tapping them in `available_profiles`. Everything
  * persists via DataStore and applies to the app immediately.
  */
 @Composable
@@ -108,15 +104,20 @@ private fun buildSettingsLines(
     add(punctLine("{", 0, syntax))
 
     add(keyOpenLine("editor", 1, syntax))
-    add(toggleLine("line_numbers", settings.editor.lineNumbers, comma = true,
-        hint = "// click to toggle", onChange = actions.onLineNumbers))
-    add(toggleLine("word_wrap", settings.editor.wordWrap, comma = false,
-        onChange = actions.onWordWrap))
+    add(boolLine("line_numbers", settings.editor.lineNumbers, comma = true,
+        hint = "// click to toggle", syntax = syntax) {
+        actions.onLineNumbers(!settings.editor.lineNumbers)
+    })
+    add(boolLine("word_wrap", settings.editor.wordWrap, comma = false, syntax = syntax) {
+        actions.onWordWrap(!settings.editor.wordWrap)
+    })
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("data", 1, syntax))
-    add(toggleLine("show_details", settings.showDetails, comma = false,
-        hint = "// full weather_data.json", onChange = actions.onShowDetails))
+    add(boolLine("show_details", settings.showDetails, comma = false,
+        hint = "// full weather_data.json", syntax = syntax) {
+        actions.onShowDetails(!settings.showDetails)
+    })
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("units", 1, syntax))
@@ -175,12 +176,18 @@ private fun buildSettingsLines(
 
     add(keyOpenLine("notifications", 1, syntax))
     add(commentLine("// alert engine ships later; preferences persist now", syntax, indent = 2))
-    add(toggleLine("severe_weather_alerts", settings.notifications.severeWeatherAlerts,
-        comma = true, onChange = actions.onSevereAlerts))
-    add(toggleLine("daily_summary", settings.notifications.dailySummary,
-        comma = true, onChange = actions.onDailySummary))
-    add(toggleLine("precipitation_warning", settings.notifications.precipitationWarning,
-        comma = false, onChange = actions.onPrecipWarning))
+    add(boolLine("severe_weather_alerts", settings.notifications.severeWeatherAlerts,
+        comma = true, syntax = syntax) {
+        actions.onSevereAlerts(!settings.notifications.severeWeatherAlerts)
+    })
+    add(boolLine("daily_summary", settings.notifications.dailySummary,
+        comma = true, syntax = syntax) {
+        actions.onDailySummary(!settings.notifications.dailySummary)
+    })
+    add(boolLine("precipitation_warning", settings.notifications.precipitationWarning,
+        comma = false, syntax = syntax) {
+        actions.onPrecipWarning(!settings.notifications.precipitationWarning)
+    })
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("sync", 1, syntax))
@@ -203,35 +210,32 @@ private fun buildSettingsLines(
     add(punctLine("}", 0, syntax))
 }
 
-/** `"word_wrap": false,` where the boolean is a tappable [CodeToggle]. */
-private fun toggleLine(
+/**
+ * `"word_wrap": false,  // hint` — a plain [CodeLine] (so it word-wraps like any
+ * other line, unlike a widget Row) whose whole line toggles the boolean on tap.
+ */
+private fun boolLine(
     key: String,
     value: Boolean,
     comma: Boolean,
+    syntax: SyntaxColors,
     hint: String? = null,
-    onChange: (Boolean) -> Unit
-): WidgetLine = WidgetLine(indent = 2) {
-    val syntax = TweatherTheme.syntax
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        SyntaxText(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
-                withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+    onToggle: () -> Unit
+): CodeLine = CodeLine(
+    text = buildAnnotatedString {
+        withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
+        withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+        withStyle(SpanStyle(color = syntax.number)) { append(value.toString()) }
+        if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
+        if (hint != null) {
+            withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
+                append("  $hint")
             }
-        )
-        CodeToggle(value = value, onValueChange = onChange)
-        SyntaxText(
-            buildAnnotatedString {
-                if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
-                if (hint != null) {
-                    withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
-                        append("  $hint")
-                    }
-                }
-            }
-        )
-    }
-}
+        }
+    },
+    indent = 2,
+    onClick = onToggle
+)
 
 /** `"temperature": "celsius",` — the string value flips/cycles on tap. */
 private fun stringValueLine(

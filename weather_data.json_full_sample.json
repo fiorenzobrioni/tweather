@@ -1,0 +1,102 @@
+{
+  "location": {
+    "city": "New York",
+    "region": "NY",
+    "country": "USA",
+    "coordinates": {
+      "lat": 40.7128,
+      "lon": -74.0060
+    },
+    "timezone": "America/New York",
+    "local_time": "2023-10-27 14:30"
+  },
+  "current_conditions": {
+    "status": "Partly Cloudy ⛅",
+    "temp_c": 18.5,
+    "feels_like_c": 17.2,
+    "humidity_pct": 54,
+    "dew_point_c": 9.0,
+    "visibility_km": 16.1,
+    "pressure_mb": 1015.2,
+    "uv_index": 4,
+    "uv_description": "Moderate ☀️",
+    "wind": {
+      "speed_kph": 12.5,
+      "direction": "NW",
+      "degree": 310,
+      "gust_kph": 18.0
+    },
+    "precipitation": {
+      "last_hour_mm": 0.0,
+      "chance_pct": 10
+    }
+  },
+  "air_quality": {
+    "aqi_index": 42,
+    "status": "Good ⚪",
+    "pollutants": {
+      "pm2_5": 8.2,
+      "pm10": 15.5,
+      "o3": 35.1,
+      "no2": 12.4,
+      "so2": 2.1,
+      "co": 0.4
+    }
+  },
+  "pollen_report": {
+    "grass": "Low",
+    "tree": "High",
+    "weed": "Moderate"
+  },
+  "astronomical": {
+    "sunrise": "07:12",
+    "sunset": "18:04",
+    "moonrise": "16:45",
+    "moonset": "05:12",
+    "moon_phase": "Waxing Gibbous 🌔",
+    "daylight_duration": "10h 52m"
+  },
+  "hourly_forecast": [
+    { "time": "15:00", "temp_c": 19, "status": "Sunny ☀️", "precip_chance": 0 },
+    { "time": "16:00", "temp_c": 18, "status": "Sunny ☀️", "precip_chance": 0 },
+    { "time": "17:00", "temp_c": 17, "status": "Partly Cloudy ⛅", "precip_chance": 5 },
+    { "time": "18:00", "temp_c": 15, "status": "Partly Cloudy ⛅", "precip_chance": 10 },
+    { "time": "19:00", "temp_c": 14, "status": "Clear 🌙", "precip_chance": 0 }
+  ],
+  "daily_forecast": [
+    {
+      "day": "Mon",
+      "high": 20,
+      "low": 12,
+      "status": "Sunny ☀️",
+      "precip_pct": 0
+    },
+    {
+      "day": "Tue",
+      "high": 18,
+      "low": 11,
+      "status": "Rainy 🌧️",
+      "precip_pct": 85
+    },
+    {
+      "day": "Wed",
+      "high": 16,
+      "low": 10,
+      "status": "Cloudy ☁️",
+      "precip_pct": 20
+    },
+    {
+      "day": "Thu",
+      "high": 19,
+      "low": 13,
+      "status": "Partly Cloudy ⛅",
+      "precip_pct": 10
+    }
+  ],
+  "system_info": {
+    "source": "OpenWeatherMap API",
+    "last_sync": "1698413400",
+    "cache_status": "HIT",
+    "response_time_ms": 142
+  }
+}

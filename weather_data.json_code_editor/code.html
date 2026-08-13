@@ -1,0 +1,246 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Weather_Data.json</title>
+<!-- Google Fonts & Icons -->
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-low": "#181c22",
+                    "tertiary-fixed-dim": "#dbb8ff",
+                    "surface-container-lowest": "#0a0e14",
+                    "on-tertiary-fixed-variant": "#593482",
+                    "on-primary-fixed": "#001d32",
+                    "inverse-primary": "#00639a",
+                    "surface-tint": "#96ccff",
+                    "secondary": "#74dd7e",
+                    "on-secondary": "#003910",
+                    "outline": "#8a919b",
+                    "on-tertiary": "#421b6a",
+                    "surface-container": "#1c2026",
+                    "surface-variant": "#31353c",
+                    "on-secondary-fixed": "#002106",
+                    "inverse-on-surface": "#2d3137",
+                    "background": "#10141a",
+                    "tertiary-fixed": "#efdbff",
+                    "on-surface-variant": "#c0c7d1",
+                    "surface": "#10141a",
+                    "on-error-container": "#ffdad6",
+                    "primary-fixed-dim": "#96ccff",
+                    "on-tertiary-container": "#5d3885",
+                    "on-surface": "#dfe2eb",
+                    "on-secondary-fixed-variant": "#00531b",
+                    "on-primary-fixed-variant": "#004a76",
+                    "tertiary": "#e6cbff",
+                    "surface-container-high": "#262a31",
+                    "secondary-fixed-dim": "#74dd7e",
+                    "on-primary": "#003353",
+                    "error": "#ffb4ab",
+                    "inverse-surface": "#dfe2eb",
+                    "on-background": "#dfe2eb",
+                    "outline-variant": "#404750",
+                    "secondary-fixed": "#90fa97",
+                    "on-tertiary-fixed": "#2b0052",
+                    "tertiary-container": "#d2a8ff",
+                    "primary-fixed": "#cee5ff",
+                    "on-primary-container": "#004e7b",
+                    "surface-container-highest": "#31353c",
+                    "primary": "#b5d9ff",
+                    "primary-container": "#79c0ff",
+                    "error-container": "#93000a",
+                    "on-secondary-container": "#c4ffc2",
+                    "surface-bright": "#353940",
+                    "surface-dim": "#10141a",
+                    "on-error": "#690005",
+                    "secondary-container": "#007f2d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "unit": "4px",
+                    "gutter": "16px",
+                    "margin": "16px",
+                    "indent": "20px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["JetBrains Mono"],
+                    "status-bar": ["JetBrains Mono"],
+                    "body-md": ["JetBrains Mono"],
+                    "headline-lg": ["JetBrains Mono"],
+                    "label-sm": ["JetBrains Mono"],
+                    "code-block": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "status-bar": ["12px", {"lineHeight": "14px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "code-block": ["13px", {"lineHeight": "22px", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Syntax Highlighting Tokens */
+        .token-key { color: #79c0ff; }
+        .token-string { color: #74dd7e; }
+        .token-number { color: #ffb4ab; }
+        .token-boolean { color: #dbb8ff; }
+        .token-punctuation { color: #8a919b; }
+        
+        /* Tree View Indentation */
+        .tree-line {
+            border-left: 1px solid #30363d;
+            margin-left: 6px;
+            padding-left: 14px;
+        }
+
+        /* FAB Glow */
+        .fab-glow {
+            box-shadow: 0 0 15px #74dd7e88;
+        }
+
+        /* Hide scrollbar for clean editor look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0e14;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #31353c;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #404750;
+        }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface h-screen w-full flex flex-col font-body-md overflow-hidden relative">
+<!-- Subtle Shader Background -->
+
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-margin py-2 w-full z-50 bg-surface-container-lowest border-b border-outline-variant flat no shadows hidden md:flex">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary font-headline-lg" data-weight="fill" style="font-variation-settings: 'FILL' 1;">terminal</span>
+<h1 class="font-headline-lg text-headline-lg text-primary">tweather.json</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-variant transition-colors duration-150 p-2 rounded cursor-pointer">settings</span>
+</div>
+</header>
+<!-- Mobile TopAppBar -->
+<header class="flex justify-between items-center px-margin py-2 w-full z-50 bg-surface-container-lowest border-b border-outline-variant flat no shadows md:hidden">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary font-headline-lg-mobile" data-weight="fill" style="font-variation-settings: 'FILL' 1;">terminal</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary">tweather.json</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant hover:bg-surface-variant transition-colors duration-150 p-2 rounded cursor-pointer">settings</span>
+</div>
+</header>
+<!-- Main Content Area: Editor Canvas -->
+<main class="flex-1 overflow-y-auto w-full max-w-5xl mx-auto p-margin relative z-10 flex flex-col md:flex-row gap-6">
+<!-- Left: Line Numbers (Desktop Only) -->
+<div class="hidden md:flex flex-col text-outline-variant font-code-block text-right select-none w-8 pr-2 pt-2 border-r border-[#30363d]"><span class="leading-[22px]">1</span><span class="leading-[22px]">2</span><span class="leading-[22px]">3</span><span class="leading-[22px]">4</span><span class="leading-[22px]">5</span><span class="leading-[22px]">6</span><span class="leading-[22px]">7</span><span class="leading-[22px]">8</span><span class="leading-[22px]">9</span><span class="leading-[22px]">10</span><span class="leading-[22px]">11</span><span class="leading-[22px]">12</span><span class="leading-[22px]">13</span><span class="leading-[22px]">14</span><span class="leading-[22px]">15</span><span class="leading-[22px]">16</span><span class="leading-[22px]">17</span><span class="leading-[22px]">18</span><span class="leading-[22px]">19</span><span class="leading-[22px]">20</span><span class="leading-[22px]">21</span><span class="leading-[22px]">22</span><span class="leading-[22px]">23</span><span class="leading-[22px]">24</span><span class="leading-[22px]">25</span><span class="leading-[22px]">26</span><span class="leading-[22px]">27</span><span class="leading-[22px]">28</span><span class="leading-[22px]">29</span><span class="leading-[22px]">30</span><span class="leading-[22px]">31</span><span class="leading-[22px]">32</span><span class="leading-[22px]">33</span><span class="leading-[22px]">34</span><span class="leading-[22px]">35</span><span class="leading-[22px]">36</span><span class="leading-[22px]">37</span><span class="leading-[22px]">38</span><span class="leading-[22px]">39</span><span class="leading-[22px]">40</span><span class="leading-[22px]">41</span><span class="leading-[22px]">42</span><span class="leading-[22px]">43</span><span class="leading-[22px]">44</span><span class="leading-[22px]">45</span><span class="leading-[22px]">46</span><span class="leading-[22px]">47</span><span class="leading-[22px]">48</span><span class="leading-[22px]">49</span><span class="leading-[22px]">50</span><span class="leading-[22px]">51</span><span class="leading-[22px]">52</span><span class="leading-[22px]">53</span><span class="leading-[22px]">54</span><span class="leading-[22px]">55</span><span class="leading-[22px]">56</span><span class="leading-[22px]">57</span><span class="leading-[22px]">58</span></div>
+<!-- Right: JSON Payload -->
+<div class="flex-1 font-code-block text-code-block pt-2 overflow-x-auto">
+<div class="whitespace-pre"><span class="token-punctuation">{</span>
+  <span class="token-key">"location"</span><span class="token-punctuation">:</span> <span class="token-string">"New York, NY"</span><span class="token-punctuation">,</span>
+  <span class="token-key">"current_conditions"</span><span class="token-punctuation">:</span> <span class="token-punctuation">{</span>
+    <span class="tree-line flex flex-col">
+      <span class=""><span class="token-key">"status"</span><span class="token-punctuation">:</span> <span class="token-string">"Overcast ☁"</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"temp_c"</span><span class="token-punctuation">:</span> <span class="token-number">14.2</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"feels_like_c"</span><span class="token-punctuation">:</span> <span class="token-number">13.5</span></span>
+    </span>
+  <span class="token-punctuation">}</span><span class="token-punctuation">,</span>
+  <span class="token-key">"advanced_data"</span><span class="token-punctuation">:</span> <span class="token-punctuation">{</span>
+    <span class="tree-line flex flex-col">
+      <span class=""><span class="token-key">"aqi"</span><span class="token-punctuation">:</span> <span class="token-number">42</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"uv_index"</span><span class="token-punctuation">:</span> <span class="token-number">2</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"pollen"</span><span class="token-punctuation">:</span> <span class="token-punctuation">{</span> <span class="token-key">"grass"</span><span class="token-punctuation">:</span> <span class="token-string">"Low"</span><span class="token-punctuation">,</span> <span class="token-key">"tree"</span><span class="token-punctuation">:</span> <span class="token-string">"High"</span> <span class="token-punctuation">}</span></span>
+    </span>
+  <span class="token-punctuation">}</span><span class="token-punctuation">,</span>
+  <span class="token-key">"hourly_forecast"</span><span class="token-punctuation">:</span> <span class="token-punctuation">[</span>
+    <span class="tree-line flex flex-col">
+      <span class=""><span class="token-punctuation">{</span> <span class="token-key">"time"</span><span class="token-punctuation">:</span> <span class="token-string">"14:00"</span><span class="token-punctuation">,</span> <span class="token-key">"temp"</span><span class="token-punctuation">:</span> <span class="token-number">15</span> <span class="token-punctuation">}</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-punctuation">{</span> <span class="token-key">"time"</span><span class="token-punctuation">:</span> <span class="token-string">"15:00"</span><span class="token-punctuation">,</span> <span class="token-key">"temp"</span><span class="token-punctuation">:</span> <span class="token-number">14</span> <span class="token-punctuation">}</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-punctuation">{</span> <span class="token-key">"time"</span><span class="token-punctuation">:</span> <span class="token-string">"16:00"</span><span class="token-punctuation">,</span> <span class="token-key">"temp"</span><span class="token-punctuation">:</span> <span class="token-number">14</span> <span class="token-punctuation">}</span></span>
+    </span>
+  <span class="token-punctuation">]</span><span class="token-punctuation">,</span>
+  <span class="token-key">"weekly_forecast"</span><span class="token-punctuation">:</span> <span class="token-punctuation">[</span>
+    <span class="tree-line flex flex-col">
+      <span class=""><span class="token-punctuation">{</span> <span class="token-key">"day"</span><span class="token-punctuation">:</span> <span class="token-string">"Mon"</span><span class="token-punctuation">,</span> <span class="token-key">"high"</span><span class="token-punctuation">:</span> <span class="token-number">18</span><span class="token-punctuation">,</span> <span class="token-key">"low"</span><span class="token-punctuation">:</span> <span class="token-number">12</span> <span class="token-punctuation">}</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-punctuation">{</span> <span class="token-key">"day"</span><span class="token-punctuation">:</span> <span class="token-string">"Tue"</span><span class="token-punctuation">,</span> <span class="token-key">"high"</span><span class="token-punctuation">:</span> <span class="token-number">16</span><span class="token-punctuation">,</span> <span class="token-key">"low"</span><span class="token-punctuation">:</span> <span class="token-number">10</span> <span class="token-punctuation">}</span></span>
+    </span>
+  <span class="token-punctuation">]</span><span class="token-punctuation">,</span>
+  <span class="token-key">"astronomical"</span><span class="token-punctuation">:</span> <span class="token-punctuation">{</span>
+    <span class="tree-line flex flex-col">
+      <span class=""><span class="token-key">"sunrise"</span><span class="token-punctuation">:</span> <span class="token-string">"06:42"</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"sunset"</span><span class="token-punctuation">:</span> <span class="token-string">"19:15"</span></span>
+    </span>
+  <span class="token-punctuation">}</span><span class="token-punctuation">,</span>
+  <span class="token-key">"technical_data"</span><span class="token-punctuation">:</span> <span class="token-punctuation">{</span>
+    <span class="tree-line flex flex-col">
+      <span class=""><span class="token-key">"humidity"</span><span class="token-punctuation">:</span> <span class="token-string">"64%"</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"visibility_km"</span><span class="token-punctuation">:</span> <span class="token-number">10.0</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"pressure_mb"</span><span class="token-punctuation">:</span> <span class="token-number">1012</span><span class="token-punctuation">,</span></span>
+      <span class=""><span class="token-key">"wind_kph"</span><span class="token-punctuation">:</span> <span class="token-number">15.5</span></span>
+    </span>
+  <span class="token-punctuation">}</span>
+<span class="token-punctuation">}</span></div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) -->
+<button class="fixed bottom-20 right-gutter md:bottom-12 md:right-12 w-14 h-14 bg-secondary rounded-full flex items-center justify-center fab-glow z-40 hover:scale-105 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-on-secondary text-2xl font-bold">refresh</span>
+</button>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-[56px] px-margin pb-safe z-50 bg-surface-container-low border-t border-outline-variant flat no shadows md:hidden">
+<a class="flex flex-col items-center justify-center text-primary border-t-2 border-primary pt-1 font-label-sm text-label-sm scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="">Explorer</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-1 font-label-sm text-label-sm hover:text-primary-container scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">search</span>
+<span class="">Search</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-1 font-label-sm text-label-sm hover:text-primary-container scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">code</span>
+<span class="">Settings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-1 font-label-sm text-label-sm hover:text-primary-container scale-95 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span class="">Logs</span>
+</a>
+</nav>
+<!-- Terminal Status Bar (Desktop Only) -->
+<footer class="hidden md:flex bg-primary text-on-primary font-status-bar text-status-bar h-[28px] items-center px-4 w-full z-50 fixed bottom-0 left-0 justify-between">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">check_circle</span> API: 200 OK</span>
+<span class="">Lat: 40.7128</span>
+<span class="">Lon: -74.0060</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">call_split</span> Branch: main
+        </div>
+</footer>
+
+
+</body></html>

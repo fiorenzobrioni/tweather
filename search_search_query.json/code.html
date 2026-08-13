@@ -1,0 +1,211 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Tweather - Search</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#00639a",
+                        "primary-fixed-dim": "#96ccff",
+                        "secondary-fixed-dim": "#74dd7e",
+                        "outline": "#8a919b",
+                        "on-primary": "#003353",
+                        "on-surface-variant": "#c0c7d1",
+                        "surface-container": "#1c2026",
+                        "inverse-on-surface": "#2d3137",
+                        "on-secondary-fixed": "#002106",
+                        "surface-container-high": "#262a31",
+                        "primary-container": "#79c0ff",
+                        "background": "#10141a",
+                        "tertiary-container": "#d2a8ff",
+                        "on-secondary-container": "#c4ffc2",
+                        "surface-tint": "#96ccff",
+                        "on-primary-fixed": "#001d32",
+                        "error-container": "#93000a",
+                        "on-secondary": "#003910",
+                        "outline-variant": "#404750",
+                        "on-tertiary-fixed-variant": "#593482",
+                        "surface": "#10141a",
+                        "secondary-fixed": "#90fa97",
+                        "on-error": "#690005",
+                        "on-tertiary-container": "#5d3885",
+                        "inverse-surface": "#dfe2eb",
+                        "on-primary-container": "#004e7b",
+                        "primary": "#b5d9ff",
+                        "surface-container-low": "#181c22",
+                        "surface-variant": "#31353c",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed-variant": "#004a76",
+                        "on-tertiary": "#421b6a",
+                        "tertiary-fixed-dim": "#dbb8ff",
+                        "surface-container-lowest": "#0a0e14",
+                        "on-tertiary-fixed": "#2b0052",
+                        "surface-dim": "#10141a",
+                        "on-surface": "#dfe2eb",
+                        "on-secondary-fixed-variant": "#00531b",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-highest": "#31353c",
+                        "primary-fixed": "#cee5ff",
+                        "secondary": "#74dd7e",
+                        "on-background": "#dfe2eb",
+                        "tertiary-fixed": "#efdbff",
+                        "secondary-container": "#007f2d",
+                        "surface-bright": "#353940",
+                        "tertiary": "#e6cbff",
+                        "syntax-key": "#79c0ff",
+                        "syntax-string": "#a5d6ff",
+                        "syntax-number": "#ffa657",
+                        "syntax-bracket": "#c0c7d1",
+                        "syntax-colon": "#c0c7d1",
+                        "syntax-comment": "#8a919b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "indent": "20px",
+                        "margin": "16px",
+                        "gutter": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["JetBrains Mono"],
+                        "body-md": ["JetBrains Mono"],
+                        "status-bar": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["JetBrains Mono"],
+                        "code-block": ["JetBrains Mono"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "status-bar": ["12px", { "lineHeight": "14px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "code-block": ["13px", { "lineHeight": "22px", "fontWeight": "500" }],
+                        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        .line-number {
+            color: #404750;
+            text-align: right;
+            padding-right: 16px;
+            user-select: none;
+            width: 40px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col pb-[56px] md:pb-0">
+<!-- TopAppBar -->
+<header class="bg-background dark:bg-background w-full top-0 border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-margin h-12 sticky z-40 transition-colors duration-150">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim" data-icon="terminal">terminal</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary dark:text-primary-fixed-dim font-bold tracking-tight">search_query.json</h1>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant dark:text-on-surface-variant cursor-pointer hover:bg-surface-container dark:hover:bg-surface-container p-1 rounded transition-colors duration-150" data-icon="settings_ethernet">settings_ethernet</span>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow p-4 md:p-8 flex flex-col items-center">
+<!-- Code Editor Style Container -->
+<div class="w-full max-w-3xl border border-outline-variant rounded-lg overflow-hidden bg-surface-container-low shadow-sm">
+<!-- Editor Tab Header -->
+<div class="bg-surface-variant flex items-center px-4 py-2 border-b border-outline-variant text-status-bar font-status-bar text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] mr-2 text-primary" data-icon="search">search</span>
+<span class="mr-4 text-on-surface">search_query.json</span>
+<span class="material-symbols-outlined text-[16px] ml-auto cursor-pointer" data-icon="expand_more">expand_more</span>
+</div>
+<!-- Editor Body -->
+<div class="p-4 font-code-block text-code-block flex">
+<!-- Gutter -->
+<div class="flex flex-col text-right pr-4 border-r border-outline-variant mr-4 text-outline-variant select-none font-code-block text-code-block">
+<span class="">1</span>
+<span class="">2</span>
+<span class="">3</span>
+<span class="">4</span>
+<span class="">5</span>
+<span class="">6</span>
+<span class="">7</span>
+<span class="">8</span>
+<span class="">9</span>
+<span class="">10</span>
+<span class="">11</span>
+<span class="">12</span>
+<span class="">13</span>
+<span class="">14</span>
+<span class="">15</span>
+</div>
+<!-- Code Content -->
+<div class="flex-grow whitespace-pre overflow-x-auto text-on-surface">
+<span class="text-syntax-bracket">{</span>
+<span class="text-syntax-key">"search_term"</span><span class="text-syntax-colon">:</span> <span class="text-syntax-string">"Tokyo, Japan"</span><span class="w-2 h-4 bg-primary inline-block align-middle cursor-blink ml-1 mb-0.5"></span><span class="text-syntax-bracket">,</span>
+<span class="text-syntax-key">"recent_searches"</span><span class="text-syntax-colon">:</span> <span class="text-syntax-bracket">[</span>
+<span class="text-syntax-string">"Seattle, WA"</span><span class="text-syntax-bracket">,</span>
+<span class="text-syntax-string">"London, UK"</span><span class="text-syntax-bracket">,</span>
+<span class="text-syntax-string">"Reykjavik, Iceland"</span><span class="text-syntax-bracket">,</span>
+<span class="text-syntax-string">"Mount Everest Base Camp"</span>
+<span class="text-syntax-bracket">],</span>
+<span class="text-syntax-key">"filters"</span><span class="text-syntax-colon">:</span> <span class="text-syntax-bracket">{</span>
+<span class="text-syntax-key">"radius_km"</span><span class="text-syntax-colon">:</span> <span class="text-syntax-number">50</span><span class="text-syntax-bracket">,</span>
+<span class="text-syntax-key">"include_astronomy"</span><span class="text-syntax-colon">:</span> <span class="text-syntax-number">true</span><span class="text-syntax-bracket">,</span>
+<span class="text-syntax-key">"data_source"</span><span class="text-syntax-colon">:</span> <span class="text-syntax-string">"NOAA"</span>
+<span class="text-syntax-bracket">}</span>
+<span class="text-syntax-bracket">}</span></div>
+</div>
+<!-- Terminal Status Bar -->
+<div class="bg-surface-container-high border-t border-outline-variant h-[28px] px-4 flex items-center justify-between text-status-bar font-status-bar text-on-surface-variant">
+<div class="flex items-center gap-3">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]" data-icon="alt_route">alt_route</span> main</span>
+<span class="text-outline">|</span>
+<span class="">UTF-8</span>
+</div>
+<span class="">JSON</span>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 w-full h-[56px] flex justify-around items-center bg-surface-container-low dark:bg-surface-container-low border-t border-outline-variant dark:border-outline-variant z-50">
+<!-- Explorer (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="folder_open">folder_open</span>
+<span class="font-label-sm text-label-sm">Explorer</span>
+</a>
+<!-- Search (Active) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim scale-95 transition-transform duration-75 relative" href="#">
+<div class="absolute -top-1 w-8 h-1 bg-primary rounded-full"></div>
+<span class="material-symbols-outlined mb-1 text-primary" data-icon="search" data-weight="fill" style="font-variation-settings: 'FILL' 1;">search</span>
+<span class="font-label-sm text-label-sm font-bold">Search</span>
+</a>
+<!-- Source (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="code">code</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+<!-- Logs (Inactive) -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="terminal">terminal</span>
+<span class="font-label-sm text-label-sm">Logs</span>
+</a>
+</nav>
+
+
+</body></html>

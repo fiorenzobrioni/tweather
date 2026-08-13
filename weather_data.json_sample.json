@@ -1,0 +1,29 @@
+{
+  "location": "New York, NY",
+  "current_conditions": {
+    "status": "Overcast ☁️",
+    "temp_c": 14.2,
+    "feels_like_c": 13.5
+  },
+  "advanced_data": {
+    "aqi": 42,
+    "uv_index": 2,
+    "pollen": {
+      "grass": "Low",
+      "tree": "High"
+    }
+  },
+  "hourly_forecast": [
+    { "time": "14:00", "temp": 15 },
+    { "time": "15:00", "temp": 14 },
+    { "time": "16:00", "temp": 14 }
+  ],
+  "weekly_forecast": [
+    { "day": "Mon", "high": 18, "low": 12 },
+    { "day": "Tue", "high": 16, "low": 10 }
+  ],
+  "astronomical": {
+    "sunrise": "06:42",
+    "sunset": "19:15"
+  }
+}

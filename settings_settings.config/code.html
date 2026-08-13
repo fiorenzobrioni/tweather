@@ -1,0 +1,370 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Settings - tweather</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#00639a",
+                        "primary-fixed-dim": "#96ccff",
+                        "secondary-fixed-dim": "#74dd7e",
+                        "outline": "#8a919b",
+                        "on-primary": "#003353",
+                        "on-surface-variant": "#c0c7d1",
+                        "surface-container": "#1c2026",
+                        "inverse-on-surface": "#2d3137",
+                        "on-secondary-fixed": "#002106",
+                        "surface-container-high": "#262a31",
+                        "primary-container": "#79c0ff",
+                        "background": "#10141a",
+                        "tertiary-container": "#d2a8ff",
+                        "on-secondary-container": "#c4ffc2",
+                        "surface-tint": "#96ccff",
+                        "on-primary-fixed": "#001d32",
+                        "error-container": "#93000a",
+                        "on-secondary": "#003910",
+                        "outline-variant": "#404750",
+                        "on-tertiary-fixed-variant": "#593482",
+                        "surface": "#10141a",
+                        "secondary-fixed": "#90fa97",
+                        "on-error": "#690005",
+                        "on-tertiary-container": "#5d3885",
+                        "inverse-surface": "#dfe2eb",
+                        "on-primary-container": "#004e7b",
+                        "primary": "#b5d9ff",
+                        "surface-container-low": "#181c22",
+                        "surface-variant": "#31353c",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed-variant": "#004a76",
+                        "on-tertiary": "#421b6a",
+                        "tertiary-fixed-dim": "#dbb8ff",
+                        "surface-container-lowest": "#0a0e14",
+                        "on-tertiary-fixed": "#2b0052",
+                        "surface-dim": "#10141a",
+                        "on-surface": "#dfe2eb",
+                        "on-secondary-fixed-variant": "#00531b",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-highest": "#31353c",
+                        "primary-fixed": "#cee5ff",
+                        "secondary": "#74dd7e",
+                        "on-background": "#dfe2eb",
+                        "tertiary-fixed": "#efdbff",
+                        "secondary-container": "#007f2d",
+                        "surface-bright": "#353940",
+                        "tertiary": "#e6cbff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "indent": "20px",
+                        "margin": "16px",
+                        "gutter": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["JetBrains Mono"],
+                        "body-md": ["JetBrains Mono"],
+                        "status-bar": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["JetBrains Mono"],
+                        "code-block": ["JetBrains Mono"],
+                        "label-sm": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "status-bar": ["12px", { "lineHeight": "14px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "code-block": ["13px", { "lineHeight": "22px", "fontWeight": "500" }],
+                        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .syntax-key { color: #79c0ff; }
+        .syntax-string { color: #a5d6ff; }
+        .syntax-number { color: #ffa657; }
+        .syntax-boolean { color: #ffa657; }
+        .syntax-comment { color: #8b949e; }
+        .syntax-punctuation { color: #c9d1d9; }
+        
+        .gutter-number {
+            color: #484f58;
+            text-align: right;
+            padding-right: 16px;
+            user-select: none;
+            width: 40px;
+            display: inline-block;
+        }
+
+        .code-line {
+            display: flex;
+            padding: 0 16px;
+            line-height: 24px;
+        }
+
+        .code-line:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col no-scrollbar">
+<!-- TopAppBar -->
+<header class="bg-background dark:bg-background border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-margin h-12 w-full sticky top-0 z-10">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim" data-icon="terminal">terminal</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary dark:text-primary-fixed-dim tracking-tight">settings.config</h1>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant dark:text-on-surface-variant cursor-pointer hover:bg-surface-container dark:hover:bg-surface-container p-1 rounded transition-colors duration-150" data-icon="settings_ethernet">settings_ethernet</span>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow overflow-y-auto pb-[56px] pt-4 font-code-block text-code-block">
+<!-- Editor View -->
+<div class="flex flex-col w-full">
+<div class="code-line">
+<span class="gutter-number">1</span>
+<span class="syntax-comment">// Tweather Configuration File</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">2</span>
+<span class="syntax-comment">// Last modified: 2024-05-20T14:32:00Z</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">3</span>
+<span class="syntax-punctuation">{</span>
+</div>
+<!-- Units Section -->
+<div class="code-line">
+<span class="gutter-number">4</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">"</span><span class="syntax-key">units</span><span class="syntax-punctuation">": {</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">5</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">temperature</span><span class="syntax-punctuation">": </span>
+<span class="syntax-punctuation">"</span><span class="syntax-string cursor-pointer hover:underline" onclick="toggleValue(this, 'metric', 'imperial')">metric</span><span class="syntax-punctuation">",</span>
+<span class="syntax-comment ml-4">// click to toggle</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">6</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">wind_speed</span><span class="syntax-punctuation">": </span>
+<span class="syntax-punctuation">"</span><span class="syntax-string cursor-pointer hover:underline" onclick="toggleValue(this, 'km/h', 'mph')">km/h</span><span class="syntax-punctuation">",</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">7</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">precipitation</span><span class="syntax-punctuation">": </span>
+<span class="syntax-punctuation">"</span><span class="syntax-string cursor-pointer hover:underline" onclick="toggleValue(this, 'mm', 'in')">mm</span><span class="syntax-punctuation">"</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">8</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">},</span>
+</span>
+</div>
+<!-- Theme Section -->
+<div class="code-line">
+<span class="gutter-number">9</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">"</span><span class="syntax-key">theme</span><span class="syntax-punctuation">": {</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">10</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">active_profile</span><span class="syntax-punctuation">": </span>
+<span class="syntax-punctuation">"</span><span class="syntax-string cursor-pointer hover:underline" onclick="cycleTheme(this)">Obsidian</span><span class="syntax-punctuation">",</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">11</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">available_profiles</span><span class="syntax-punctuation">": [</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">12</span>
+<span class="pl-[60px]">
+<span class="syntax-punctuation">"</span><span class="syntax-string">Obsidian</span><span class="syntax-punctuation">",</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">13</span>
+<span class="pl-[60px]">
+<span class="syntax-punctuation">"</span><span class="syntax-string">Dracula</span><span class="syntax-punctuation">",</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">14</span>
+<span class="pl-[60px]">
+<span class="syntax-punctuation">"</span><span class="syntax-string">Monokai</span><span class="syntax-punctuation">"</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">15</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">]</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">16</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">},</span>
+</span>
+</div>
+<!-- Notifications Section -->
+<div class="code-line">
+<span class="gutter-number">17</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">"</span><span class="syntax-key">notifications</span><span class="syntax-punctuation">": {</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">18</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">severe_weather_alerts</span><span class="syntax-punctuation">": </span>
+<span class="syntax-boolean cursor-pointer hover:underline" onclick="toggleBool(this)">true</span><span class="syntax-punctuation">,</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">19</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">daily_summary</span><span class="syntax-punctuation">": </span>
+<span class="syntax-boolean cursor-pointer hover:underline" onclick="toggleBool(this)">false</span><span class="syntax-punctuation">,</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">20</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">precipitation_warning</span><span class="syntax-punctuation">": </span>
+<span class="syntax-boolean cursor-pointer hover:underline" onclick="toggleBool(this)">true</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">21</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">},</span>
+</span>
+</div>
+<!-- Security Section -->
+<div class="code-line">
+<span class="gutter-number">22</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">"</span><span class="syntax-key">security</span><span class="syntax-punctuation">": {</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">23</span>
+<span class="pl-[40px]">
+<span class="syntax-punctuation">"</span><span class="syntax-key">api_key</span><span class="syntax-punctuation">": </span>
+<span class="syntax-punctuation">"</span><span class="syntax-string cursor-pointer hover:underline" id="apiKeyDisplay" onclick="revealKey()">************************</span><span class="syntax-punctuation">"</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">24</span>
+<span class="pl-indent">
+<span class="syntax-punctuation">}</span>
+</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">25</span>
+<span class="syntax-punctuation">}</span>
+</div>
+<div class="code-line">
+<span class="gutter-number">26</span>
+<span class="syntax-punctuation cursor-blink" style="opacity: 0;">_</span>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<!-- The user requested 'Settings' screen. In the JSON, the closest match is generic 'Explorer' or 'Logs'. Given it's a configuration file, 'Logs' or 'Explorer' could work, but 'Source' (code) seems most appropriate for a .config file editor view. -->
+<nav class="md:hidden fixed bottom-0 w-full h-[56px] flex justify-around items-center bg-surface-container-low border-t border-outline-variant dark:border-outline-variant z-50">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="folder_open">folder_open</span>
+<span class="font-label-sm text-label-sm">Explorer</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="search">search</span>
+<span class="font-label-sm text-label-sm">Search</span>
+</a>
+<!-- Active Tab: Source (Settings Config) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="code" data-weight="fill" style="font-variation-settings: 'FILL' 1;">code</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary dark:hover:text-primary-fixed-dim scale-95 transition-transform duration-75" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="terminal">terminal</span>
+<span class="font-label-sm text-label-sm">Logs</span>
+</a>
+</nav>
+<script>
+        // Blinking cursor effect
+        setInterval(() => {
+            const cursor = document.querySelector('.cursor-blink');
+            if(cursor) {
+                cursor.style.opacity = cursor.style.opacity === '0' ? '1' : '0';
+            }
+        }, 500);
+
+        // Simple interactions to simulate editing
+        function toggleValue(el, val1, val2) {
+            el.innerText = el.innerText === val1 ? val2 : val1;
+        }
+
+        function toggleBool(el) {
+            el.innerText = el.innerText === 'true' ? 'false' : 'true';
+        }
+
+        const themes = ["Obsidian", "Dracula", "Monokai"];
+        let themeIndex = 0;
+        function cycleTheme(el) {
+            themeIndex = (themeIndex + 1) % themes.length;
+            el.innerText = themes[themeIndex];
+        }
+
+        let keyRevealed = false;
+        function revealKey() {
+            const display = document.getElementById('apiKeyDisplay');
+            if(!keyRevealed) {
+                display.innerText = "tw_8x9aB2cE5fG1hJ4kL7mN0pQ3";
+                keyRevealed = true;
+                setTimeout(() => {
+                    display.innerText = "************************";
+                    keyRevealed = false;
+                }, 3000);
+            }
+        }
+    </script>
+
+
+</body></html>

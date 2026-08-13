@@ -1,0 +1,36 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this repository is
+
+**tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `search_query.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
+
+**No application code exists yet.** The repo currently contains only design artifacts and specifications:
+
+- `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
+- `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
+- `*/code.html` + `*/screen.png` — static Tailwind HTML mockups and screenshots for each screen (main editor, search, settings, logs/diff, brand logo). These are reference-only prototypes, not production code.
+- `weather_data.json_sample.json` / `weather_data.json_full_sample.json` — sample data shapes the main screen renders. The full sample defines the expected weather data model (location, current conditions, air quality, pollen, astronomical, hourly/daily forecast, system info).
+
+There is no build system, test suite, or lint config yet. When implementation starts, the PRD specifies the stack: Kotlin + Jetpack Compose (Material 3), Retrofit + OkHttp, Kotlinx.serialization.
+
+**Decided (overrides the PRD's OpenWeatherMap example): the weather provider is Open-Meteo** — free, no API key. Forecast API for current/hourly/daily + astronomy, Air Quality API for AQI/pollutants/pollen (pollen is Europe-only), Geocoding API for city search. Moon phase is not provided and must be computed locally. See `PLANNING.md` (Fase 3) for details; `PLANNING.md` is the phased implementation plan with checkable steps — keep it updated as work progresses.
+
+## App structure (per the PRD)
+
+Four screens, each presented as a fake "file" behind a bottom navigation bar (Explorer / Search / Settings / Logs):
+
+1. **Main editor** (`weather_data.json`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a circular FAB.
+2. **Search** (`search_query.json`) — the input field is the `"search_term"` JSON property; recent searches shown as a JSON array.
+3. **Settings** (`settings.config`) — booleans as toggles, theme profiles (Obsidian, Dracula, Monokai).
+4. **Logs** (`weather_history.diff`) — each data fetch is a git-style "commit" with hash and author `sys@tweather.app`; changes shown as `+`/`-` diff lines.
+
+## Design constraints (non-negotiable per the design system)
+
+- **Typography**: JetBrains Mono everywhere, no exceptions. 4px baseline grid, 20px indent per nesting level.
+- **Syntax highlight colors**: keys `#79c0ff`, string values `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff additions `#2ea043`, deletions `#f85149`.
+- **Core palette**: background `#10141a`, surface container `#181c22`, on-surface `#e6edf3`, borders `#30363d`. Full Material 3 token set is in the `obsidian_syntax/DESIGN.md` frontmatter.
+- **No drop shadows** — depth comes from 1px borders and tonal stacking. The only exceptions: the FAB (circular, with a glow `box-shadow: 0 0 15px #79c0ff88`) is also the only non-rectangular element; everything else uses a 4px corner radius.
+- **Controls rendered as text**: checkboxes as `[x]`/`[ ]`, inputs as terminal prompts (`> Search Location _` with blinking underscore cursor).
+- Weather icons are inline Unicode emoji inside the JSON text (`☀️`, `🌧️`, `🌔`), not image assets.

@@ -1,0 +1,306 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Tweather - Logs</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#10141a",
+                    "error-container": "#93000a",
+                    "on-tertiary-fixed-variant": "#593482",
+                    "on-surface-variant": "#c0c7d1",
+                    "on-tertiary-container": "#5d3885",
+                    "surface-container-highest": "#31353c",
+                    "surface": "#10141a",
+                    "surface-bright": "#353940",
+                    "surface-tint": "#96ccff",
+                    "surface-container-low": "#181c22",
+                    "on-tertiary": "#421b6a",
+                    "on-primary-container": "#004e7b",
+                    "on-secondary-fixed": "#002106",
+                    "tertiary-container": "#d2a8ff",
+                    "on-tertiary-fixed": "#2b0052",
+                    "on-secondary-container": "#c4ffc2",
+                    "surface-container-high": "#262a31",
+                    "primary-container": "#79c0ff",
+                    "secondary-fixed": "#90fa97",
+                    "error": "#ffb4ab",
+                    "on-error": "#690005",
+                    "surface-container": "#1c2026",
+                    "tertiary-fixed": "#efdbff",
+                    "outline": "#8a919b",
+                    "on-secondary-fixed-variant": "#00531b",
+                    "secondary": "#74dd7e",
+                    "inverse-surface": "#dfe2eb",
+                    "tertiary-fixed-dim": "#dbb8ff",
+                    "inverse-on-surface": "#2d3137",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-lowest": "#0a0e14",
+                    "on-primary": "#003353",
+                    "surface-variant": "#31353c",
+                    "primary-fixed-dim": "#96ccff",
+                    "on-secondary": "#003910",
+                    "on-background": "#dfe2eb",
+                    "outline-variant": "#404750",
+                    "tertiary": "#e6cbff",
+                    "surface-dim": "#10141a",
+                    "primary-fixed": "#cee5ff",
+                    "secondary-fixed-dim": "#74dd7e",
+                    "primary": "#b5d9ff",
+                    "secondary-container": "#007f2d",
+                    "inverse-primary": "#00639a",
+                    "on-surface": "#dfe2eb",
+                    "on-primary-fixed": "#001d32",
+                    "on-primary-fixed-variant": "#004a76"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "16px",
+                    "margin": "16px",
+                    "indent": "20px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": [
+                            "JetBrains Mono"
+                    ],
+                    "label-sm": [
+                            "JetBrains Mono"
+                    ],
+                    "status-bar": [
+                            "JetBrains Mono"
+                    ],
+                    "body-md": [
+                            "JetBrains Mono"
+                    ],
+                    "headline-lg": [
+                            "JetBrains Mono"
+                    ],
+                    "code-block": [
+                            "JetBrains Mono"
+                    ]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "label-sm": [
+                            "11px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "status-bar": [
+                            "12px",
+                            {
+                                    "lineHeight": "14px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-md": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-lg": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "code-block": [
+                            "13px",
+                            {
+                                    "lineHeight": "22px",
+                                    "fontWeight": "500"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        .diff-added { background-color: rgba(116, 221, 126, 0.15); }
+        .diff-removed { background-color: rgba(255, 180, 171, 0.15); }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col pt-[48px] pb-[64px]">
+<!-- TopAppBar -->
+<header class="bg-background dark:bg-background text-primary dark:text-primary font-headline-lg-mobile text-headline-lg-mobile fixed top-0 w-full z-50 border-b border-outline-variant dark:border-outline-variant flex items-center justify-between px-margin h-[48px]">
+<div class="flex items-center cursor-pointer active:opacity-70 hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined mr-2">menu</span>
+</div>
+<div class="font-headline-lg-mobile text-headline-lg-mobile text-primary font-bold tracking-tight">
+            weather_history.diff
+        </div>
+<div class="flex items-center cursor-pointer active:opacity-70 hover:text-primary-fixed transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">more_vert</span>
+</div>
+</header>
+<!-- Main Content (Canvas) -->
+<main class="flex-1 overflow-y-auto w-full max-w-3xl mx-auto p-margin md:hidden">
+<!-- Commit Header -->
+<div class="mb-4 border border-outline-variant rounded bg-surface-container-low p-3 font-code-block text-code-block">
+<div class="flex items-center text-primary mb-2">
+<span class="material-symbols-outlined text-sm mr-2" style="font-variation-settings: 'FILL' 1;">commit</span>
+<span class="font-bold">commit a1b2c3d</span>
+<span class="ml-2 text-on-surface-variant">[Last Hour Update]</span>
+</div>
+<div class="text-on-surface-variant flex items-center">
+<span class="material-symbols-outlined text-sm mr-2">person</span>
+<span class="">System &lt;sys@tweather.app&gt;</span>
+</div>
+<div class="text-on-surface-variant flex items-center">
+<span class="material-symbols-outlined text-sm mr-2">schedule</span>
+<span class="">10 mins ago</span>
+</div>
+</div>
+<!-- Diff Block -->
+<div class="border border-outline-variant rounded bg-surface-container overflow-hidden font-code-block text-code-block">
+<div class="bg-surface-container-high border-b border-outline-variant px-3 py-1 flex items-center text-on-surface-variant text-xs">
+<span class="material-symbols-outlined text-sm mr-1">description</span>
+                src/data/current_metrics.json
+            </div>
+<!-- Diff Content -->
+<div class="w-full flex flex-col relative py-2">
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">1</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">{</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">2</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">  "location": "Seattle, WA",</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">3</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">  "timestamp": "2023-10-27T14:00:00Z",</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">4</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">  "metrics": {</div>
+</div>
+<!-- Removed Temp -->
+<div class="flex diff-removed text-error">
+<div class="w-10 text-right pr-2 text-error select-none">5</div>
+<div class="w-6 text-center text-error select-none font-bold">-</div>
+<div class="flex-1 px-2 whitespace-pre">    "temp_c": 18.2,</div>
+</div>
+<!-- Added Temp -->
+<div class="flex diff-added text-secondary">
+<div class="w-10 text-right pr-2 text-secondary select-none">6</div>
+<div class="w-6 text-center text-secondary select-none font-bold">+</div>
+<div class="flex-1 px-2 whitespace-pre">    "temp_c": 19.5,</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">7</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">    "feels_like_c": 19.0,</div>
+</div>
+<!-- Removed Humidity -->
+<div class="flex diff-removed text-error">
+<div class="w-10 text-right pr-2 text-error select-none">8</div>
+<div class="w-6 text-center text-error select-none font-bold">-</div>
+<div class="flex-1 px-2 whitespace-pre">    "humidity_pct": 65,</div>
+</div>
+<!-- Added Humidity -->
+<div class="flex diff-added text-secondary">
+<div class="w-10 text-right pr-2 text-secondary select-none">9</div>
+<div class="w-6 text-center text-secondary select-none font-bold">+</div>
+<div class="flex-1 px-2 whitespace-pre">    "humidity_pct": 58,</div>
+</div>
+<!-- Removed Wind -->
+<div class="flex diff-removed text-error">
+<div class="w-10 text-right pr-2 text-error select-none">10</div>
+<div class="w-6 text-center text-error select-none font-bold">-</div>
+<div class="flex-1 px-2 whitespace-pre">    "wind_speed_kph": 12.4,</div>
+</div>
+<!-- Added Wind -->
+<div class="flex diff-added text-secondary">
+<div class="w-10 text-right pr-2 text-secondary select-none">11</div>
+<div class="w-6 text-center text-secondary select-none font-bold">+</div>
+<div class="flex-1 px-2 whitespace-pre">    "wind_speed_kph": 15.1,</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">12</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">  },</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">13</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">  "conditions": {</div>
+</div>
+<!-- Removed Status -->
+<div class="flex diff-removed text-error">
+<div class="w-10 text-right pr-2 text-error select-none">14</div>
+<div class="w-6 text-center text-error select-none font-bold">-</div>
+<div class="flex-1 px-2 whitespace-pre">    "status": "Partly Cloudy"</div>
+</div>
+<!-- Added Status -->
+<div class="flex diff-added text-secondary">
+<div class="w-10 text-right pr-2 text-secondary select-none">15</div>
+<div class="w-6 text-center text-secondary select-none font-bold">+</div>
+<div class="flex-1 px-2 whitespace-pre">    "status": "Clear"</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">16</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">  }</div>
+</div>
+<div class="flex">
+<div class="w-10 text-right pr-2 text-outline-variant select-none">17</div>
+<div class="w-6 text-center text-outline-variant select-none"></div>
+<div class="flex-1 px-2 whitespace-pre text-on-surface">}</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden bg-surface-container dark:bg-surface-container text-primary dark:text-primary font-label-sm text-label-sm fixed bottom-0 w-full z-50 border-t border-outline-variant dark:border-outline-variant flex justify-around items-center h-[64px] px-2 pb-safe shadow-none">
+<div class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:bg-surface-container-highest transition-all active:scale-95 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined mb-1 text-xl">folder_open</span>
+<span class="">Explorer</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:bg-surface-container-highest transition-all active:scale-95 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined mb-1 text-xl">search</span>
+<span class="">Search</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:bg-surface-container-highest transition-all active:scale-95 cursor-pointer rounded-xl">
+<span class="material-symbols-outlined mb-1 text-xl">code</span>
+<span class="">Settings</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl px-3 py-1 hover:bg-surface-container-highest transition-all active:scale-95 cursor-pointer">
+<span class="material-symbols-outlined mb-1 text-xl" style="font-variation-settings: 'FILL' 1;">history</span>
+<span class="">Logs</span>
+</div>
+</nav>
+
+
+</body></html>

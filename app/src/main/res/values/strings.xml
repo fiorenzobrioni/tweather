@@ -4,7 +4,7 @@
      // comments) stays English everywhere; only chrome, accessibility text and
      user-facing weather DATA values are localized. -->
 <resources>
-    <string name="app_name">tweather</string>
+    <string name="app_name" translatable="false">tweather</string>
 
     <!-- Bottom navigation -->
     <string name="nav_explorer">Explorer</string>
@@ -27,6 +27,9 @@
     <string name="cd_open_city">Open %1$s</string>
     <string name="cd_remove_city">Remove %1$s</string>
     <string name="cd_add_city">Add city</string>
+    <string name="cd_select_city">Add %1$s</string>
+    <string name="cd_search_again">Search %1$s again</string>
+    <string name="cd_change_setting">Change %1$s</string>
 
     <!-- Weather conditions (WMO codes) -->
     <string name="cond_clear">Clear</string>

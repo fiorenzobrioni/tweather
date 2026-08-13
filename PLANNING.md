@@ -107,13 +107,14 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 9 — Rifiniture e qualità
 
-- [ ] Test unitari: mapper DTO→dominio, serializzazione JSON per il rendering, generazione diff, utility emoji
-- [ ] Test UI (Compose): rendering syntax highlighting, interazione toggle/checkbox testuali, navigazione
-- [ ] Verifica accessibilità: contentDescription sui controlli testuali, contrasto, dimensioni touch target
-- [ ] Gestione configurazioni: rotazione, split screen, font scale di sistema (il layout monospaziato deve reggere)
-- [ ] Performance: lazy rendering del JSON lungo (LazyColumn per righe), evitare ricomposizioni inutili
-- [ ] Icona app dal logo brand `{ ☁️ }` (`tweather_brand_logo/screen.png`) + splash screen a tema
-- [ ] Revisione finale di tutte le schermate contro i mockup PNG
+- [x] Test unitari: mapper DTO→dominio, serializzazione JSON per il rendering, generazione diff, utility emoji — `WeatherReportMapperTest` (13 test: finestre hourly/daily, conversioni unità, degradazione air quality/pollini, CO µg→mg); gli altri tre ambiti erano già coperti da `WeatherJsonTest`/`SnapshotDiffTest`/`WeatherCodesTest`. Totale suite: 52 test
+- [x] Test UI (Compose): rendering syntax highlighting, interazione toggle/checkbox testuali, navigazione — via **Robolectric** (niente emulatore: girano in `testDebugUnitTest`, SDK 35, graphics NATIVE): `JsonSyntaxTest` (colori token/inline/indent come pure function), `CodeControlsTest` (`[x]`/`true` toggling + semantics), `CodeCanvasTest` (gutter on/off, righe cliccabili), `TweatherNavigationTest` (shell reale, switch dei 4 file dalla bottom bar)
+- [x] Verifica accessibilità: contentDescription sui controlli testuali, contrasto, dimensioni touch target — FAB ora con `contentDescription` vera (prima solo onClickLabel), nav bar con stato `selected` (Role.Tab), `CodeLine.onClickLabel` per le righe interattive (risultati/recenti in Search, tutte le impostazioni), `TerminalInput` annuncia il placeholder. Contrasto: tutti i token ≥ ~5.5:1 su `#10141a` (comment gray ~6:1); sotto soglia solo gli hint `// …` al 60% di alpha (decorativi). Touch target: righe-codice ~22dp di altezza (sotto i 48dp raccomandati) — allargarle stravolgerebbe la densità da editor, lasciato così deliberatamente
+- [x] Gestione configurazioni: rotazione, split screen, font scale di sistema — stato in ViewModel + `rememberSaveable` (scroll/nav sopravvivono); tipografia tutta in sp e larghezza righe misurata via `LocalDensity` (fontScale-aware); barre fisse (EditorTab 48, status bar 28, nav 56) portate a `heightIn(min=…)`: identiche a scala 1x, crescono senza clippare a font scale grandi
+- [x] Performance: lazy rendering del JSON lungo, evitare ricomposizioni inutili — già a posto LazyColumn/`@Immutable`/`remember` sui builder e diff calcolati sul dispatcher di Room; ottimizzato `CodeCanvas`: la larghezza condivisa ora misura solo le ~12 righe candidate più lunghe (monospace: larghezza ∝ caratteri) invece dell'intero documento a ogni cambio dati
+- [x] Icona app dal logo brand `{ ☁️ }` + splash screen a tema — adaptive icon vettoriale (nuvola bordata tra graffe con tick arancio/viola/verde come nel PNG, safe zone 66dp; minSdk 26 ⇒ niente fallback legacy) + splash `androidx.core:core-splashscreen` su sfondo Obsidian con lo stesso marchio (`Theme.Tweather.Starting` → `installSplashScreen()`)
+- [x] **Bugfix da lint durante la fase**: `Duration.toMinutesPart()` richiede API 31 con minSdk 26 → crash del rendering `daylight_duration` su Android 8–11; sostituito con `toMinutes() % 60`. Più `app_name` marcato `translatable="false"`. `lintDebug` ora pulito
+- [x] Revisione finale di tutte le schermate contro i mockup PNG — fedeltà confermata al netto delle deviazioni già decise nelle fasi 4–8; residui proposti al committente (in attesa di decisione, nessuna modifica applicata): riga `// Last modified` in settings.config, righe vuote tra sezioni top-level del main, header commit a card bordate nei Logs, gutter tinto sulle righe ± quando i numeri di riga sono attivi
 
 ## Fase 10 — Release
 

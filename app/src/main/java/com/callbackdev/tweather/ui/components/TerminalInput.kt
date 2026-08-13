@@ -24,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -66,7 +68,11 @@ fun TerminalInput(
     BasicTextField(
         value = value,
         onValueChange = { onValueChange(it.replace("\n", "")) },
-        modifier = modifier,
+        modifier = modifier.semantics {
+            // The placeholder Text below is a sibling drawn behind the field, so it
+            // names the field here for screen readers (like Material text fields do).
+            if (placeholder.isNotEmpty()) contentDescription = placeholder
+        },
         textStyle = textStyle.copy(color = syntax.string),
         singleLine = true,
         keyboardOptions = keyboardOptions,

@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -40,7 +40,9 @@ fun TerminalStatusBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(28.dp)
+            // min instead of fixed: 28dp on the default density, grows with the
+            // system font scale instead of clipping the text
+            .heightIn(min = 28.dp)
             .background(containerColor)
             .drawBehind {
                 drawLine(

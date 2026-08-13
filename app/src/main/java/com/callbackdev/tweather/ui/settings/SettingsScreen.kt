@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -16,6 +17,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.AppSettings
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.WindSpeedUnit
@@ -74,7 +76,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
 @Composable
 fun SettingsScreen(settings: AppSettings, actions: SettingsActions) {
     val syntax = TweatherTheme.syntax
-    val lines = buildSettingsLines(settings, syntax, actions)
+    val resources = LocalContext.current.resources
+    val lines = buildSettingsLines(settings, syntax, actions) { key ->
+        resources.getString(R.string.cd_change_setting, key)
+    }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTab(fileName = "settings.config")
@@ -98,24 +103,28 @@ fun SettingsScreen(settings: AppSettings, actions: SettingsActions) {
 private fun buildSettingsLines(
     settings: AppSettings,
     syntax: SyntaxColors,
-    actions: SettingsActions
+    actions: SettingsActions,
+    changeLabel: (String) -> String
 ): List<CanvasLine> = buildList {
     add(commentLine("// Tweather Configuration File", syntax))
     add(punctLine("{", 0, syntax))
 
     add(keyOpenLine("editor", 1, syntax))
     add(boolLine("line_numbers", settings.editor.lineNumbers, comma = true,
-        hint = "// click to toggle", syntax = syntax) {
+        hint = "// click to toggle", syntax = syntax,
+        onClickLabel = changeLabel("line_numbers")) {
         actions.onLineNumbers(!settings.editor.lineNumbers)
     })
-    add(boolLine("word_wrap", settings.editor.wordWrap, comma = false, syntax = syntax) {
+    add(boolLine("word_wrap", settings.editor.wordWrap, comma = false, syntax = syntax,
+        onClickLabel = changeLabel("word_wrap")) {
         actions.onWordWrap(!settings.editor.wordWrap)
     })
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("data", 1, syntax))
     add(boolLine("show_details", settings.showDetails, comma = false,
-        hint = "// full weather_data.json", syntax = syntax) {
+        hint = "// full weather_data.json", syntax = syntax,
+        onClickLabel = changeLabel("show_details")) {
         actions.onShowDetails(!settings.showDetails)
     })
     add(punctLine("},", 1, syntax))
@@ -127,6 +136,7 @@ private fun buildSettingsLines(
             if (settings.units.temperature == TemperatureUnit.CELSIUS) "celsius" else "fahrenheit",
             comma = true,
             syntax = syntax,
+            onClickLabel = changeLabel("temperature"),
             onClick = actions.onToggleTemperature
         )
     )
@@ -136,6 +146,7 @@ private fun buildSettingsLines(
             if (settings.units.windSpeed == WindSpeedUnit.KMH) "km/h" else "mph",
             comma = false,
             syntax = syntax,
+            onClickLabel = changeLabel("wind_speed"),
             onClick = actions.onToggleWindSpeed
         )
     )
@@ -145,6 +156,7 @@ private fun buildSettingsLines(
     add(
         stringValueLine(
             "active_profile", settings.themeProfileName, comma = true, syntax = syntax,
+            onClickLabel = changeLabel("active_profile"),
             onClick = {
                 val entries = ThemeProfile.entries
                 val current = ThemeProfile.fromName(settings.themeProfileName)
@@ -167,7 +179,8 @@ private fun buildSettingsLines(
                     }
                 },
                 indent = 3,
-                onClick = { actions.onThemeProfile(profile.name) }
+                onClick = { actions.onThemeProfile(profile.name) },
+                onClickLabel = changeLabel("active_profile")
             )
         )
     }
@@ -177,15 +190,18 @@ private fun buildSettingsLines(
     add(keyOpenLine("notifications", 1, syntax))
     add(commentLine("// alert engine ships later; preferences persist now", syntax, indent = 2))
     add(boolLine("severe_weather_alerts", settings.notifications.severeWeatherAlerts,
-        comma = true, syntax = syntax) {
+        comma = true, syntax = syntax,
+        onClickLabel = changeLabel("severe_weather_alerts")) {
         actions.onSevereAlerts(!settings.notifications.severeWeatherAlerts)
     })
     add(boolLine("daily_summary", settings.notifications.dailySummary,
-        comma = true, syntax = syntax) {
+        comma = true, syntax = syntax,
+        onClickLabel = changeLabel("daily_summary")) {
         actions.onDailySummary(!settings.notifications.dailySummary)
     })
     add(boolLine("precipitation_warning", settings.notifications.precipitationWarning,
-        comma = false, syntax = syntax) {
+        comma = false, syntax = syntax,
+        onClickLabel = changeLabel("precipitation_warning")) {
         actions.onPrecipWarning(!settings.notifications.precipitationWarning)
     })
     add(punctLine("},", 1, syntax))
@@ -202,7 +218,8 @@ private fun buildSettingsLines(
                 withStyle(SpanStyle(color = syntax.comment)) { append("  // 15 | 30 | 60") }
             },
             indent = 2,
-            onClick = actions.onCycleFrequency
+            onClick = actions.onCycleFrequency,
+            onClickLabel = changeLabel("update_frequency_min")
         )
     )
     add(punctLine("}", 1, syntax))
@@ -220,6 +237,7 @@ private fun boolLine(
     comma: Boolean,
     syntax: SyntaxColors,
     hint: String? = null,
+    onClickLabel: String? = null,
     onToggle: () -> Unit
 ): CodeLine = CodeLine(
     text = buildAnnotatedString {
@@ -234,7 +252,8 @@ private fun boolLine(
         }
     },
     indent = 2,
-    onClick = onToggle
+    onClick = onToggle,
+    onClickLabel = onClickLabel
 )
 
 /** `"temperature": "celsius",` — the string value flips/cycles on tap. */
@@ -243,6 +262,7 @@ private fun stringValueLine(
     value: String,
     comma: Boolean,
     syntax: SyntaxColors,
+    onClickLabel: String? = null,
     onClick: () -> Unit
 ): CodeLine = CodeLine(
     text = buildAnnotatedString {
@@ -252,7 +272,8 @@ private fun stringValueLine(
         if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
     },
     indent = 2,
-    onClick = onClick
+    onClick = onClick,
+    onClickLabel = onClickLabel
 )
 
 private fun punctLine(text: String, indent: Int, syntax: SyntaxColors) =

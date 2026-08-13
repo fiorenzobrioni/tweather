@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -45,7 +47,13 @@ fun GlowFab(
             .fabGlow(glowColor)
             .clip(CircleShape)
             .background(containerColor)
-            .clickable(role = Role.Button, onClickLabel = contentDescription) { onClick() },
+            .clickable(role = Role.Button) { onClick() }
+            .semantics {
+                // The icon inside is decorative; this names the button for TalkBack.
+                if (contentDescription != null) {
+                    this.contentDescription = contentDescription
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {

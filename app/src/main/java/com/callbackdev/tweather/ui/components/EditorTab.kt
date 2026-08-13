@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -34,7 +34,8 @@ fun EditorTab(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            // min instead of fixed: 48dp normally, grows with the system font scale
+            .heightIn(min = 48.dp)
             .background(MaterialTheme.colorScheme.background)
             .drawBehind {
                 drawLine(

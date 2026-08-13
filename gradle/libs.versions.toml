@@ -2,6 +2,7 @@
 agp = "8.13.0"
 kotlin = "2.2.20"
 coreKtx = "1.16.0"
+coreSplashscreen = "1.0.1"
 activityCompose = "1.10.1"
 composeBom = "2025.08.00"
 lifecycle = "2.8.7"
@@ -15,9 +16,11 @@ ksp = "2.2.20-2.0.4"
 junit = "4.13.2"
 androidxJunit = "1.2.1"
 espresso = "3.6.1"
+robolectric = "4.16"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -44,6 +47,7 @@ okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-i
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

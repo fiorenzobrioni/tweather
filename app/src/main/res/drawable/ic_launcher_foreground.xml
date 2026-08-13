@@ -1,17 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder: cloud in primary blue; brand logo { ☁️ } refinement in Fase 9 -->
+<!-- Brand logo { ☁️ } from tweather_brand_logo/screen.png: outlined cloud between
+     curly braces, syntax-color accent ticks on the brace stems. Everything sits
+     inside the adaptive-icon safe zone (66dp circle of the 108dp canvas). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- cloud (same 24x24 material path as before, scaled and centered) -->
     <group
-        android:scaleX="2.2"
-        android:scaleY="2.2"
-        android:translateX="27.6"
-        android:translateY="27.6">
+        android:scaleX="1.5"
+        android:scaleY="1.5"
+        android:translateX="36"
+        android:translateY="36">
         <path
-            android:fillColor="#79C0FF"
+            android:fillColor="#2B4D73"
+            android:strokeColor="#79C0FF"
+            android:strokeWidth="2"
             android:pathData="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14c0,3.31 2.69,6 6,6h13c2.76,0 5,-2.24 5,-5C24,12.36 21.95,10.22 19.35,10.04z" />
     </group>
+
+    <!-- left brace { -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#79C0FF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M34,34 C30,34 29,36 29,40 L29,48 C29,52 27,53 25,54 C27,55 29,56 29,60 L29,68 C29,72 30,74 34,74" />
+
+    <!-- right brace } -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#79C0FF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M74,34 C78,34 79,36 79,40 L79,48 C79,52 81,53 83,54 C81,55 79,56 79,60 L79,68 C79,72 78,74 74,74" />
+
+    <!-- syntax-color accent ticks on the brace stems (orange/purple/green) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFA657"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M29,41 L29,46" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#BC8CFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M29,62 L29,67" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#BC8CFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M79,41 L79,46" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#3FB950"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M79,62 L79,67" />
 </vector>

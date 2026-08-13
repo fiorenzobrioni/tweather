@@ -50,7 +50,9 @@ sealed interface CanvasLine {
 data class CodeLine(
     val text: AnnotatedString,
     override val indent: Int = 0,
-    val onClick: (() -> Unit)? = null
+    val onClick: (() -> Unit)? = null,
+    /** Screen-reader action label for [onClick] (e.g. "Change word_wrap"). */
+    val onClickLabel: String? = null
 ) : CanvasLine
 
 /** A line whose content is an arbitrary composable (e.g. the search input). */
@@ -77,6 +79,7 @@ private val GutterGap = 12.dp     // gap between the gutter divider and column 0
 private val EdgeMargin = 16.dp    // design system: 16px side margins (no gutter)
 private val GuideInset = 6.dp     // tree guide offset inside its indent slot (mockup: 6px)
 private val WrapHangingIndent = 20.sp // continuation lines of a wrapped row
+private const val WidthCandidates = 12 // longest lines measured for the shared width
 
 /**
  * Scrollable editor canvas: monospaced content with 20px indentation per nesting
@@ -105,7 +108,10 @@ fun CodeCanvas(
     val startGap = if (options.showLineNumbers) GutterGap else EdgeMargin
 
     // Monospace makes the widest row measurable exactly; every row gets that same
-    // width so the shared horizontal ScrollState has one consistent range.
+    // width so the shared horizontal ScrollState has one consistent range. Only the
+    // best candidates by character count are actually measured (monospace: width
+    // tracks length; the margin of candidates absorbs emoji and indent variance)
+    // instead of running the TextMeasurer over the whole document.
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val contentWidth: Dp = remember(lines, codeStyle, options.wordWrap, density) {
@@ -113,14 +119,14 @@ fun CodeCanvas(
             Dp.Unspecified
         } else {
             with(density) {
-                lines.maxOfOrNull { line ->
-                    val textPx = when (line) {
-                        is CodeLine ->
-                            textMeasurer.measure(line.text, style = codeStyle).size.width
-                        is WidgetLine -> 0
-                    }
-                    textPx + (IndentWidth * line.indent).toPx()
-                }?.toDp()?.plus(startGap + EdgeMargin) ?: Dp.Unspecified
+                lines.filterIsInstance<CodeLine>()
+                    // one indent level (20dp) ≈ 3 monospace columns at 13sp
+                    .sortedByDescending { it.text.text.length + it.indent * 3 }
+                    .take(WidthCandidates)
+                    .maxOfOrNull { line ->
+                        textMeasurer.measure(line.text, style = codeStyle).size.width +
+                            (IndentWidth * line.indent).toPx()
+                    }?.toDp()?.plus(startGap + EdgeMargin) ?: Dp.Unspecified
             }
         }
     }
@@ -171,7 +177,10 @@ fun CodeCanvas(
                             },
                             softWrap = options.wordWrap,
                             modifier = if (line.onClick != null) {
-                                lineModifier.clickable(onClick = line.onClick)
+                                lineModifier.clickable(
+                                    onClickLabel = line.onClickLabel,
+                                    onClick = line.onClick
+                                )
                             } else {
                                 lineModifier
                             }

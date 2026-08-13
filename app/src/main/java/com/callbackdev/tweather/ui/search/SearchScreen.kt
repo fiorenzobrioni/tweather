@@ -12,8 +12,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import android.content.res.Resources
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -71,8 +73,9 @@ fun SearchScreen(
     onRecent: (String) -> Unit
 ) {
     val syntax = TweatherTheme.syntax
-    val lines = remember(state, recents, syntax) {
-        buildSearchLines(state, recents, syntax, onQueryChange, onSearchNow, onSelect, onRecent)
+    val resources = LocalContext.current.resources
+    val lines = remember(state, recents, syntax, resources) {
+        buildSearchLines(state, recents, syntax, resources, onQueryChange, onSearchNow, onSelect, onRecent)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -104,6 +107,7 @@ private fun buildSearchLines(
     state: SearchUiState,
     recents: List<String>,
     syntax: SyntaxColors,
+    resources: Resources,
     onQueryChange: (String) -> Unit,
     onSearchNow: () -> Unit,
     onSelect: (City) -> Unit,
@@ -130,7 +134,8 @@ private fun buildSearchLines(
                 CodeLine(
                     text = cityResultText(city, trailingComma = i != state.results.lastIndex, syntax),
                     indent = 2,
-                    onClick = { onSelect(city) }
+                    onClick = { onSelect(city) },
+                    onClickLabel = resources.getString(R.string.cd_select_city, city.label)
                 )
             )
         }
@@ -151,7 +156,8 @@ private fun buildSearchLines(
                     }
                 },
                 indent = 2,
-                onClick = { onRecent(term) }
+                onClick = { onRecent(term) },
+                onClickLabel = resources.getString(R.string.cd_search_again, term)
             )
         )
     }

@@ -2,15 +2,17 @@ package com.callbackdev.tweather.ui.components
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Code
@@ -65,7 +67,9 @@ fun EditorNavBar(
                 )
             }
             .navigationBarsPadding()
-            .height(56.dp)
+            // 56dp on the default density; grows with the system font scale
+            .heightIn(min = 56.dp)
+            .height(IntrinsicSize.Min)
     ) {
         items.forEach { item ->
             val selected = isSelected(item)
@@ -88,7 +92,7 @@ fun EditorNavBar(
                             )
                         }
                     }
-                    .clickable(role = Role.Tab) { onSelect(item) },
+                    .selectable(selected = selected, role = Role.Tab) { onSelect(item) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {

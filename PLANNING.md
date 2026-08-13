@@ -55,13 +55,13 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 4 — Schermata principale (`weather_data.json`)
 
-- [ ] `WeatherViewModel`: espone lo stato (loading / dati / errore) e l'azione refresh
-- [ ] Serializzare lo stato meteo nella struttura JSON del PRD (ordine sezioni: location, current_conditions, air_quality, pollen_report, astronomical, hourly_forecast, daily_forecast, system_info)
-- [ ] Renderizzare il JSON nel `CodeCanvas` con highlighting completo, numeri di riga e emoji inline
-- [ ] Top bar con `EditorTab` (`weather_data.json` / `terminal tweather.json`)
-- [ ] FAB refresh con glow: al tap ricarica i dati e aggiorna `last_sync`
-- [ ] Stato di caricamento in stile terminale (es. commento `// fetching...` o spinner testuale)
-- [ ] Confronto pixel-level con il mockup `weather_data.json_code_editor/screen.png`
+- [x] `WeatherViewModel`: espone lo stato (loading / dati / errore) e l'azione refresh — `ui/weather/WeatherViewModel.kt`, `StateFlow<WeatherUiState>`; il report resta a schermo se un refresh fallisce (errore mostrato sopra al JSON); città di default = New York (sample PRD) finché la Fase 5 non rende la città selezionabile; factory via `ServiceLocator`
+- [x] Serializzare lo stato meteo nella struttura JSON del PRD (ordine sezioni: location, current_conditions, air_quality, pollen_report, astronomical, hourly_forecast, daily_forecast, system_info) — `ui/weather/WeatherJson.kt` `toDisplayJson()`: formati come il full sample (local_time `yyyy-MM-dd HH:mm`, orari `HH:mm`, daylight `10h 52m`, `last_sync` epoch string, numeri a 1 decimale); air_quality/pollen assenti → `null`; test in `WeatherJsonTest`
+- [x] Renderizzare il JSON nel `CodeCanvas` con highlighting completo, numeri di riga e emoji inline — `ui/weather/WeatherScreen.kt`; ritocco a `JsonSyntax`: oggetti dentro array inline fino a 4 campi così le righe orarie stanno su una riga come nel sample
+- [x] Top bar con `EditorTab` (`weather_data.json`) + `TerminalStatusBar` in basso (`⎇ città | api: 200 OK … Last Updated: HH:mm:ss`)
+- [x] FAB refresh con glow: al tap ricarica i dati (bypass cache) e aggiorna `last_sync`; l'icona ruota durante il fetch
+- [x] Stato di caricamento in stile terminale — commenti `// fetching weather_data.json …` / `// GET https://api.open-meteo.com/v1/forecast`; errori come `// ERROR: <terminalMessage>` + hint retry
+- [x] Confronto con il mockup — fatto contro `code.html` + `@Preview` con il sample PRD: `screen.png` non è un'immagine (28 byte, "FIFE Image failed to fetch", download fallito a monte)
 
 ## Fase 5 — Navigazione e struttura app
 

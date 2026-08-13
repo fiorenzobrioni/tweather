@@ -54,8 +54,11 @@ fun SyntaxText(
     )
 }
 
-// Containers this small and flat render on one line
+// Containers this small and flat render on one line. Array elements get one more
+// slot so hourly rows render inline like the PRD sample
+// (`{ "time": "15:00", "temp_c": 19, "status": "Sunny ☀️", "precip_chance": 0 }`).
 private const val InlineMaxEntries = 3
+private const val InlineMaxEntriesInArray = 4
 
 private fun renderElement(
     element: JsonElement,
@@ -65,7 +68,7 @@ private fun renderElement(
     syntax: SyntaxColors,
     out: MutableList<CodeLine>
 ) {
-    if (element.isInline()) {
+    if (element.isInline(if (key == null && indent > 0) InlineMaxEntriesInArray else InlineMaxEntries)) {
         out += CodeLine(
             buildAnnotatedString {
                 appendKey(key, syntax)
@@ -101,10 +104,10 @@ private fun renderElement(
     )
 }
 
-private fun JsonElement.isInline(): Boolean = when (this) {
+private fun JsonElement.isInline(maxEntries: Int): Boolean = when (this) {
     is JsonPrimitive -> true
-    is JsonObject -> size <= InlineMaxEntries && values.all { it is JsonPrimitive }
-    is JsonArray -> size <= InlineMaxEntries && all { it is JsonPrimitive }
+    is JsonObject -> size <= maxEntries && values.all { it is JsonPrimitive }
+    is JsonArray -> size <= maxEntries && all { it is JsonPrimitive }
 }
 
 private fun AnnotatedString.Builder.appendKey(key: String?, syntax: SyntaxColors) {

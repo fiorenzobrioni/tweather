@@ -1,0 +1,178 @@
+package com.callbackdev.tweather.ui.weather
+
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.callbackdev.tweather.ui.components.CodeCanvas
+import com.callbackdev.tweather.ui.components.CodeLine
+import com.callbackdev.tweather.ui.components.EditorTab
+import com.callbackdev.tweather.ui.components.GlowFab
+import com.callbackdev.tweather.ui.components.StatusBarDivider
+import com.callbackdev.tweather.ui.components.TerminalStatusBar
+import com.callbackdev.tweather.ui.components.buildJsonLines
+import com.callbackdev.tweather.ui.components.commentLine
+import com.callbackdev.tweather.ui.theme.SyntaxColors
+import com.callbackdev.tweather.ui.theme.TweatherTheme
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+/**
+ * Main screen: the live weather report rendered as the fake source file
+ * `weather_data.json` — editor tab on top, code canvas with gutter and syntax
+ * highlighting, glowing refresh FAB, terminal status bar at the bottom.
+ */
+@Composable
+fun WeatherScreen(viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    WeatherScreen(state = state, onRefresh = viewModel::refresh)
+}
+
+@Composable
+fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit) {
+    val syntax = TweatherTheme.syntax
+    val lines = remember(state.report, state.isLoading, state.error, syntax) {
+        buildScreenLines(state, syntax)
+    }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            EditorTab(fileName = "weather_data.json")
+            Box(Modifier.weight(1f)) {
+                CodeCanvas(lines = lines, modifier = Modifier.fillMaxSize())
+                GlowFab(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 24.dp),
+                    icon = { RefreshIcon(spinning = state.isLoading) }
+                )
+            }
+            WeatherStatusBar(state)
+        }
+    }
+}
+
+/** The FAB's refresh glyph doubles as loading indicator: it spins during a fetch. */
+@Composable
+private fun RefreshIcon(spinning: Boolean) {
+    val angle: Float
+    if (spinning) {
+        val transition = rememberInfiniteTransition(label = "refresh-spin")
+        angle = transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing)),
+            label = "refresh-angle"
+        ).value
+    } else {
+        angle = 0f
+    }
+    Icon(
+        Icons.Filled.Refresh,
+        contentDescription = null,
+        modifier = Modifier.graphicsLayer { rotationZ = angle }
+    )
+}
+
+@Composable
+private fun WeatherStatusBar(state: WeatherUiState) {
+    val report = state.report
+    TerminalStatusBar {
+        Text("⎇ ${report?.location?.city ?: "—"}")
+        StatusBarDivider()
+        Text(
+            when {
+                state.error != null -> "api: ERR"
+                report != null -> "api: 200 OK"
+                else -> "api: …"
+            },
+            color = if (state.error != null) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            when {
+                state.isLoading -> "Syncing…"
+                report != null -> "Last Updated: " + report.systemInfo.lastSync
+                    .atZone(runCatching { ZoneId.of(report.location.timezone) }
+                        .getOrDefault(ZoneId.systemDefault()))
+                    .format(LastUpdated)
+                else -> "Last Updated: —"
+            }
+        )
+    }
+}
+
+private val LastUpdated = DateTimeFormatter.ofPattern("HH:mm:ss")
+
+/**
+ * The document shown in the canvas. Loading and errors are part of the fake file,
+ * rendered as `//` comment lines above the last good JSON (which survives a failed
+ * refresh).
+ */
+private fun buildScreenLines(state: WeatherUiState, syntax: SyntaxColors): List<CodeLine> = buildList {
+    if (state.isLoading) {
+        add(commentLine("// fetching weather_data.json …", syntax))
+        add(commentLine("// GET https://api.open-meteo.com/v1/forecast", syntax))
+    }
+    state.error?.let {
+        add(commentLine("// ERROR: ${it.terminalMessage}", syntax))
+        add(commentLine("// hint: tap ( ↻ ) to retry", syntax))
+    }
+    state.report?.let {
+        if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
+        addAll(buildJsonLines(it.toDisplayJson(), syntax))
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF10141A, heightDp = 800)
+@Composable
+private fun WeatherScreenPreview() {
+    TweatherTheme {
+        WeatherScreen(
+            state = WeatherUiState(report = sampleWeatherReport(), isLoading = false),
+            onRefresh = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF10141A)
+@Composable
+private fun WeatherScreenLoadingPreview() {
+    TweatherTheme {
+        WeatherScreen(state = WeatherUiState(isLoading = true), onRefresh = {})
+    }
+}

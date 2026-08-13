@@ -8,7 +8,7 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 0 — Setup progetto
 
-- [ ] Inizializzare il repository git (`git init`) e creare `.gitignore` per Android/Kotlin
+- [x] Inizializzare il repository git (`git init`) e creare `.gitignore` per Android/Kotlin — remote: https://github.com/fiorenzobrioni/tweather.git, licenza GPL-3.0
 - [ ] Creare progetto Android Studio: template "Empty Activity" (Compose), package `app.tweather`
 - [ ] Configurare Gradle (Kotlin DSL): Kotlin 1.9+, Compose BOM, Material 3, minSdk 26+, targetSdk aggiornato
 - [ ] Aggiungere dipendenze: Retrofit + OkHttp, Kotlinx.serialization (+ converter Retrofit), Navigation Compose, DataStore (preferenze), Room (storico/log), Hilt (DI), Coil non necessario (icone = emoji Unicode)

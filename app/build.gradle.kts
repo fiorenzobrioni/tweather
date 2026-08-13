@@ -12,7 +12,9 @@ android {
 
     defaultConfig {
         applicationId = "com.callbackdev.tweather"
-        minSdk = 26
+        // 33 (Android 13): system per-app language picker for the IT/EN l10n,
+        // single runtime path for POST_NOTIFICATIONS, themed icons, full java.time
+        minSdk = 33
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"

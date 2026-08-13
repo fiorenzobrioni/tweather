@@ -177,8 +177,8 @@ private fun WindSpeedUnit.convert(kph: Double): Double =
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 
-/** Sample formats durations as `"10h 52m"`. (toMinutesPart needs API 31, minSdk is 26) */
-private fun Duration.hhMm(): String = "${toHours()}h ${toMinutes() % 60}m"
+/** Sample formats durations as `"10h 52m"`. */
+private fun Duration.hhMm(): String = "${toHours()}h ${toMinutesPart()}m"
 
 /** Capitalized short day name (`Mon`, `Lun`) — Italian locales give lowercase. */
 private fun DayOfWeek.shortName(locale: Locale): String =

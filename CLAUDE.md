@@ -15,7 +15,7 @@ The Android project skeleton exists (Fase 0 of `PLANNING.md` done); screens are 
 
 ## Build and commands
 
-Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version catalog in `gradle/libs.versions.toml`. Package/applicationId: `com.callbackdev.tweather`. minSdk 26, compile/targetSdk 36.
+Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version catalog in `gradle/libs.versions.toml`. Package/applicationId: `com.callbackdev.tweather`. minSdk 33 (deciso a fine Fase 9: language picker di sistema per la l10n IT/EN, un solo code path per POST_NOTIFICATIONS, themed icons, java.time completo — niente fallback per Android vecchi), compile/targetSdk 36.
 
 - Build debug APK: `./gradlew :app:assembleDebug` (output: `app/build/outputs/apk/debug/app-debug.apk`)
 - Unit tests: `./gradlew :app:testDebugUnitTest` — single test class: `./gradlew :app:testDebugUnitTest --tests "com.callbackdev.tweather.SomeTest"`

@@ -31,6 +31,8 @@ import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 
 /** Everything the settings file can change, bundled for [buildSettingsLines]. */
 class SettingsActions(
@@ -107,6 +109,11 @@ private fun buildSettingsLines(
     changeLabel: (String) -> String
 ): List<CanvasLine> = buildList {
     add(commentLine("// Tweather Configuration File", syntax))
+    settings.lastModifiedEpochSeconds?.let { epoch ->
+        // mockup line 2; appears once the user edits something for the first time
+        val stamp = DateTimeFormatter.ISO_INSTANT.format(Instant.ofEpochSecond(epoch))
+        add(commentLine("// Last modified: $stamp", syntax))
+    }
     add(punctLine("{", 0, syntax))
 
     add(keyOpenLine("editor", 1, syntax))

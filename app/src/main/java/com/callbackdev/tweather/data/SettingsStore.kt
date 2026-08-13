@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -52,7 +53,9 @@ data class AppSettings(
     val units: UnitSettings = UnitSettings(),
     val notifications: NotificationSettings = NotificationSettings(),
     val themeProfileName: String = "Obsidian",
-    val updateFrequencyMin: Int = UpdateFrequencies.first()
+    val updateFrequencyMin: Int = UpdateFrequencies.first(),
+    /** Epoch seconds of the last edit; null until the user changes something. */
+    val lastModifiedEpochSeconds: Long? = null
 )
 
 /** Cache TTL choices the sync setting cycles through. */
@@ -80,7 +83,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
                 ),
                 themeProfileName = prefs[ThemeProfileName] ?: "Obsidian",
                 updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: UpdateFrequencies.first())
-                    .takeIf { it in UpdateFrequencies } ?: UpdateFrequencies.first()
+                    .takeIf { it in UpdateFrequencies } ?: UpdateFrequencies.first(),
+                lastModifiedEpochSeconds = prefs[LastModified]
             )
         }
         .distinctUntilChanged()
@@ -97,7 +101,11 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun setUpdateFrequency(minutes: Int) = set(UpdateFrequencyMin, minutes)
 
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
-        dataStore.edit { it[key] = value }
+        dataStore.edit {
+            it[key] = value
+            // settings.config's "// Last modified:" header line
+            it[LastModified] = System.currentTimeMillis() / 1000
+        }
     }
 
     private inline fun <reified E : Enum<E>> enumOrDefault(name: String?, default: E): E =
@@ -114,6 +122,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         private val PrecipWarning = booleanPreferencesKey("notif_precip_warning")
         private val ThemeProfileName = stringPreferencesKey("theme_profile")
         private val UpdateFrequencyMin = intPreferencesKey("sync_update_frequency_min")
+        private val LastModified = longPreferencesKey("last_modified_epoch")
 
         fun create(context: Context) = SettingsStore(context.settingsDataStore)
     }

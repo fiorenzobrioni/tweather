@@ -52,7 +52,9 @@ data class CodeLine(
     override val indent: Int = 0,
     val onClick: (() -> Unit)? = null,
     /** Screen-reader action label for [onClick] (e.g. "Change word_wrap"). */
-    val onClickLabel: String? = null
+    val onClickLabel: String? = null,
+    /** Overrides the gutter number color (diff screens tint ± rows green/red). */
+    val gutterColor: Color? = null
 ) : CanvasLine
 
 /** A line whose content is an arbitrary composable (e.g. the search input). */
@@ -138,7 +140,7 @@ fun CodeCanvas(
                     Text(
                         text = (index + 1).toString().padStart(gutterDigits),
                         style = codeStyle,
-                        color = gutterColor,
+                        color = (line as? CodeLine)?.gutterColor ?: gutterColor,
                         modifier = Modifier.padding(start = 16.dp, end = 8.dp)
                     )
                     Spacer(

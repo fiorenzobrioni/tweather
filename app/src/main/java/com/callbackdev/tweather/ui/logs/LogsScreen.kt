@@ -111,7 +111,8 @@ private fun diffLine(line: SnapshotDiff.Line, syntax: SyntaxColors): CodeLine = 
     SnapshotDiff.Type.REMOVED -> signedLine("-", line, syntax.diffDel)
 }
 
-/** Whole `+`/`-` line in the diff color over a faint tint of the same color. */
+/** Whole `+`/`-` line in the diff color over a faint tint of the same color; the
+ * gutter number picks up the same tint like in the mockup. */
 private fun signedLine(
     sign: String,
     line: SnapshotDiff.Line,
@@ -121,7 +122,8 @@ private fun signedLine(
         "$sign \"${line.key}\": ${formatValue(line.value)}",
         SpanStyle(color = color, background = color.copy(alpha = 0.12f))
     ),
-    indent = 1
+    indent = 1,
+    gutterColor = color
 )
 
 /** Numbers render bare like in JSON, anything else quoted. */

@@ -28,16 +28,17 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 2 — Componenti UI riusabili ("editor kit")
 
-- [ ] `CodeCanvas`: container scrollabile con gutter dei numeri di riga a sinistra e contenuto monospaziato allineato
-- [ ] `SyntaxText` / renderer JSON: trasforma una struttura dati in `AnnotatedString` con highlighting (chiavi blu, stringhe azzurre, numeri arancio, punteggiatura grigia) e indentazione 20px per livello
-- [ ] `EditorTab` (top bar): mostra il nome del file attivo (es. `terminal tweather.json`) in stile tab di editor
-- [ ] `TerminalStatusBar`: barra fissa 28px per metadati secondari (es. "Last Updated: 12:01:04", icona branch per la località)
-- [ ] `CodeBlockContainer`: box con bordo 1px `#30363d`, header con filename e icona collapse
-- [ ] `TreeViewItem`: elemento con simboli `▸`/`▾` (o `+`/`-`) e guide verticali 1px per i figli annidati
-- [ ] `TerminalInput`: input a riga singola stile prompt (`> Search Location _`) con cursore underscore lampeggiante
-- [ ] `CodeCheckbox` / `CodeToggle`: rendering testuale `[x]` / `[ ]` interattivo
-- [ ] `GlowFab`: FAB circolare con glow, icona stroke 2pt (refresh/"Run")
-- [ ] Anteprime `@Preview` per ogni componente per validarli contro i mockup PNG
+- [x] `CodeCanvas`: container scrollabile con gutter dei numeri di riga a sinistra e contenuto monospaziato allineato — `ui/components/CodeCanvas.kt`, LazyColumn di `CodeLine(text, indent)`, gutter right-aligned con divisore 1px, guide di indentazione, scroll orizzontale sincronizzato per righe lunghe
+- [x] `SyntaxText` / renderer JSON: trasforma una struttura dati in `AnnotatedString` con highlighting (chiavi blu, stringhe azzurre, numeri arancio, punteggiatura grigia) e indentazione 20px per livello — `ui/components/JsonSyntax.kt`: `buildJsonLines(JsonElement, SyntaxColors)` + `commentLine()` + `SyntaxText`; oggetti/array piccoli tutti-primitivi resi inline come nei mockup
+- [x] `EditorTab` (top bar): mostra il nome del file attivo (es. `terminal tweather.json`) in stile tab di editor — 48dp, glifo `>_`, bordo inferiore 1px, slot `actions`
+- [x] `TerminalStatusBar`: barra fissa 28px per metadati secondari (es. "Last Updated: 12:01:04", icona branch per la località) — slot unico a Row + `StatusBarDivider()`; colori surface-container-high di default, override per la variante primary del mockup desktop
+- [x] `CodeBlockContainer`: box con bordo 1px `#30363d`, header con filename e icona collapse — header 32dp tappabile con `▾`/`▸`, stato expanded in `rememberSaveable`
+- [x] `TreeViewItem`: elemento con simboli `▸`/`▾` (o `+`/`-`) e guide verticali 1px per i figli annidati — `·` per le foglie, guida a 6px + indent figli 20px come da mockup
+- [x] `TerminalInput`: input a riga singola stile prompt (`> Search Location _`) con cursore underscore lampeggiante — BasicTextField con caret nativo trasparente, underscore blink 500ms, placeholder in comment-gray
+- [x] `CodeCheckbox` / `CodeToggle`: rendering testuale `[x]` / `[ ]` interattivo — `ui/components/CodeControls.kt`, `Modifier.toggleable` con Role.Checkbox/Switch; `CodeToggle` rende `true`/`false` tappabile (stile settings mockup)
+- [x] `GlowFab`: FAB circolare con glow, icona stroke 2pt (refresh/"Run") — 56dp, `Modifier.fabGlow()`, nessuna elevation Material; icona Refresh (material-icons-core)
+- [x] Anteprime `@Preview` per ogni componente per validarli contro i mockup PNG — una `@Preview` in ogni file componente
+- Nota: i mockup HTML usano colori token incoerenti tra loro (es. stringhe verdi nel main, numeri rosa); fanno fede i valori non negoziabili di `CLAUDE.md`/`DESIGN.md` già codificati in `SyntaxColors`
 
 ## Fase 3 — Layer dati (dominio e rete)
 

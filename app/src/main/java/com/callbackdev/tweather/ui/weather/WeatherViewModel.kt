@@ -5,12 +5,13 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.domain.model.City
-import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.domain.model.WeatherReport
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,25 +30,43 @@ data class WeatherUiState(
 
 class WeatherViewModel(
     private val repository: WeatherRepository,
-    private val city: City = DefaultCity
+    cityStore: CityStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeatherUiState())
     val uiState: StateFlow<WeatherUiState> = _uiState.asStateFlow()
 
+    private var city: City? = null
+    private var loadJob: Job? = null
+
     init {
-        load(forceRefresh = false)
+        // Follow the Explorer's selection: every change of active city reloads the
+        // document (cache-friendly — an unexpired city comes back as a HIT).
+        viewModelScope.launch {
+            cityStore.activeCity.collect { active ->
+                if (city?.id != active.id) {
+                    city = active
+                    load(active, forceRefresh = false, clearReport = true)
+                }
+            }
+        }
     }
 
     /** FAB action: bypasses the cache, so `last_sync` and history advance. */
-    fun refresh() = load(forceRefresh = true)
+    fun refresh() {
+        city?.let { load(it, forceRefresh = true, clearReport = false) }
+    }
 
-    private fun load(forceRefresh: Boolean) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+    private fun load(city: City, forceRefresh: Boolean, clearReport: Boolean) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            _uiState.update {
+                if (clearReport) WeatherUiState()
+                else it.copy(isLoading = true, error = null)
+            }
             try {
                 val report = repository.getWeather(city, forceRefresh)
-                _uiState.update { WeatherUiState(report = report, isLoading = false) }
+                _uiState.value = WeatherUiState(report = report, isLoading = false)
             } catch (e: WeatherException) {
                 _uiState.update { it.copy(isLoading = false, error = e) }
             }
@@ -55,23 +74,13 @@ class WeatherViewModel(
     }
 
     companion object {
-        /**
-         * The PRD's sample city, hard-wired until Fase 5 adds the Explorer with a
-         * persisted, user-selectable city list.
-         */
-        val DefaultCity = City(
-            id = 5_128_581, // GeoNames id, as Open-Meteo geocoding would return
-            name = "New York",
-            region = "NY",
-            country = "USA",
-            coordinates = Coordinates(40.7128, -74.0060),
-            timezone = "America/New_York"
-        )
-
         val Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[AndroidViewModelFactory.APPLICATION_KEY])
-                WeatherViewModel(ServiceLocator.weatherRepository(app))
+                WeatherViewModel(
+                    repository = ServiceLocator.weatherRepository(app),
+                    cityStore = ServiceLocator.cityStore(app)
+                )
             }
         }
     }

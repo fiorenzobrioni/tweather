@@ -5,13 +5,12 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
@@ -24,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -48,25 +48,35 @@ import java.time.format.DateTimeFormatter
  * highlighting, glowing refresh FAB, terminal status bar at the bottom.
  */
 @Composable
-fun WeatherScreen(viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)) {
+fun WeatherScreen(
+    onOpenExplorer: () -> Unit = {},
+    viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    WeatherScreen(state = state, onRefresh = viewModel::refresh)
+    WeatherScreen(state = state, onRefresh = viewModel::refresh, onOpenExplorer = onOpenExplorer)
 }
 
 @Composable
-fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit) {
+fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit, onOpenExplorer: () -> Unit = {}) {
     val syntax = TweatherTheme.syntax
     val lines = remember(state.report, state.isLoading, state.error, syntax) {
         buildScreenLines(state, syntax)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-        ) {
-            EditorTab(fileName = "weather_data.json")
+        Column(Modifier.fillMaxSize()) {
+            EditorTab(fileName = "weather_data.json") {
+                Text(
+                    text = "[ files ]",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = "Open city explorer"
+                        ) { onOpenExplorer() }
+                        .padding(8.dp)
+                )
+            }
             Box(Modifier.weight(1f)) {
                 CodeCanvas(lines = lines, modifier = Modifier.fillMaxSize())
                 GlowFab(

@@ -6,13 +6,17 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import kotlin.math.roundToInt
+import kotlinx.serialization.Serializable
 
 // Domain model, shaped after weather_data.json_full_sample.json. Times are java.time
 // values in the location's local timezone; formatting happens at render time.
 
+@Serializable
 data class Coordinates(val lat: Double, val lon: Double)
 
-/** A place as returned by city search; also identifies the report's subject. */
+/** A place as returned by city search; also identifies the report's subject.
+ * Serializable because the saved-cities list persists as JSON in DataStore. */
+@Serializable
 data class City(
     val id: Long,
     val name: String,

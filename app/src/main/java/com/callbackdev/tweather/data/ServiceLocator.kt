@@ -21,16 +21,26 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
  */
 object ServiceLocator {
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     @Volatile
     private var repository: WeatherRepository? = null
+
+    @Volatile
+    private var cityStore: CityStore? = null
 
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
         }
 
+    fun cityStore(context: Context): CityStore =
+        cityStore ?: synchronized(this) {
+            cityStore ?: CityStore.create(context.applicationContext, json)
+                .also { cityStore = it }
+        }
+
     private fun build(appContext: Context): WeatherRepository {
-        val json = Json { ignoreUnknownKeys = true }
         val okHttp = OkHttpClient.Builder()
             .apply {
                 if (BuildConfig.DEBUG) {

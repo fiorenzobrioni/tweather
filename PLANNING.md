@@ -65,10 +65,10 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 5 — Navigazione e struttura app
 
-- [ ] Bottom navigation con 4 tab: **Explorer** (browser città), **Search**, **Settings**, **Logs**
-- [ ] Navigation Compose: grafo con le 4 destinazioni + stato preservato per tab
-- [ ] Schermata Explorer: elenco città salvate in stile tree-view/file explorer, selezione città attiva, aggiunta/rimozione
-- [ ] Persistere la lista città e la città attiva (DataStore o Room)
+- [x] Bottom navigation con 4 tab: **Explorer** (browser città), **Search**, **Settings**, **Logs** — `ui/components/EditorNavBar.kt`: 56dp flat su surface-container-low, bordo top 1px, item attivo primary con indicatore 2px; icone del mockup (account_tree/search/code/terminal) via `material-icons-extended` (pinned 1.7.8, fuori BOM; R8 elimina il resto in release)
+- [x] Navigation Compose: grafo con le 4 destinazioni + stato preservato per tab — `ui/navigation/TweatherApp.kt`: tab Explorer = grafo annidato con l'editor (`weather_data.json`) come start e il browser città un livello sotto (aperto da `[ files ]` nella top bar dell'editor, come da mockup dove l'editor vive sotto il tab Explorer); switch tab con `saveState`/`restoreState`; Search/Settings/Logs per ora `PlaceholderScreen` (finto file con `// TODO: module not yet compiled`, arrivano nelle Fasi 6–8)
+- [x] Schermata Explorer: elenco città salvate in stile tree-view/file explorer, selezione città attiva, aggiunta/rimozione — `ui/explorer/ExplorerScreen.kt`: `TreeViewItem` radice `~/tweather/cities/`, città come foglie `milan.json` (attiva in primary + `// active`), rimozione col controllo testuale `[rm]` (l'ultima città non è rimovibile), `+ add_city…` naviga al tab Search (funzionale dalla Fase 6); tap città → attiva e torna all'editor
+- [x] Persistere la lista città e la città attiva (DataStore o Room) — DataStore preferences in `data/CityStore.kt` (lista come JSON array — `City`/`Coordinates` ora `@Serializable` — attiva per id; seed New York al primo avvio); `WeatherViewModel` osserva `activeCity` e ricarica al cambio
 
 ## Fase 6 — Ricerca (`search_query.json`)
 

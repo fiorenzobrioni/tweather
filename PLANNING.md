@@ -61,7 +61,7 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 - [x] Top bar con `EditorTab` (`weather_data.json`) + `TerminalStatusBar` in basso (`⎇ città | api: 200 OK … Last Updated: HH:mm:ss`)
 - [x] FAB refresh con glow: al tap ricarica i dati (bypass cache) e aggiorna `last_sync`; l'icona ruota durante il fetch
 - [x] Stato di caricamento in stile terminale — commenti `// fetching weather_data.json …` / `// GET https://api.open-meteo.com/v1/forecast`; errori come `// ERROR: <terminalMessage>` + hint retry
-- [x] Confronto con il mockup — fatto contro `code.html` + `@Preview` con il sample PRD: `screen.png` non è un'immagine (28 byte, "FIFE Image failed to fetch", download fallito a monte)
+- [x] Confronto con il mockup `weather_data.json_code_editor/screen.png` (ripristinato dopo un download fallito) — coerente al netto delle deviazioni già decise: colori dai token di CLAUDE.md (non quelli incoerenti del mockup), FAB circolare col glow (nel mockup è un quadrato arrotondato verde), gutter numeri di riga sempre visibile (nel mockup mobile è nascosto ma è requisito core del PRD), struttura JSON dal full sample e non dal JSON semplificato del mockup
 
 ## Fase 5 — Navigazione e struttura app
 

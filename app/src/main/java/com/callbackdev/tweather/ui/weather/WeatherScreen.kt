@@ -58,16 +58,27 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    WeatherScreen(state = state, onRefresh = viewModel::refresh, onOpenExplorer = onOpenExplorer)
+    val displayOptions by viewModel.displayOptions.collectAsStateWithLifecycle()
+    WeatherScreen(
+        state = state,
+        displayOptions = displayOptions,
+        onRefresh = viewModel::refresh,
+        onOpenExplorer = onOpenExplorer
+    )
 }
 
 @Composable
-fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit, onOpenExplorer: () -> Unit = {}) {
+fun WeatherScreen(
+    state: WeatherUiState,
+    onRefresh: () -> Unit,
+    onOpenExplorer: () -> Unit = {},
+    displayOptions: DisplayOptions = DisplayOptions()
+) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
     val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
-    val lines = remember(state.report, state.isLoading, state.error, syntax, locale) {
-        buildScreenLines(state, syntax, WeatherTranslations.translator(resources), locale)
+    val lines = remember(state.report, state.isLoading, state.error, syntax, locale, displayOptions) {
+        buildScreenLines(state, syntax, WeatherTranslations.translator(resources), locale, displayOptions)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -168,7 +179,8 @@ private fun buildScreenLines(
     state: WeatherUiState,
     syntax: SyntaxColors,
     translate: (String) -> String,
-    locale: Locale
+    locale: Locale,
+    displayOptions: DisplayOptions
 ): List<CodeLine> = buildList {
     if (state.isLoading) {
         add(commentLine("// fetching weather_data.json …", syntax))
@@ -180,7 +192,7 @@ private fun buildScreenLines(
     }
     state.report?.let {
         if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
-        addAll(buildJsonLines(it.toDisplayJson(translate, locale), syntax))
+        addAll(buildJsonLines(it.toDisplayJson(translate, locale, displayOptions), syntax))
     }
 }
 

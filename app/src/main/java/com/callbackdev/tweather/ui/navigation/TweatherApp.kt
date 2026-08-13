@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.callbackdev.tweather.data.EditorSettings
+import kotlinx.coroutines.flow.map
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.ui.components.EditorNavBar
 import com.callbackdev.tweather.ui.components.EditorNavItems
@@ -55,7 +56,7 @@ fun TweatherApp() {
     // settings.config's editor section, live for every CodeCanvas in the app
     val context = LocalContext.current
     val settingsStore = remember(context) { ServiceLocator.settingsStore(context) }
-    val editorSettings by settingsStore.editorSettings
+    val editorSettings by remember(settingsStore) { settingsStore.settings.map { it.editor } }
         .collectAsStateWithLifecycle(initialValue = EditorSettings())
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

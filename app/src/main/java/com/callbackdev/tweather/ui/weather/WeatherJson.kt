@@ -1,5 +1,7 @@
 package com.callbackdev.tweather.ui.weather
 
+import com.callbackdev.tweather.data.TemperatureUnit
+import com.callbackdev.tweather.data.WindSpeedUnit
 import com.callbackdev.tweather.domain.model.WeatherReport
 import java.time.DayOfWeek
 import java.time.Duration
@@ -16,6 +18,20 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
 /**
+ * How `weather_data.json` renders the report. [showDetails] false (the app default)
+ * hides the technical fields agreed with the user: region/country/coordinates/
+ * timezone (location keeps only city + local_time), dew point, pressure, visibility,
+ * wind degree/gusts and the pollutant breakdown (AQI index + status stay). Units
+ * change VALUES AND KEYS — a JSON file wouldn't lie about its units (`temp_f`,
+ * `speed_mph`).
+ */
+data class DisplayOptions(
+    val showDetails: Boolean = true,
+    val temperature: TemperatureUnit = TemperatureUnit.CELSIUS,
+    val windSpeed: WindSpeedUnit = WindSpeedUnit.KMH
+)
+
+/**
  * [WeatherReport] → the `weather_data.json` document the main screen renders. Field
  * names, value formats and section order follow `weather_data.json_full_sample.json`
  * (PRD): location, current_conditions, air_quality, pollen_report, astronomical,
@@ -29,61 +45,85 @@ import kotlinx.serialization.json.putJsonObject
  */
 fun WeatherReport.toDisplayJson(
     translate: (String) -> String = { it },
-    locale: Locale = Locale.ENGLISH
+    locale: Locale = Locale.ENGLISH,
+    options: DisplayOptions = DisplayOptions()
 ): JsonObject = buildJsonObject {
+    val details = options.showDetails
+    val tempKey = options.temperature.keySuffix
+    fun temp(celsius: Double) = options.temperature.convert(celsius)
+    val speedKey = options.windSpeed.keySuffix
+    fun speed(kph: Double) = options.windSpeed.convert(kph)
+
     putJsonObject("location") {
         put("city", location.city)
-        location.region?.let { put("region", it) }
-        location.country?.let { put("country", it) }
-        putJsonObject("coordinates") {
-            put("lat", location.coordinates.lat)
-            put("lon", location.coordinates.lon)
+        if (details) {
+            location.region?.let { put("region", it) }
+            location.country?.let { put("country", it) }
+            putJsonObject("coordinates") {
+                put("lat", location.coordinates.lat)
+                put("lon", location.coordinates.lon)
+            }
+            put("timezone", location.timezone)
         }
-        put("timezone", location.timezone)
         put("local_time", location.localTime.format(LocalTimeStamp))
     }
     putJsonObject("current_conditions") {
         put("status", "${translate(current.condition.description)} ${current.condition.emoji}")
-        putDecimal("temp_c", current.tempC)
-        putDecimal("feels_like_c", current.feelsLikeC)
+        putDecimal("temp_$tempKey", temp(current.tempC))
+        putDecimal("feels_like_$tempKey", temp(current.feelsLikeC))
         put("humidity_pct", current.humidityPct)
-        putDecimal("dew_point_c", current.dewPointC)
-        putDecimal("visibility_km", current.visibilityKm)
-        putDecimal("pressure_mb", current.pressureMb)
+        if (details) {
+            putDecimal("dew_point_$tempKey", temp(current.dewPointC))
+            putDecimal("visibility_km", current.visibilityKm)
+            putDecimal("pressure_mb", current.pressureMb)
+        }
         put("uv_index", current.uvIndex)
         put("uv_description", translate(current.uvDescription))
         putJsonObject("wind") {
-            putDecimal("speed_kph", current.wind.speedKph)
+            putDecimal("speed_$speedKey", speed(current.wind.speedKph))
             put("direction", current.wind.directionCompass)
-            put("degree", current.wind.degree)
-            putDecimal("gust_kph", current.wind.gustKph)
+            if (details) {
+                put("degree", current.wind.degree)
+                putDecimal("gust_$speedKey", speed(current.wind.gustKph))
+            }
         }
         putJsonObject("precipitation") {
             putDecimal("last_hour_mm", current.precipitation.lastHourMm)
             put("chance_pct", current.precipitation.chancePct)
         }
     }
-    airQuality?.let { aq ->
+    // NOTE: no `?.let { putJsonObject(...) } ?: put(key, JsonNull)` here — the
+    // builder's put* functions return the key's PREVIOUS value (null), so the elvis
+    // branch would always run and overwrite the section just written.
+    val aq = airQuality
+    if (aq != null) {
         putJsonObject("air_quality") {
             put("aqi_index", aq.aqiIndex)
             put("status", translate(aq.status))
-            putJsonObject("pollutants") {
-                putDecimal("pm2_5", aq.pollutants.pm25)
-                putDecimal("pm10", aq.pollutants.pm10)
-                putDecimal("o3", aq.pollutants.o3)
-                putDecimal("no2", aq.pollutants.no2)
-                putDecimal("so2", aq.pollutants.so2)
-                putDecimal("co", aq.pollutants.coMg)
+            if (details) {
+                putJsonObject("pollutants") {
+                    putDecimal("pm2_5", aq.pollutants.pm25)
+                    putDecimal("pm10", aq.pollutants.pm10)
+                    putDecimal("o3", aq.pollutants.o3)
+                    putDecimal("no2", aq.pollutants.no2)
+                    putDecimal("so2", aq.pollutants.so2)
+                    putDecimal("co", aq.pollutants.coMg)
+                }
             }
         }
-    } ?: put("air_quality", JsonNull)
-    pollen?.let { p ->
+    } else {
+        put("air_quality", JsonNull)
+    }
+    val p = pollen
+    if (p != null) {
         putJsonObject("pollen_report") {
             put("grass", translate(p.grass.label))
             put("tree", translate(p.tree.label))
             put("weed", translate(p.weed.label))
         }
-    } ?: put("pollen_report", JsonNull)
+    } else {
+        put("pollen_report", JsonNull)
+    }
     putJsonObject("astronomical") {
         put("sunrise", astronomical.sunrise.format(ClockTime))
         put("sunset", astronomical.sunset.format(ClockTime))
@@ -97,7 +137,7 @@ fun WeatherReport.toDisplayJson(
         hourly.forEach { h ->
             add(buildJsonObject {
                 put("time", h.time.format(ClockTime))
-                put("temp_c", h.tempC.roundToInt())
+                put("temp_$tempKey", temp(h.tempC).roundToInt())
                 put("status", "${translate(h.condition.description)} ${h.condition.emoji}")
                 put("precip_chance", h.precipChancePct)
             })
@@ -107,8 +147,8 @@ fun WeatherReport.toDisplayJson(
         daily.forEach { d ->
             add(buildJsonObject {
                 put("day", d.date.dayOfWeek.shortName(locale))
-                put("high", d.highC.roundToInt())
-                put("low", d.lowC.roundToInt())
+                put("high", temp(d.highC).roundToInt())
+                put("low", temp(d.lowC).roundToInt())
                 put("status", "${translate(d.condition.description)} ${d.condition.emoji}")
                 put("precip_pct", d.precipPct)
             })
@@ -121,6 +161,18 @@ fun WeatherReport.toDisplayJson(
         put("response_time_ms", systemInfo.responseTimeMs)
     }
 }
+
+private val TemperatureUnit.keySuffix: String
+    get() = if (this == TemperatureUnit.CELSIUS) "c" else "f"
+
+private fun TemperatureUnit.convert(celsius: Double): Double =
+    if (this == TemperatureUnit.CELSIUS) celsius else celsius * 9 / 5 + 32
+
+private val WindSpeedUnit.keySuffix: String
+    get() = if (this == WindSpeedUnit.KMH) "kph" else "mph"
+
+private fun WindSpeedUnit.convert(kph: Double): Double =
+    if (this == WindSpeedUnit.KMH) kph else kph / 1.609344
 
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")

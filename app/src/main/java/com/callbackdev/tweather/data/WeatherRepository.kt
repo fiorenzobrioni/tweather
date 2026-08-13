@@ -52,12 +52,17 @@ class WeatherRepository(
     /**
      * Report for [city]: fresh cache entry unless expired or [forceRefresh] (the
      * FAB). Cache hits keep the original `last_sync` and flip `cache_status` to HIT.
+     * [ttl] lets the caller apply the user's `update_frequency_min` setting.
      */
-    suspend fun getWeather(city: City, forceRefresh: Boolean = false): WeatherReport {
+    suspend fun getWeather(
+        city: City,
+        forceRefresh: Boolean = false,
+        ttl: Duration = cacheTtl
+    ): WeatherReport {
         val now = clock.instant()
         if (!forceRefresh) {
             cache[city.cacheKey]
-                ?.takeIf { Duration.between(it.fetchedAt, now) < cacheTtl }
+                ?.takeIf { Duration.between(it.fetchedAt, now) < ttl }
                 ?.let {
                     return it.report.copy(
                         systemInfo = it.report.systemInfo.copy(cacheStatus = CacheStatus.HIT)

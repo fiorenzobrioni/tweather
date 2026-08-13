@@ -88,12 +88,13 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 7 — Impostazioni (`settings.config`)
 
-- [ ] UI in stile file `.config`: chiavi/valori con highlighting, booleani interattivi (es. `"severe_weather_alerts": true` come toggle) — base già in piedi dalla Fase 6b (`SettingsScreen` + `SettingsStore` + sezione `"editor"`); da estendere con le sezioni restanti
-- [ ] Impostazioni: unità (°C/°F, km/h–mph), notifiche/allerte meteo, frequenza aggiornamento, tema
-- [ ] Toggle `"show_details"` (default **false**, deciso col committente): nasconde dal `weather_data.json` i campi di dettaglio — `region`, `country`, `coordinates`, `timezone` (con `location` che collassa nella stringa compatta `"New York, NY"` come nel mockup), `dew_point_c`, `wind.degree`, `wind.gust_kph`; candidati extra da valutare: `pressure_mb`, `visibility_km`, `air_quality.pollutants` (tenendo visibili `aqi_index`/`status`)
-- [ ] Selezione tema da `"available_profiles"`: Obsidian, Dracula, Monokai — implementare le palette Dracula e Monokai e lo switch runtime
-- [ ] Persistenza con DataStore; le modifiche si riflettono immediatamente nell'app
-- [ ] Confronto con il mockup `settings_settings.config/screen.png`
+- [x] **Bugfix trovato durante la fase**: `air_quality` e `pollen_report` risultavano sempre `null` nel JSON — non era la rete (verificata: US AQI 66 per NY) ma `?.let { putJsonObject(…) } ?: put(key, JsonNull)` in `WeatherJson`: i `put*` del builder kotlinx ritornano il valore *precedente* della chiave (null), quindi l'elvis sovrascriveva sempre la sezione appena scritta; test di regressione aggiunto
+- [x] UI in stile file `.config`: chiavi/valori con highlighting, booleani interattivi — `SettingsScreen` completa nel formato del mockup (JSON + commenti `//`): sezioni `editor`, `data`, `units`, `theme`, `notifications`, `sync`; booleani `CodeToggle`, valori stringa/numero che commutano o ciclano al tap
+- [x] Impostazioni: unità (°C/°F, km/h–mph — cambiano valori E chiavi: `temp_f`, `speed_mph`, un file JSON non mente sulle unità), notifiche (3 preferenze persistite; il motore di allerta arriverà più avanti, annotato nel file stesso), frequenza aggiornamento (`update_frequency_min` 15/30/60 → TTL della cache del repository), tema
+- [x] Toggle `"show_details"` (default **false**): nasconde `region`/`country`/`coordinates`/`timezone` (location tiene solo `city` + `local_time` — deviazione dalla stringa compatta: `local_time` non era tra i campi da nascondere), `dew_point`, `wind.degree`, `wind.gust` + gli extra accettati `pressure_mb`, `visibility_km`, `pollutants` (restano `aqi_index`/`status`)
+- [x] Selezione tema da `"available_profiles"`: Obsidian, Dracula, Monokai — palette complete (ColorScheme + SyntaxColors da spec ufficiali: Dracula keys cyan/strings yellow/numbers purple, Monokai keys green/strings yellow/numbers purple), switch runtime da `active_profile` (cicla al tap) o tap diretto sul profilo nell'array (marcato `// active`)
+- [x] Persistenza con DataStore (`SettingsStore` esteso); le modifiche si riflettono immediatamente (tema via `MainActivity`, editor via `LocalEditorOptions`, unità/dettagli via `WeatherViewModel.displayOptions`)
+- [x] Confronto con il mockup `settings_settings.config/screen.png` — struttura e formato fedeli; deviazioni: niente sezione `security`/`api_key` (Open-Meteo non usa chiavi), niente unità `precipitation` (fuori scope PLANNING), valori unità espliciti (`"celsius"`/`"fahrenheit"` invece di `"metric"`), in più le sezioni `editor`/`data`/`sync`
 
 ## Fase 8 — Logs / Storico (`weather_history.diff`)
 

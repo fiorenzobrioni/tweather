@@ -98,11 +98,11 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 8 — Logs / Storico (`weather_history.diff`)
 
-- [ ] UI in formato git diff: header commit (hash, autore `sys@tweather.app`, timestamp relativo "2 hours ago")
-- [ ] Calcolo diff tra fetch consecutivi: valori nuovi come `+` (verde `#2ea043`), superati come `-` (rosso `#f85149`)
-- [ ] Lista commit scrollabile dal più recente; lettura dallo storico Room
-- [ ] Politica di retention dello storico (es. ultimi N commit o ultimi 7 giorni)
-- [ ] Confronto con il mockup `logs_weather_history.diff/screen.png`
+- [x] UI in formato git diff: header commit (hash, autore `sys@tweather.app`, timestamp relativo "2 hours ago") — `ui/logs/LogsScreen.kt`: `commit <hash> [città]` + `Author:` + `Date:` + `diff --git a/weather_data.json b/weather_data.json`; primo fetch di una città = "new file mode 100644" con tutte righe `+`; l'output git è codice → resta inglese
+- [x] Calcolo diff tra fetch consecutivi: valori nuovi come `+` (verde), superati come `-` (rosso, prima del `+` come in git), chiavi invariate come context colorate JSON — `data/local/SnapshotDiff.kt` (funzione pura, 4 test); righe ± con tinta di sfondo al 12% come nel mockup; il "precedente" è il fetch più recente della **stessa città** (lo storico interleaved di più città non si mescola)
+- [x] Lista commit scrollabile dal più recente; lettura dallo storico Room — `LogsViewModel` su `repository.observeHistory()` (Flow reattivo: un refresh aggiunge il commit in cima in tempo reale), rendering nel `CodeCanvas` (numeri di riga/wrap gratis)
+- [x] Politica di retention dello storico — già dalla Fase 3: 100 entry, pruning a ogni insert; `observeLatest` limitato a 100
+- [x] Confronto con il mockup `logs_weather_history.diff/screen.png` — righe ±/context e tinte fedeli; deviazione: header commit come righe git-log testuali nel canvas (col gutter) invece delle due card bordate del mockup, coerente con l'impianto "file finto" delle altre schermate; snapshot inglesi by design (Fase 6b) quindi i diff non churn-ano col cambio lingua
 
 ## Fase 9 — Rifiniture e qualità
 

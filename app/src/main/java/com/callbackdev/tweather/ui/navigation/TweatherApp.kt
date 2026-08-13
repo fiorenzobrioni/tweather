@@ -28,6 +28,7 @@ import com.callbackdev.tweather.ui.components.EditorNavItems
 import com.callbackdev.tweather.ui.components.EditorOptions
 import com.callbackdev.tweather.ui.components.LocalEditorOptions
 import com.callbackdev.tweather.ui.explorer.ExplorerScreen
+import com.callbackdev.tweather.ui.logs.LogsScreen
 import com.callbackdev.tweather.ui.search.SearchScreen
 import com.callbackdev.tweather.ui.settings.SettingsScreen
 import com.callbackdev.tweather.ui.weather.WeatherScreen
@@ -98,7 +99,7 @@ fun TweatherApp() {
                         SettingsScreen()
                     }
                     composable(Routes.Logs) {
-                        PlaceholderScreen(fileName = "weather_history.diff", phase = "Fase 8")
+                        LogsScreen()
                     }
                 }
             }

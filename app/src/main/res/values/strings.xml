@@ -18,6 +18,7 @@
     <string name="status_results">%1$d results</string>
     <string name="status_querying">querying…</string>
     <string name="status_files">%1$d files</string>
+    <string name="status_commits">%1$d commits</string>
     <string name="search_placeholder">Search Location</string>
 
     <!-- Accessibility -->

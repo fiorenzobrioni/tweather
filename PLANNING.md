@@ -90,6 +90,7 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 - [ ] UI in stile file `.config`: chiavi/valori con highlighting, booleani interattivi (es. `"severe_weather_alerts": true` come toggle) — base già in piedi dalla Fase 6b (`SettingsScreen` + `SettingsStore` + sezione `"editor"`); da estendere con le sezioni restanti
 - [ ] Impostazioni: unità (°C/°F, km/h–mph), notifiche/allerte meteo, frequenza aggiornamento, tema
+- [ ] Toggle `"show_details"` (default **false**, deciso col committente): nasconde dal `weather_data.json` i campi di dettaglio — `region`, `country`, `coordinates`, `timezone` (con `location` che collassa nella stringa compatta `"New York, NY"` come nel mockup), `dew_point_c`, `wind.degree`, `wind.gust_kph`; candidati extra da valutare: `pressure_mb`, `visibility_km`, `air_quality.pollutants` (tenendo visibili `aqi_index`/`status`)
 - [ ] Selezione tema da `"available_profiles"`: Obsidian, Dracula, Monokai — implementare le palette Dracula e Monokai e lo switch runtime
 - [ ] Persistenza con DataStore; le modifiche si riflettono immediatamente nell'app
 - [ ] Confronto con il mockup `settings_settings.config/screen.png`

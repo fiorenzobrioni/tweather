@@ -1,6 +1,7 @@
 package com.callbackdev.tweather.ui.weather
 
 import com.callbackdev.tweather.domain.model.WeatherReport
+import java.time.DayOfWeek
 import java.time.Duration
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -21,8 +22,15 @@ import kotlinx.serialization.json.putJsonObject
  * hourly_forecast, daily_forecast, system_info. Sections Open-Meteo could not fill
  * (air quality down, pollen outside Europe) render as `null` — this is a fake source
  * file, so a null field is more in-character than a missing one.
+ *
+ * Keys stay English (they're code); [translate] localizes the DATA values (condition
+ * descriptions, UV/AQI/pollen/moon labels) and [locale] the day names. Defaults are
+ * the domain's canonical English.
  */
-fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
+fun WeatherReport.toDisplayJson(
+    translate: (String) -> String = { it },
+    locale: Locale = Locale.ENGLISH
+): JsonObject = buildJsonObject {
     putJsonObject("location") {
         put("city", location.city)
         location.region?.let { put("region", it) }
@@ -35,7 +43,7 @@ fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
         put("local_time", location.localTime.format(LocalTimeStamp))
     }
     putJsonObject("current_conditions") {
-        put("status", current.condition.label)
+        put("status", "${translate(current.condition.description)} ${current.condition.emoji}")
         putDecimal("temp_c", current.tempC)
         putDecimal("feels_like_c", current.feelsLikeC)
         put("humidity_pct", current.humidityPct)
@@ -43,7 +51,7 @@ fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
         putDecimal("visibility_km", current.visibilityKm)
         putDecimal("pressure_mb", current.pressureMb)
         put("uv_index", current.uvIndex)
-        put("uv_description", current.uvDescription)
+        put("uv_description", translate(current.uvDescription))
         putJsonObject("wind") {
             putDecimal("speed_kph", current.wind.speedKph)
             put("direction", current.wind.directionCompass)
@@ -58,7 +66,7 @@ fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
     airQuality?.let { aq ->
         putJsonObject("air_quality") {
             put("aqi_index", aq.aqiIndex)
-            put("status", aq.status)
+            put("status", translate(aq.status))
             putJsonObject("pollutants") {
                 putDecimal("pm2_5", aq.pollutants.pm25)
                 putDecimal("pm10", aq.pollutants.pm10)
@@ -71,15 +79,18 @@ fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
     } ?: put("air_quality", JsonNull)
     pollen?.let { p ->
         putJsonObject("pollen_report") {
-            put("grass", p.grass.label)
-            put("tree", p.tree.label)
-            put("weed", p.weed.label)
+            put("grass", translate(p.grass.label))
+            put("tree", translate(p.tree.label))
+            put("weed", translate(p.weed.label))
         }
     } ?: put("pollen_report", JsonNull)
     putJsonObject("astronomical") {
         put("sunrise", astronomical.sunrise.format(ClockTime))
         put("sunset", astronomical.sunset.format(ClockTime))
-        put("moon_phase", astronomical.moonPhase.text)
+        put(
+            "moon_phase",
+            "${translate(astronomical.moonPhase.label)} ${astronomical.moonPhase.emoji}"
+        )
         put("daylight_duration", astronomical.daylightDuration.hhMm())
     }
     putJsonArray("hourly_forecast") {
@@ -87,7 +98,7 @@ fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
             add(buildJsonObject {
                 put("time", h.time.format(ClockTime))
                 put("temp_c", h.tempC.roundToInt())
-                put("status", h.condition.label)
+                put("status", "${translate(h.condition.description)} ${h.condition.emoji}")
                 put("precip_chance", h.precipChancePct)
             })
         }
@@ -95,10 +106,10 @@ fun WeatherReport.toDisplayJson(): JsonObject = buildJsonObject {
     putJsonArray("daily_forecast") {
         daily.forEach { d ->
             add(buildJsonObject {
-                put("day", d.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH))
+                put("day", d.date.dayOfWeek.shortName(locale))
                 put("high", d.highC.roundToInt())
                 put("low", d.lowC.roundToInt())
-                put("status", d.condition.label)
+                put("status", "${translate(d.condition.description)} ${d.condition.emoji}")
                 put("precip_pct", d.precipPct)
             })
         }
@@ -116,6 +127,11 @@ private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 
 /** Sample formats durations as `"10h 52m"`. */
 private fun Duration.hhMm(): String = "${toHours()}h ${toMinutesPart()}m"
+
+/** Capitalized short day name (`Mon`, `Lun`) — Italian locales give lowercase. */
+private fun DayOfWeek.shortName(locale: Locale): String =
+    getDisplayName(TextStyle.SHORT, locale)
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 
 /** One-decimal numbers like the sample's `18.5` (raw doubles carry float noise). */
 private fun JsonObjectBuilder.putDecimal(key: String, value: Double) {

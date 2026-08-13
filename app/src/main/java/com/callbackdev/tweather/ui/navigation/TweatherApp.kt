@@ -6,8 +6,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -16,10 +20,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import com.callbackdev.tweather.data.EditorSettings
+import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.ui.components.EditorNavBar
 import com.callbackdev.tweather.ui.components.EditorNavItems
+import com.callbackdev.tweather.ui.components.EditorOptions
+import com.callbackdev.tweather.ui.components.LocalEditorOptions
 import com.callbackdev.tweather.ui.explorer.ExplorerScreen
 import com.callbackdev.tweather.ui.search.SearchScreen
+import com.callbackdev.tweather.ui.settings.SettingsScreen
 import com.callbackdev.tweather.ui.weather.WeatherScreen
 
 /**
@@ -43,40 +52,53 @@ fun TweatherApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
 
+    // settings.config's editor section, live for every CodeCanvas in the app
+    val context = LocalContext.current
+    val settingsStore = remember(context) { ServiceLocator.settingsStore(context) }
+    val editorSettings by settingsStore.editorSettings
+        .collectAsStateWithLifecycle(initialValue = EditorSettings())
+
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = Routes.ExplorerGraph,
-                modifier = Modifier.weight(1f)
+            CompositionLocalProvider(
+                LocalEditorOptions provides EditorOptions(
+                    showLineNumbers = editorSettings.lineNumbers,
+                    wordWrap = editorSettings.wordWrap
+                )
             ) {
-                navigation(startDestination = Routes.Editor, route = Routes.ExplorerGraph) {
-                    composable(Routes.Editor) {
-                        WeatherScreen(
-                            onOpenExplorer = { navController.navigate(Routes.Cities) }
+                NavHost(
+                    navController = navController,
+                    startDestination = Routes.ExplorerGraph,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    navigation(startDestination = Routes.Editor, route = Routes.ExplorerGraph) {
+                        composable(Routes.Editor) {
+                            WeatherScreen(
+                                onOpenExplorer = { navController.navigate(Routes.Cities) }
+                            )
+                        }
+                        composable(Routes.Cities) {
+                            ExplorerScreen(
+                                onCitySelected = { navController.popBackStack() },
+                                onAddCity = { navController.navigateToTab(Routes.Search) }
+                            )
+                        }
+                    }
+                    composable(Routes.Search) {
+                        SearchScreen(
+                            onCitySelected = { navController.navigateToTab(Routes.ExplorerGraph) }
                         )
                     }
-                    composable(Routes.Cities) {
-                        ExplorerScreen(
-                            onCitySelected = { navController.popBackStack() },
-                            onAddCity = { navController.navigateToTab(Routes.Search) }
-                        )
+                    composable(Routes.Settings) {
+                        SettingsScreen()
                     }
-                }
-                composable(Routes.Search) {
-                    SearchScreen(
-                        onCitySelected = { navController.navigateToTab(Routes.ExplorerGraph) }
-                    )
-                }
-                composable(Routes.Settings) {
-                    PlaceholderScreen(fileName = "settings.config", phase = "Fase 7")
-                }
-                composable(Routes.Logs) {
-                    PlaceholderScreen(fileName = "weather_history.diff", phase = "Fase 8")
+                    composable(Routes.Logs) {
+                        PlaceholderScreen(fileName = "weather_history.diff", phase = "Fase 8")
+                    }
                 }
             }
             EditorNavBar(

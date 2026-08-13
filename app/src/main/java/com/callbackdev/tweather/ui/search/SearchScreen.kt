@@ -14,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.ui.components.CanvasLine
@@ -86,9 +88,9 @@ fun SearchScreen(
                 StatusBarDivider()
                 Text(
                     when {
-                        state.isSearching -> "querying…"
-                        state.error != null -> "0 results"
-                        else -> "${state.results.size} results"
+                        state.isSearching -> stringResource(R.string.status_querying)
+                        state.error != null -> stringResource(R.string.status_results, 0)
+                        else -> stringResource(R.string.status_results, state.results.size)
                     }
                 )
                 Spacer(Modifier.weight(1f))
@@ -177,7 +179,7 @@ private fun SearchTermLine(
             value = query,
             onValueChange = onQueryChange,
             prompt = "",
-            placeholder = "Search Location",
+            placeholder = stringResource(R.string.search_placeholder),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onSearchNow() })
         )

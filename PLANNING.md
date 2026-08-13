@@ -78,9 +78,17 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 - [x] Selezione risultato → imposta la città attiva e naviga alla schermata principale — `cityStore.add()` (aggiunge alla lista Explorer e attiva) + salvataggio in recenti + `navigateToTab(Explorer)`
 - [x] Confronto con il mockup `search_search_query.json/screen.png` — fedele per struttura (search_term/recent_searches, numeri di riga, colori da CLAUDE.md); il blocco statico `"filters"` del mockup (radius_km 50, data_source "NOAA") è volutamente omesso: decorativo e riferito a feature/provider inesistenti
 
+## Fase 6b — Interventi da feedback (spazio orizzontale, scroll, i18n)
+
+- [x] Numeri di riga come impostazione, default **off** su mobile (il mockup mobile del main li nasconde; deciso col committente per recuperare spazio orizzontale) — `EditorOptions` + `LocalEditorOptions` forniti dalla shell, toggle `"line_numbers"` in `settings.config`; le guide di indentazione restano sempre; senza gutter il contenuto parte al margine 16px
+- [x] Fix scroll orizzontale: le righe condividevano uno `ScrollState` ma ognuna scriveva il proprio `maxValue` — le righe corte lo clampavano a 0 (scroll bloccato, funzionante solo sulle righe lunghe, reset al passaggio di riciclo della LazyColumn). Ora ogni riga ha la stessa larghezza misurata sul monospace (`TextMeasurer` sulla riga più lunga), quindi range di scroll unico e coerente, gesto ovunque, gutter pinnato
+- [x] Word wrap con hanging indent (20sp sulle righe di continuazione, stile `editor.wordWrap`) — toggle `"word_wrap"` in `settings.config`, default off come VS Code
+- [x] `data/SettingsStore.kt` (DataStore) + schermata `settings.config` reale con la sola sezione `"editor"` (formato del mockup: JSON con commenti `//`, booleani `CodeToggle` tappabili); units/theme/notifications arrivano con la Fase 7
+- [x] Localizzazione IT/EN: default `values/` = inglese (fallback automatico per lingue non supportate), `values-it/`; regola concordata: il "codice" resta inglese (chiavi JSON, nomi file, errori terminale, commenti `//`), localizzate chrome (nav, status bar, placeholder), accessibilità e i **valori** meteo (condizioni WMO, UV, AQI, pollini, fasi lunari — mappa `WeatherTranslations` inglese→risorsa; dominio e snapshot Room restano inglesi così i diff non cambiano con la lingua) + nomi giorni dal locale; `android:localeConfig` per la scelta lingua per-app da Android 13
+
 ## Fase 7 — Impostazioni (`settings.config`)
 
-- [ ] UI in stile file `.config`: chiavi/valori con highlighting, booleani interattivi (es. `"severe_weather_alerts": true` come toggle)
+- [ ] UI in stile file `.config`: chiavi/valori con highlighting, booleani interattivi (es. `"severe_weather_alerts": true` come toggle) — base già in piedi dalla Fase 6b (`SettingsScreen` + `SettingsStore` + sezione `"editor"`); da estendere con le sezioni restanti
 - [ ] Impostazioni: unità (°C/°F, km/h–mph), notifiche/allerte meteo, frequenza aggiornamento, tema
 - [ ] Selezione tema da `"available_profiles"`: Obsidian, Dracula, Monokai — implementare le palette Dracula e Monokai e lo switch runtime
 - [ ] Persistenza con DataStore; le modifiche si riflettono immediatamente nell'app

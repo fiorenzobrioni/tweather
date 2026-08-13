@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,15 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 
 /** One destination of [EditorNavBar]; [route] doubles as the selection key. */
 data class EditorNavItem(
     val route: String,
-    val label: String,
+    @StringRes val labelRes: Int,
     val icon: ImageVector
 )
 
@@ -96,7 +99,7 @@ fun EditorNavBar(
                     modifier = Modifier.size(22.dp)
                 )
                 Text(
-                    text = item.label,
+                    text = stringResource(item.labelRes),
                     style = MaterialTheme.typography.labelSmall,
                     color = tint
                 )
@@ -107,10 +110,10 @@ fun EditorNavBar(
 
 /** The app's four tabs, in mockup order and with the mockup's glyph choices. */
 object EditorNavItems {
-    val Explorer = EditorNavItem("explorer", "Explorer", Icons.Filled.AccountTree)
-    val Search = EditorNavItem("search", "Search", Icons.Filled.Search)
-    val Settings = EditorNavItem("settings", "Settings", Icons.Filled.Code)
-    val Logs = EditorNavItem("logs", "Logs", Icons.Filled.Terminal)
+    val Explorer = EditorNavItem("explorer", R.string.nav_explorer, Icons.Filled.AccountTree)
+    val Search = EditorNavItem("search", R.string.nav_search, Icons.Filled.Search)
+    val Settings = EditorNavItem("settings", R.string.nav_settings, Icons.Filled.Code)
+    val Logs = EditorNavItem("logs", R.string.nav_logs, Icons.Filled.Terminal)
     val All = listOf(Explorer, Search, Settings, Logs)
 }
 

@@ -15,11 +15,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.Coordinates
@@ -81,7 +83,7 @@ fun ExplorerScreen(
             TerminalStatusBar {
                 Text("⎇ ${state.activeCity?.name ?: "—"}")
                 StatusBarDivider()
-                Text("${state.cities.size} file")
+                Text(stringResource(R.string.status_files, state.cities.size))
             }
         }
     }
@@ -102,7 +104,10 @@ private fun CityFileRow(
         Row(
             Modifier
                 .weight(1f)
-                .clickable(role = Role.Button, onClickLabel = "Open ${city.label}") { onSelect() }
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = stringResource(R.string.cd_open_city, city.label)
+                ) { onSelect() }
         ) {
             Text(
                 text = "·",
@@ -129,9 +134,10 @@ private fun CityFileRow(
                 style = style,
                 color = syntax.diffDel,
                 modifier = Modifier
-                    .clickable(role = Role.Button, onClickLabel = "Remove ${city.label}") {
-                        onRemove()
-                    }
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = stringResource(R.string.cd_remove_city, city.label)
+                    ) { onRemove() }
                     .padding(horizontal = 4.dp)
             )
         }
@@ -145,7 +151,10 @@ private fun AddCityRow(onAddCity: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClickLabel = "Add city") { onAddCity() }
+            .clickable(
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.cd_add_city)
+            ) { onAddCity() }
     ) {
         Text(
             text = "+",

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Italiano. Le parti "codice" del finto editor (chiavi JSON, nomi file, errori
+     terminale, commenti //) restano volutamente in inglese. -->
+<resources>
+    <!-- Bottom navigation -->
+    <string name="nav_explorer">Esplora</string>
+    <string name="nav_search">Cerca</string>
+    <string name="nav_settings">Impostazioni</string>
+    <string name="nav_logs">Log</string>
+
+    <!-- Chrome / status bars -->
+    <string name="status_last_updated">Ultimo agg.: %1$s</string>
+    <string name="status_syncing">Sincronizzo…</string>
+    <string name="status_results">%1$d risultati</string>
+    <string name="status_querying">interrogo…</string>
+    <string name="status_files">%1$d file</string>
+    <string name="search_placeholder">Cerca località</string>
+
+    <!-- Accessibility -->
+    <string name="cd_refresh">Aggiorna i dati meteo</string>
+    <string name="cd_open_explorer">Apri l\'esplora città</string>
+    <string name="cd_open_city">Apri %1$s</string>
+    <string name="cd_remove_city">Rimuovi %1$s</string>
+    <string name="cd_add_city">Aggiungi città</string>
+
+    <!-- Condizioni meteo (codici WMO) -->
+    <string name="cond_clear">Sereno</string>
+    <string name="cond_mainly_clear">Prevalentemente sereno</string>
+    <string name="cond_partly_cloudy">Parzialmente nuvoloso</string>
+    <string name="cond_overcast">Coperto</string>
+    <string name="cond_foggy">Nebbia</string>
+    <string name="cond_drizzle">Pioviggine</string>
+    <string name="cond_freezing_drizzle">Pioviggine gelata</string>
+    <string name="cond_light_rain">Pioggia debole</string>
+    <string name="cond_rainy">Pioggia</string>
+    <string name="cond_heavy_rain">Pioggia forte</string>
+    <string name="cond_freezing_rain">Pioggia gelata</string>
+    <string name="cond_light_snow">Neve debole</string>
+    <string name="cond_snowy">Neve</string>
+    <string name="cond_heavy_snow">Neve forte</string>
+    <string name="cond_snow_grains">Nevischio</string>
+    <string name="cond_rain_showers">Rovesci di pioggia</string>
+    <string name="cond_violent_showers">Rovesci violenti</string>
+    <string name="cond_snow_showers">Rovesci di neve</string>
+    <string name="cond_thunderstorm">Temporale</string>
+    <string name="cond_thunderstorm_hail">Temporale con grandine</string>
+    <string name="cond_unknown">Sconosciuto</string>
+
+    <!-- Indice UV -->
+    <string name="uv_low">Basso</string>
+    <string name="uv_moderate">Moderato ☀️</string>
+    <string name="uv_high">Alto ☀️</string>
+    <string name="uv_very_high">Molto alto ☀️</string>
+    <string name="uv_extreme">Estremo ☀️</string>
+
+    <!-- Qualità dell'aria (US AQI) -->
+    <string name="aqi_good">Buona ⚪</string>
+    <string name="aqi_moderate">Moderata 🟡</string>
+    <string name="aqi_sensitive">Dannosa per gruppi sensibili 🟠</string>
+    <string name="aqi_unhealthy">Dannosa 🔴</string>
+    <string name="aqi_very_unhealthy">Molto dannosa 🟣</string>
+    <string name="aqi_hazardous">Pericolosa 🟤</string>
+
+    <!-- Pollini -->
+    <string name="pollen_none">Assente</string>
+    <string name="pollen_low">Basso</string>
+    <string name="pollen_moderate">Moderato</string>
+    <string name="pollen_high">Alto</string>
+
+    <!-- Fasi lunari -->
+    <string name="moon_new">Luna nuova</string>
+    <string name="moon_waxing_crescent">Luna crescente</string>
+    <string name="moon_first_quarter">Primo quarto</string>
+    <string name="moon_waxing_gibbous">Gibbosa crescente</string>
+    <string name="moon_full">Luna piena</string>
+    <string name="moon_waning_gibbous">Gibbosa calante</string>
+    <string name="moon_last_quarter">Ultimo quarto</string>
+    <string name="moon_waning_crescent">Luna calante</string>
+</resources>

@@ -23,12 +23,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
 import com.callbackdev.tweather.ui.components.EditorTab
@@ -41,6 +45,7 @@ import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Main screen: the live weather report rendered as the fake source file
@@ -59,8 +64,10 @@ fun WeatherScreen(
 @Composable
 fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit, onOpenExplorer: () -> Unit = {}) {
     val syntax = TweatherTheme.syntax
-    val lines = remember(state.report, state.isLoading, state.error, syntax) {
-        buildScreenLines(state, syntax)
+    val resources = LocalContext.current.resources
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
+    val lines = remember(state.report, state.isLoading, state.error, syntax, locale) {
+        buildScreenLines(state, syntax, WeatherTranslations.translator(resources), locale)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -72,7 +79,7 @@ fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit, onOpenExplorer: 
                     modifier = Modifier
                         .clickable(
                             role = Role.Button,
-                            onClickLabel = "Open city explorer"
+                            onClickLabel = stringResource(R.string.cd_open_explorer)
                         ) { onOpenExplorer() }
                         .padding(8.dp)
                 )
@@ -84,6 +91,7 @@ fun WeatherScreen(state: WeatherUiState, onRefresh: () -> Unit, onOpenExplorer: 
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 16.dp, bottom = 24.dp),
+                    contentDescription = stringResource(R.string.cd_refresh),
                     icon = { RefreshIcon(spinning = state.isLoading) }
                 )
             }
@@ -135,12 +143,15 @@ private fun WeatherStatusBar(state: WeatherUiState) {
         Spacer(Modifier.weight(1f))
         Text(
             when {
-                state.isLoading -> "Syncing…"
-                report != null -> "Last Updated: " + report.systemInfo.lastSync
-                    .atZone(runCatching { ZoneId.of(report.location.timezone) }
-                        .getOrDefault(ZoneId.systemDefault()))
-                    .format(LastUpdated)
-                else -> "Last Updated: —"
+                state.isLoading -> stringResource(R.string.status_syncing)
+                report != null -> stringResource(
+                    R.string.status_last_updated,
+                    report.systemInfo.lastSync
+                        .atZone(runCatching { ZoneId.of(report.location.timezone) }
+                            .getOrDefault(ZoneId.systemDefault()))
+                        .format(LastUpdated)
+                )
+                else -> stringResource(R.string.status_last_updated, "—")
             }
         )
     }
@@ -151,9 +162,14 @@ private val LastUpdated = DateTimeFormatter.ofPattern("HH:mm:ss")
 /**
  * The document shown in the canvas. Loading and errors are part of the fake file,
  * rendered as `//` comment lines above the last good JSON (which survives a failed
- * refresh).
+ * refresh). Comments and errors are code — English by design.
  */
-private fun buildScreenLines(state: WeatherUiState, syntax: SyntaxColors): List<CodeLine> = buildList {
+private fun buildScreenLines(
+    state: WeatherUiState,
+    syntax: SyntaxColors,
+    translate: (String) -> String,
+    locale: Locale
+): List<CodeLine> = buildList {
     if (state.isLoading) {
         add(commentLine("// fetching weather_data.json …", syntax))
         add(commentLine("// GET https://api.open-meteo.com/v1/forecast", syntax))
@@ -164,7 +180,7 @@ private fun buildScreenLines(state: WeatherUiState, syntax: SyntaxColors): List<
     }
     state.report?.let {
         if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
-        addAll(buildJsonLines(it.toDisplayJson(), syntax))
+        addAll(buildJsonLines(it.toDisplayJson(translate, locale), syntax))
     }
 }
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -21,13 +22,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
+import androidx.compose.ui.unit.sp
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 
 /** One rendered line of the fake source file shown by [CodeCanvas]. */
@@ -51,15 +60,33 @@ class WidgetLine(
     val content: @Composable () -> Unit
 ) : CanvasLine
 
-private val IndentWidth = 20.dp // design system: 20px per nesting level
-private val ContentGap = 12.dp  // gap between the gutter divider and column 0
-private val GuideInset = 6.dp   // tree guide offset inside its indent slot (mockup: 6px)
+/**
+ * Editor behavior from `settings.config`, provided app-wide by the shell. Defaults
+ * match the mobile mockups: no line numbers, no wrap.
+ */
+@Immutable
+data class EditorOptions(
+    val showLineNumbers: Boolean = false,
+    val wordWrap: Boolean = false
+)
+
+val LocalEditorOptions = compositionLocalOf { EditorOptions() }
+
+private val IndentWidth = 20.dp    // design system: 20px per nesting level
+private val GutterGap = 12.dp     // gap between the gutter divider and column 0
+private val EdgeMargin = 16.dp    // design system: 16px side margins (no gutter)
+private val GuideInset = 6.dp     // tree guide offset inside its indent slot (mockup: 6px)
+private val WrapHangingIndent = 20.sp // continuation lines of a wrapped row
 
 /**
- * Scrollable editor canvas: line-number gutter on the left (right-aligned numbers,
- * 1px divider) and monospaced content on the right, with 20px indentation per nesting
- * level and 1px vertical tree guides. Lines never soft-wrap; overly long lines scroll
- * horizontally, all rows in sync.
+ * Scrollable editor canvas: monospaced content with 20px indentation per nesting
+ * level, 1px vertical tree guides and an optional line-number gutter (right-aligned
+ * numbers, 1px divider — [EditorOptions.showLineNumbers], off by default on mobile).
+ *
+ * Long lines follow [EditorOptions.wordWrap]: off = the whole document pans
+ * horizontally in one gesture (every row shares one ScrollState AND one measured
+ * content width, so short rows can't clamp the scroll range back to zero); on = rows
+ * soft-wrap with a hanging indent, editor style.
  */
 @Composable
 fun CodeCanvas(
@@ -67,48 +94,89 @@ fun CodeCanvas(
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(vertical = 8.dp),
-    showIndentGuides: Boolean = true
+    showIndentGuides: Boolean = true,
+    options: EditorOptions = LocalEditorOptions.current
 ) {
     val codeStyle = MaterialTheme.typography.bodySmall // code-block 13/22
     val gutterColor = MaterialTheme.colorScheme.outlineVariant
     val guideColor = TweatherTheme.syntax.border
     val gutterDigits = lines.size.coerceAtLeast(1).toString().length
     val horizontalScroll = rememberScrollState()
+    val startGap = if (options.showLineNumbers) GutterGap else EdgeMargin
+
+    // Monospace makes the widest row measurable exactly; every row gets that same
+    // width so the shared horizontal ScrollState has one consistent range.
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val contentWidth: Dp = remember(lines, codeStyle, options.wordWrap, density) {
+        if (options.wordWrap) {
+            Dp.Unspecified
+        } else {
+            with(density) {
+                lines.maxOfOrNull { line ->
+                    val textPx = when (line) {
+                        is CodeLine ->
+                            textMeasurer.measure(line.text, style = codeStyle).size.width
+                        is WidgetLine -> 0
+                    }
+                    textPx + (IndentWidth * line.indent).toPx()
+                }?.toDp()?.plus(startGap + EdgeMargin) ?: Dp.Unspecified
+            }
+        }
+    }
 
     LazyColumn(modifier = modifier, state = state, contentPadding = contentPadding) {
         itemsIndexed(lines) { index, line ->
             Row(Modifier.height(IntrinsicSize.Min)) {
-                Text(
-                    text = (index + 1).toString().padStart(gutterDigits),
-                    style = codeStyle,
-                    color = gutterColor,
-                    modifier = Modifier.padding(start = 16.dp, end = 8.dp)
-                )
-                Spacer(
-                    Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(guideColor)
-                )
+                if (options.showLineNumbers) {
+                    Text(
+                        text = (index + 1).toString().padStart(gutterDigits),
+                        style = codeStyle,
+                        color = gutterColor,
+                        modifier = Modifier.padding(start = 16.dp, end = 8.dp)
+                    )
+                    Spacer(
+                        Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .background(guideColor)
+                    )
+                }
+                val rowModifier = Modifier.weight(1f)
                 Box(
-                    Modifier
-                        .weight(1f)
-                        .horizontalScroll(horizontalScroll)
+                    if (options.wordWrap) {
+                        rowModifier
+                    } else {
+                        rowModifier.horizontalScroll(horizontalScroll)
+                    }
                 ) {
-                    val contentModifier = Modifier
-                        .lineDecoration(line.indent, guideColor, showIndentGuides)
+                    val lineModifier = Modifier
+                        .then(
+                            if (contentWidth.isSpecified) {
+                                Modifier.width(contentWidth)
+                            } else {
+                                Modifier.fillMaxWidth()
+                            }
+                        )
+                        .lineDecoration(line.indent, startGap, guideColor, showIndentGuides)
                     when (line) {
                         is CodeLine -> Text(
                             text = line.text,
-                            style = codeStyle,
-                            softWrap = false,
-                            modifier = if (line.onClick != null) {
-                                contentModifier.clickable(onClick = line.onClick)
+                            style = if (options.wordWrap) {
+                                codeStyle.copy(
+                                    textIndent = TextIndent(restLine = WrapHangingIndent)
+                                )
                             } else {
-                                contentModifier
+                                codeStyle
+                            },
+                            softWrap = options.wordWrap,
+                            modifier = if (line.onClick != null) {
+                                lineModifier.clickable(onClick = line.onClick)
+                            } else {
+                                lineModifier
                             }
                         )
-                        is WidgetLine -> Box(contentModifier) { line.content() }
+                        is WidgetLine -> Box(lineModifier) { line.content() }
                     }
                 }
             }
@@ -119,6 +187,7 @@ fun CodeCanvas(
 /** Indent guides behind the line plus the 20px-per-level content offset. */
 private fun Modifier.lineDecoration(
     indent: Int,
+    startGap: Dp,
     guideColor: Color,
     showIndentGuides: Boolean
 ): Modifier = this
@@ -126,7 +195,7 @@ private fun Modifier.lineDecoration(
         if (!showIndentGuides) return@drawBehind
         val stroke = 1.dp.toPx()
         for (level in 1..indent) {
-            val x = ContentGap.toPx() +
+            val x = startGap.toPx() +
                 (level - 1) * IndentWidth.toPx() +
                 GuideInset.toPx()
             drawLine(
@@ -138,8 +207,8 @@ private fun Modifier.lineDecoration(
         }
     }
     .padding(
-        start = ContentGap + IndentWidth * indent,
-        end = 16.dp
+        start = startGap + IndentWidth * indent,
+        end = EdgeMargin
     )
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)
@@ -154,6 +223,6 @@ private fun CodeCanvasPreview() {
             CodeLine(AnnotatedString("\"deeper\": [1, 2, 3]"), 2),
             CodeLine(AnnotatedString("}"), 0)
         )
-        CodeCanvas(lines = lines)
+        CodeCanvas(lines = lines, options = EditorOptions(showLineNumbers = true))
     }
 }

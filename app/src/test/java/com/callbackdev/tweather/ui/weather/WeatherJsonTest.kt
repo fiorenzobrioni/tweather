@@ -66,4 +66,21 @@ class WeatherJsonTest {
         assertEquals(JsonNull, bare.getValue("air_quality"))
         assertEquals(JsonNull, bare.getValue("pollen_report"))
     }
+
+    @Test
+    fun `translate localizes data values and locale the day names`() {
+        val translated = sampleWeatherReport().toDisplayJson(
+            translate = { if (it == "Partly Cloudy") "Parzialmente nuvoloso" else it },
+            locale = java.util.Locale.ITALIAN
+        )
+        val current = translated.getValue("current_conditions").jsonObject
+        assertEquals(
+            "Parzialmente nuvoloso ⛅",
+            current.getValue("status").jsonPrimitive.content
+        )
+        // keys stay English (code), only values are localized
+        assertEquals("temp_c", current.keys.toList()[1])
+        val firstDay = translated.getValue("daily_forecast").jsonArray.first().jsonObject
+        assertEquals("Lun", firstDay.getValue("day").jsonPrimitive.content)
+    }
 }

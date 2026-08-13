@@ -42,15 +42,16 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 3 — Layer dati (dominio e rete)
 
-- [ ] Definire i modelli di dominio dal sample `weather_data.json_full_sample.json`: `Location`, `CurrentConditions` (temp, feels like, umidità, vento, precipitazioni, UV), `AirQuality` (AQI + inquinanti PM2.5/PM10/O3/NO2/SO2/CO), `PollenReport`, `Astronomical` (alba/tramonto, fase lunare, durata giorno), `HourlyForecast` (24h), `DailyForecast` (7 giorni), `SystemInfo` (source, last_sync, cache status)
-- [ ] Integrare **Open-Meteo** come provider (gratuito, nessuna API key): Forecast API (`api.open-meteo.com/v1/forecast`) per condizioni correnti, orarie e giornaliere + dati astronomici (sunrise/sunset); Air Quality API (`air-quality-api.open-meteo.com/v1/air-quality`) per AQI, inquinanti (PM2.5/PM10/O3/NO2/SO2/CO) e pollini (disponibili solo in Europa — gestire l'assenza del dato altrove)
-- [ ] Implementare il client Retrofit + OkHttp con Kotlinx.serialization; DTO separati dai modelli di dominio + mapper
-- [ ] Implementare la ricerca città con la Geocoding API di Open-Meteo (`geocoding-api.open-meteo.com/v1/search`) per la schermata Search
-- [ ] Nota dati non forniti da Open-Meteo: fase lunare da calcolare localmente (algoritmo astronomico) o omettere in v1; `source` in `system_info` = `"Open-Meteo API"`
-- [ ] Mappare le condizioni meteo alle emoji Unicode (`☀️`, `🌧️`, `⛅`, `☁️`, `🌙`, fasi lunari `🌔`…) in un'unica utility
-- [ ] Repository con cache locale: ultimo dato per città, stato cache HIT/MISS, timestamp `last_sync` per la sezione `system_info`
-- [ ] Persistenza dello storico aggiornamenti (Room): ogni fetch salvato come "commit" (hash generato, autore `sys@tweather.app`, timestamp, snapshot valori) per la schermata Logs
-- [ ] Gestione errori: assenza rete, città non trovata, errore API — con messaggi in stile terminale
+- [x] Definire i modelli di dominio dal sample `weather_data.json_full_sample.json`: `Location`, `CurrentConditions` (temp, feels like, umidità, vento, precipitazioni, UV), `AirQuality` (AQI + inquinanti PM2.5/PM10/O3/NO2/SO2/CO), `PollenReport`, `Astronomical` (alba/tramonto, fase lunare, durata giorno), `HourlyForecast` (24h), `DailyForecast` (7 giorni), `SystemInfo` (source, last_sync, cache status) — `domain/model/WeatherModels.kt`; tempi come java.time, formattazione a render time; moonrise/moonset omessi (Open-Meteo non li fornisce)
+- [x] Integrare **Open-Meteo** come provider (gratuito, nessuna API key): Forecast API (`api.open-meteo.com/v1/forecast`) per condizioni correnti, orarie e giornaliere + dati astronomici (sunrise/sunset); Air Quality API (`air-quality-api.open-meteo.com/v1/air-quality`) per AQI, inquinanti (PM2.5/PM10/O3/NO2/SO2/CO) e pollini (disponibili solo in Europa — gestire l'assenza del dato altrove) — verificato con chiamate reali che `current` accetta anche dew_point/visibility/uv_index; air quality best-effort (il suo fallimento non affonda il report); AQI = scala US (il sample "42 Good" è US AQI); CO convertito µg→mg/m³
+- [x] Implementare il client Retrofit + OkHttp con Kotlinx.serialization; DTO separati dai modelli di dominio + mapper — `data/remote/dto/*` + `data/mapper/WeatherReportMapper.kt`; 3 istanze Retrofit (host diversi) su un unico OkHttp; logging BASIC solo in debug
+- [x] Implementare la ricerca città con la Geocoding API di Open-Meteo (`geocoding-api.open-meteo.com/v1/search`) per la schermata Search — `searchCities()` nel repository, mappa su `City` di dominio
+- [x] Nota dati non forniti da Open-Meteo: fase lunare da calcolare localmente (algoritmo astronomico) o omettere in v1; `source` in `system_info` = `"Open-Meteo API"` — `MoonPhase.at(Instant)`: ciclo sinodico medio da new moon di riferimento (±1 giorno, sufficiente per l'emoji), 6 test su date astronomiche note
+- [x] Mappare le condizioni meteo alle emoji Unicode (`☀️`, `🌧️`, `⛅`, `☁️`, `🌙`, fasi lunari `🌔`…) in un'unica utility — `domain/WeatherCodes.kt`: codici WMO→condizione+emoji (varianti day/night), descrizione UV, status AQI, bussola vento 16 punte, livelli pollini
+- [x] Repository con cache locale: ultimo dato per città, stato cache HIT/MISS, timestamp `last_sync` per la sezione `system_info` — cache in-memory per `cacheKey` città, TTL 15 min, `forceRefresh` per il FAB; forecast+air quality in parallelo
+- [x] Persistenza dello storico aggiornamenti (Room): ogni fetch salvato come "commit" (hash generato, autore `sys@tweather.app`, timestamp, snapshot valori) per la schermata Logs — Room 2.8.4 + KSP; `WeatherHistoryEntry` con hash SHA-1 a 7 char e snapshot JSON flatten (chiavi stabili per il diff di Fase 8); retention 100 entry; `observeLatest` come Flow
+- [x] Gestione errori: assenza rete, città non trovata, errore API — con messaggi in stile terminale — sealed `WeatherException` con `terminalMessage` (`net::ERR_INTERNET_DISCONNECTED`, `404: location ... not found`, `http::<code>`, `panic: ...`)
+- Decisione: niente Hilt — DI manuale con `data/ServiceLocator.kt` (l'app è piccola); Room aggiunta ora come previsto
 
 ## Fase 4 — Schermata principale (`weather_data.json`)
 

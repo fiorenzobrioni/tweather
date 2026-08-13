@@ -9,12 +9,13 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 ## Fase 0 — Setup progetto
 
 - [x] Inizializzare il repository git (`git init`) e creare `.gitignore` per Android/Kotlin — remote: https://github.com/fiorenzobrioni/tweather.git, licenza GPL-3.0
-- [ ] Creare progetto Android Studio: template "Empty Activity" (Compose), package `app.tweather`
-- [ ] Configurare Gradle (Kotlin DSL): Kotlin 1.9+, Compose BOM, Material 3, minSdk 26+, targetSdk aggiornato
-- [ ] Aggiungere dipendenze: Retrofit + OkHttp, Kotlinx.serialization (+ converter Retrofit), Navigation Compose, DataStore (preferenze), Room (storico/log), Hilt (DI), Coil non necessario (icone = emoji Unicode)
-- [ ] Importare il font **JetBrains Mono** (pesi 400/500/600/700) in `res/font`
-- [ ] Configurare versioning e build variants (debug/release)
-- [ ] Primo commit: progetto scheletro che compila e mostra una schermata vuota
+- [x] Creare progetto Android (scheletro Compose), package/applicationId `com.callbackdev.tweather`
+- [x] Configurare Gradle (Kotlin DSL): Gradle 9.1, AGP 8.13, Kotlin 2.2.20, Compose BOM 2025.08, Material 3, minSdk 26, target/compileSdk 36, version catalog `gradle/libs.versions.toml`
+- [x] Aggiungere dipendenze base: Retrofit + OkHttp, Kotlinx.serialization (+ converter Retrofit), Navigation Compose, DataStore (Room rinviata alla Fase 3 quando serve lo storico; Hilt da valutare in Fase 3; Coil non necessario, icone = emoji Unicode)
+- [x] Importare il font **JetBrains Mono** (pesi 400/500/600/700) in `res/font`
+- [x] Configurare versioning e build variants (debug/release); keystore debug condiviso committato in `keystore/debug.keystore` (alias `tweather-debug`, password `android`) così gli APK debug di CI e macchine diverse si aggiornano senza reinstallare
+- [x] CI GitHub Actions: `.github/workflows/android-debug-apk.yml` compila l'APK debug a ogni push e lo carica come artifact
+- [x] Primo commit: progetto scheletro che compila e mostra una schermata vuota
 
 ## Fase 1 — Design system e tema
 

@@ -21,9 +21,10 @@ local.properties
 gen/
 out/
 
-# Signing
+# Signing (shared debug keystore is intentionally committed)
 *.jks
 *.keystore
+!keystore/debug.keystore
 
 # Logs
 *.log

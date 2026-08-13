@@ -6,14 +6,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `search_query.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-**No application code exists yet.** The repo currently contains only design artifacts and specifications:
+The Android project skeleton exists (Fase 0 of `PLANNING.md` done); screens are not implemented yet. Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
 - `*/code.html` + `*/screen.png` — static Tailwind HTML mockups and screenshots for each screen (main editor, search, settings, logs/diff, brand logo). These are reference-only prototypes, not production code.
 - `weather_data.json_sample.json` / `weather_data.json_full_sample.json` — sample data shapes the main screen renders. The full sample defines the expected weather data model (location, current conditions, air quality, pollen, astronomical, hourly/daily forecast, system info).
 
-There is no build system, test suite, or lint config yet. When implementation starts, the PRD specifies the stack: Kotlin + Jetpack Compose (Material 3), Retrofit + OkHttp, Kotlinx.serialization.
+## Build and commands
+
+Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version catalog in `gradle/libs.versions.toml`. Package/applicationId: `com.callbackdev.tweather`. minSdk 26, compile/targetSdk 36.
+
+- Build debug APK: `./gradlew :app:assembleDebug` (output: `app/build/outputs/apk/debug/app-debug.apk`)
+- Unit tests: `./gradlew :app:testDebugUnitTest` — single test class: `./gradlew :app:testDebugUnitTest --tests "com.callbackdev.tweather.SomeTest"`
+- Lint: `./gradlew :app:lintDebug`
+- On this machine there is no system JDK: prepend `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"` (Android Studio's bundled JDK) to gradlew commands.
+
+**Debug signing**: `keystore/debug.keystore` is intentionally committed (alias `tweather-debug`, store/key password `android`) so debug APKs from CI and any machine share one signature and can update an existing install. Do not regenerate it.
+
+**CI**: `.github/workflows/android-debug-apk.yml` builds the debug APK on every push and uploads it as artifact `tweather-debug-apk`.
 
 **Decided (overrides the PRD's OpenWeatherMap example): the weather provider is Open-Meteo** — free, no API key. Forecast API for current/hourly/daily + astronomy, Air Quality API for AQI/pollutants/pollen (pollen is Europe-only), Geocoding API for city search. Moon phase is not provided and must be computed locally. See `PLANNING.md` (Fase 3) for details; `PLANNING.md` is the phased implementation plan with checkable steps — keep it updated as work progresses.
 

@@ -27,6 +27,7 @@ import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.ui.components.EditorTab
 import com.callbackdev.tweather.ui.components.StatusBarDivider
+import com.callbackdev.tweather.ui.components.StatusBarText
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.TreeViewItem
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -81,9 +82,9 @@ fun ExplorerScreen(
                 }
             }
             TerminalStatusBar {
-                Text("⎇ ${state.activeCity?.name ?: "—"}")
+                StatusBarText("⎇ ${state.activeCity?.name ?: "—"}", shrink = true)
                 StatusBarDivider()
-                Text(stringResource(R.string.status_files, state.cities.size))
+                StatusBarText(stringResource(R.string.status_files, state.cities.size))
             }
         }
     }

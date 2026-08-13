@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -63,6 +64,42 @@ fun TerminalStatusBar(
             content()
         }
     }
+}
+
+/**
+ * Left-hand group of a [TerminalStatusBar]: claims whatever the right-hand items
+ * leave over, so a [StatusBarText] with `shrink = true` inside it can ellipsize
+ * instead of pushing its neighbours onto a second line.
+ */
+@Composable
+fun RowScope.StatusBarStart(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier.weight(1f),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        content = content
+    )
+}
+
+/**
+ * A status bar entry, always on one line. [shrink] marks the item that gives way
+ * when the bar runs out of room — typically a city name, whose length is not ours
+ * to control; it is ellipsized like a path in an editor's status bar.
+ */
+@Composable
+fun RowScope.StatusBarText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = LocalContentColor.current,
+    shrink: Boolean = false
+) {
+    Text(
+        text = text,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = if (shrink) modifier.weight(1f, fill = false) else modifier
+    )
 }
 
 /** `|` separator between status bar items. */

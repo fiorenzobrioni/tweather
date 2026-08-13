@@ -16,8 +16,18 @@ val JetBrainsMono = FontFamily(
     Font(R.font.jetbrains_mono_bold, FontWeight.Bold)
 )
 
-// Scale from obsidian_syntax/DESIGN.md — JetBrains Mono everywhere
+private val M3Defaults = Typography()
+
+private fun TextStyle.mono() = copy(fontFamily = JetBrainsMono)
+
+// Scale from obsidian_syntax/DESIGN.md. The design system allows no font other than
+// JetBrains Mono, so every Material style is remapped — including the ones without an
+// explicit spec, which keep default metrics but switch family.
 val TweatherTypography = Typography(
+    displayLarge = M3Defaults.displayLarge.mono(),
+    displayMedium = M3Defaults.displayMedium.mono(),
+    displaySmall = M3Defaults.displaySmall.mono(),
+    // headline-lg
     headlineLarge = TextStyle(
         fontFamily = JetBrainsMono,
         fontWeight = FontWeight.Bold,
@@ -25,12 +35,19 @@ val TweatherTypography = Typography(
         lineHeight = 40.sp,
         letterSpacing = (-0.02).em
     ),
+    // headline-lg-mobile
     headlineMedium = TextStyle(
         fontFamily = JetBrainsMono,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
         lineHeight = 32.sp
     ),
+    headlineSmall = M3Defaults.headlineSmall.mono(),
+    titleLarge = M3Defaults.titleLarge.mono(),
+    titleMedium = M3Defaults.titleMedium.mono(),
+    titleSmall = M3Defaults.titleSmall.mono(),
+    bodyLarge = M3Defaults.bodyLarge.mono(),
+    // body-md
     bodyMedium = TextStyle(
         fontFamily = JetBrainsMono,
         fontWeight = FontWeight.Normal,
@@ -44,18 +61,20 @@ val TweatherTypography = Typography(
         fontSize = 13.sp,
         lineHeight = 22.sp
     ),
-    labelSmall = TextStyle(
-        fontFamily = JetBrainsMono,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.05.em
-    ),
+    labelLarge = M3Defaults.labelLarge.mono(),
     // status-bar
     labelMedium = TextStyle(
         fontFamily = JetBrainsMono,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
         lineHeight = 14.sp
+    ),
+    // label-sm
+    labelSmall = TextStyle(
+        fontFamily = JetBrainsMono,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.05.em
     )
 )

@@ -19,12 +19,12 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 1 — Design system e tema
 
-- [ ] Definire la palette Material 3 dal frontmatter di `obsidian_syntax/DESIGN.md` (surface `#10141a`, container `#181c22`, primary `#b5d9ff`, ecc.) in `ui/theme/Color.kt`
-- [ ] Definire i colori di syntax highlighting come token dedicati: keys `#79c0ff`, strings `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff add `#2ea043`, diff del `#f85149`, bordi `#30363d`
-- [ ] Creare `Typography` con JetBrains Mono (headline-lg 32/24px, body-md 14px, code-block 13px, label-sm 11px, status-bar 12px) in `ui/theme/Type.kt`
-- [ ] Creare `Shapes`: raggio 4px per tutti i container; FAB circolare come unica eccezione
-- [ ] Implementare il tema scuro "Obsidian Syntax" come default (`ui/theme/Theme.kt`); predisporre la struttura per profili tema multipli (Obsidian, Dracula, Monokai)
-- [ ] Regola "no shadow": profondità solo con bordi 1px e tonal stacking; glow solo per il FAB (`0 0 15px #79c0ff88`)
+- [x] Definire la palette Material 3 dal frontmatter di `obsidian_syntax/DESIGN.md` (surface `#10141a`, container `#181c22`, primary `#b5d9ff`, ecc.) in `ui/theme/Color.kt` — oggetto `ObsidianColors` con tutti i token; i ruoli "fixed" restano costanti di riferimento (non esistono nel `ColorScheme` di material3 1.3.x)
+- [x] Definire i colori di syntax highlighting come token dedicati: keys `#79c0ff`, strings `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff add `#2ea043`, diff del `#f85149`, bordi `#30363d` — data class `SyntaxColors` esposta via `TweatherTheme.syntax` (CompositionLocal), un'istanza per profilo tema
+- [x] Creare `Typography` con JetBrains Mono (headline-lg 32/24px, body-md 14px, code-block 13px, label-sm 11px, status-bar 12px) in `ui/theme/Type.kt` — anche gli stili Material senza spec esplicita sono rimappati su JetBrains Mono ("no exceptions")
+- [x] Creare `Shapes`: raggio 4px per tutti i container; FAB circolare come unica eccezione (`ui/theme/Shape.kt`; il FAB userà `CircleShape` esplicito in Fase 2)
+- [x] Implementare il tema scuro "Obsidian Syntax" come default (`ui/theme/Theme.kt`); predisporre la struttura per profili tema multipli (Obsidian, Dracula, Monokai) — enum `ThemeProfile` + `ThemeSpec` (colorScheme + syntax); Dracula/Monokai risolvono su Obsidian finché le palette non arrivano in Fase 7
+- [x] Regola "no shadow": profondità solo con bordi 1px e tonal stacking; glow solo per il FAB (`0 0 15px #79c0ff88`) — modifier `editorBorder()`/`editorFocusBorder()`/`fabGlow()` in `ui/theme/Depth.kt`
 
 ## Fase 2 — Componenti UI riusabili ("editor kit")
 

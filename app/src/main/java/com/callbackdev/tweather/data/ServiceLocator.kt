@@ -29,6 +29,9 @@ object ServiceLocator {
     @Volatile
     private var cityStore: CityStore? = null
 
+    @Volatile
+    private var searchHistoryStore: SearchHistoryStore? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -38,6 +41,12 @@ object ServiceLocator {
         cityStore ?: synchronized(this) {
             cityStore ?: CityStore.create(context.applicationContext, json)
                 .also { cityStore = it }
+        }
+
+    fun searchHistoryStore(context: Context): SearchHistoryStore =
+        searchHistoryStore ?: synchronized(this) {
+            searchHistoryStore ?: SearchHistoryStore.create(context.applicationContext, json)
+                .also { searchHistoryStore = it }
         }
 
     private fun build(appContext: Context): WeatherRepository {

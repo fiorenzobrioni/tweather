@@ -1,6 +1,7 @@
 package com.callbackdev.tweather.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -30,10 +32,24 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
 
 /** One rendered line of the fake source file shown by [CodeCanvas]. */
 @Immutable
+sealed interface CanvasLine {
+    val indent: Int
+}
+
+/** A plain (optionally tappable) syntax-highlighted text line. */
+@Immutable
 data class CodeLine(
     val text: AnnotatedString,
-    val indent: Int = 0
-)
+    override val indent: Int = 0,
+    val onClick: (() -> Unit)? = null
+) : CanvasLine
+
+/** A line whose content is an arbitrary composable (e.g. the search input). */
+@Immutable
+class WidgetLine(
+    override val indent: Int = 0,
+    val content: @Composable () -> Unit
+) : CanvasLine
 
 private val IndentWidth = 20.dp // design system: 20px per nesting level
 private val ContentGap = 12.dp  // gap between the gutter divider and column 0
@@ -47,7 +63,7 @@ private val GuideInset = 6.dp   // tree guide offset inside its indent slot (moc
  */
 @Composable
 fun CodeCanvas(
-    lines: List<CodeLine>,
+    lines: List<CanvasLine>,
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(vertical = 8.dp),
@@ -79,36 +95,52 @@ fun CodeCanvas(
                         .weight(1f)
                         .horizontalScroll(horizontalScroll)
                 ) {
-                    Text(
-                        text = line.text,
-                        style = codeStyle,
-                        softWrap = false,
-                        modifier = Modifier
-                            .drawBehind {
-                                if (!showIndentGuides) return@drawBehind
-                                val stroke = 1.dp.toPx()
-                                for (level in 1..line.indent) {
-                                    val x = ContentGap.toPx() +
-                                        (level - 1) * IndentWidth.toPx() +
-                                        GuideInset.toPx()
-                                    drawLine(
-                                        color = guideColor,
-                                        start = Offset(x, 0f),
-                                        end = Offset(x, size.height),
-                                        strokeWidth = stroke
-                                    )
-                                }
+                    val contentModifier = Modifier
+                        .lineDecoration(line.indent, guideColor, showIndentGuides)
+                    when (line) {
+                        is CodeLine -> Text(
+                            text = line.text,
+                            style = codeStyle,
+                            softWrap = false,
+                            modifier = if (line.onClick != null) {
+                                contentModifier.clickable(onClick = line.onClick)
+                            } else {
+                                contentModifier
                             }
-                            .padding(
-                                start = ContentGap + IndentWidth * line.indent,
-                                end = 16.dp
-                            )
-                    )
+                        )
+                        is WidgetLine -> Box(contentModifier) { line.content() }
+                    }
                 }
             }
         }
     }
 }
+
+/** Indent guides behind the line plus the 20px-per-level content offset. */
+private fun Modifier.lineDecoration(
+    indent: Int,
+    guideColor: Color,
+    showIndentGuides: Boolean
+): Modifier = this
+    .drawBehind {
+        if (!showIndentGuides) return@drawBehind
+        val stroke = 1.dp.toPx()
+        for (level in 1..indent) {
+            val x = ContentGap.toPx() +
+                (level - 1) * IndentWidth.toPx() +
+                GuideInset.toPx()
+            drawLine(
+                color = guideColor,
+                start = Offset(x, 0f),
+                end = Offset(x, size.height),
+                strokeWidth = stroke
+            )
+        }
+    }
+    .padding(
+        start = ContentGap + IndentWidth * indent,
+        end = 16.dp
+    )
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)
 @Composable

@@ -74,12 +74,14 @@ fun TerminalInput(
         cursorBrush = SolidColor(Color.Transparent),
         decorationBox = { innerTextField ->
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = prompt,
-                    style = textStyle,
-                    color = syntax.comment
-                )
-                Spacer(Modifier.width(8.dp))
+                if (prompt.isNotEmpty()) {
+                    Text(
+                        text = prompt,
+                        style = textStyle,
+                        color = syntax.comment
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
                 Box {
                     if (value.isEmpty() && placeholder.isNotEmpty()) {
                         Text(

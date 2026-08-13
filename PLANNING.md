@@ -72,11 +72,11 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 
 ## Fase 6 — Ricerca (`search_query.json`)
 
-- [ ] UI come oggetto JSON: la proprietà `"search_term"` è il campo di input (`TerminalInput` integrato nel rendering JSON)
-- [ ] Ricerca città con debounce → risultati dal geocoding renderizzati nella struttura JSON
-- [ ] Array `recent_searches` mostrato nel JSON; persistenza delle ricerche recenti
-- [ ] Selezione risultato → imposta la città attiva e naviga alla schermata principale
-- [ ] Confronto con il mockup `search_search_query.json/screen.png`
+- [x] UI come oggetto JSON: la proprietà `"search_term"` è il campo di input (`TerminalInput` integrato nel rendering JSON) — `ui/search/SearchScreen.kt`; `CodeCanvas` esteso con `CanvasLine` sealed (`CodeLine` ora anche cliccabile con `onClick`, `WidgetLine` per righe composable): l'input vive tra le virgolette JSON con cursore `_` prima della quote di chiusura
+- [x] Ricerca città con debounce → risultati dal geocoding renderizzati nella struttura JSON — `SearchViewModel`: debounce 400ms da 2 caratteri, IME Search per bypass; array `"results"` con oggetti inline tappabili `{ "city": …, "region": …, "country": … }`; ricerca in corso = `// GET /v1/search?name=…`, errori come `// ERROR: <terminalMessage>`
+- [x] Array `recent_searches` mostrato nel JSON; persistenza delle ricerche recenti — `data/SearchHistoryStore.kt` (DataStore, JSON array, max 5, dedup case-insensitive, più recente in testa); tap su una recente ne rilancia la ricerca
+- [x] Selezione risultato → imposta la città attiva e naviga alla schermata principale — `cityStore.add()` (aggiunge alla lista Explorer e attiva) + salvataggio in recenti + `navigateToTab(Explorer)`
+- [x] Confronto con il mockup `search_search_query.json/screen.png` — fedele per struttura (search_term/recent_searches, numeri di riga, colori da CLAUDE.md); il blocco statico `"filters"` del mockup (radius_km 50, data_source "NOAA") è volutamente omesso: decorativo e riferito a feature/provider inesistenti
 
 ## Fase 7 — Impostazioni (`settings.config`)
 

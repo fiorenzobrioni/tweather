@@ -19,6 +19,7 @@ import androidx.navigation.compose.rememberNavController
 import com.callbackdev.tweather.ui.components.EditorNavBar
 import com.callbackdev.tweather.ui.components.EditorNavItems
 import com.callbackdev.tweather.ui.explorer.ExplorerScreen
+import com.callbackdev.tweather.ui.search.SearchScreen
 import com.callbackdev.tweather.ui.weather.WeatherScreen
 
 /**
@@ -67,7 +68,9 @@ fun TweatherApp() {
                     }
                 }
                 composable(Routes.Search) {
-                    PlaceholderScreen(fileName = "search_query.json", phase = "Fase 6")
+                    SearchScreen(
+                        onCitySelected = { navController.navigateToTab(Routes.ExplorerGraph) }
+                    )
                 }
                 composable(Routes.Settings) {
                     PlaceholderScreen(fileName = "settings.config", phase = "Fase 7")

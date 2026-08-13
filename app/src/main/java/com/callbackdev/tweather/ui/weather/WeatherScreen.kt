@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -38,6 +37,8 @@ import com.callbackdev.tweather.ui.components.CodeLine
 import com.callbackdev.tweather.ui.components.EditorTab
 import com.callbackdev.tweather.ui.components.GlowFab
 import com.callbackdev.tweather.ui.components.StatusBarDivider
+import com.callbackdev.tweather.ui.components.StatusBarStart
+import com.callbackdev.tweather.ui.components.StatusBarText
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.buildJsonLines
 import com.callbackdev.tweather.ui.components.commentLine
@@ -137,22 +138,25 @@ private fun RefreshIcon(spinning: Boolean) {
 private fun WeatherStatusBar(state: WeatherUiState) {
     val report = state.report
     TerminalStatusBar {
-        Text("⎇ ${report?.location?.city ?: "—"}")
-        StatusBarDivider()
-        Text(
-            when {
-                state.error != null -> "api: ERR"
-                report != null -> "api: 200 OK"
-                else -> "api: …"
-            },
-            color = if (state.error != null) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
+        // The left group yields to "Last Updated:" on the right: a long city name
+        // truncates rather than wrapping the whole bar onto three lines.
+        StatusBarStart {
+            StatusBarText("⎇ ${report?.location?.city ?: "—"}", shrink = true)
+            StatusBarDivider()
+            StatusBarText(
+                when {
+                    state.error != null -> "api: ERR"
+                    report != null -> "api: 200 OK"
+                    else -> "api: …"
+                },
+                color = if (state.error != null) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+        StatusBarText(
             when {
                 state.isLoading -> stringResource(R.string.status_syncing)
                 report != null -> stringResource(

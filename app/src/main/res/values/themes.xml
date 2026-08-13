@@ -4,6 +4,11 @@
         <item name="android:windowBackground">@color/window_background</item>
         <item name="android:statusBarColor">@color/window_background</item>
         <item name="android:navigationBarColor">@color/window_background</item>
+        <!-- Dark-only app: system bar icons must stay light even when the phone is
+             in light mode, or they vanish into the Obsidian background. Set here as
+             well as in MainActivity so the window is right before Compose starts. -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <!-- Cold-start splash: Obsidian background + the { ☁️ } brand mark, then hands
@@ -12,5 +17,9 @@
         <item name="windowSplashScreenBackground">@color/window_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.Tweather</item>
+        <!-- Theme.SplashScreen is not a Theme.Tweather child: repeat the light-bar
+             opt-out so the splash window doesn't flash dark status bar icons. -->
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

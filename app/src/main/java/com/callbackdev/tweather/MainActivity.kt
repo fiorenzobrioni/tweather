@@ -10,11 +10,15 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.callbackdev.tweather.data.ServiceLocator
+import com.callbackdev.tweather.notifications.AlertScheduler
 import com.callbackdev.tweather.ui.navigation.TweatherApp
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,6 +34,16 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
         )
         val settingsStore = ServiceLocator.settingsStore(this)
+        // Single owner of background-work reconciliation: covers app start, every
+        // notification toggle flip, frequency changes and `git restore` resets.
+        // (The permission-grant path in Settings reconciles explicitly — a grant
+        // doesn't mutate DataStore, so this flow wouldn't fire.)
+        lifecycleScope.launch {
+            settingsStore.settings
+                .map { it.notifications to it.updateFrequencyMin }
+                .distinctUntilChanged()
+                .collect { AlertScheduler.reconcile(this@MainActivity) }
+        }
         setContent {
             // Theme switches at runtime with settings.config's "active_profile"
             val profile by remember {

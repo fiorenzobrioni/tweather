@@ -33,10 +33,20 @@
     <string name="cd_open_link">Open %1$s website</string>
     <string name="cd_reset_settings">Reset all settings to defaults</string>
     <string name="cd_confirm_reset">Confirm settings reset</string>
+    <string name="cd_grant_notifications">Grant notifications permission</string>
     <string name="cd_enable_gps">Enable GPS location</string>
     <string name="cd_disable_gps">Disable GPS location</string>
     <string name="cd_grant_location">Grant location permission in system settings</string>
     <string name="cd_select_gps">Use current location</string>
+
+    <!-- Notifications: titles/channel names are chrome (localized); bodies are
+         terminal output built in code (English by design) -->
+    <string name="notif_channel_severe">Severe weather alerts</string>
+    <string name="notif_channel_precip">Precipitation warnings</string>
+    <string name="notif_channel_summary">Daily summary</string>
+    <string name="notif_title_severe">%1$s Weather alert — %2$s</string>
+    <string name="notif_title_precip">%1$s Rain incoming — %2$s</string>
+    <string name="notif_title_summary">%1$s Today\'s weather — %2$s</string>
 
     <!-- Weather conditions (WMO codes) -->
     <string name="cond_clear">Clear</string>

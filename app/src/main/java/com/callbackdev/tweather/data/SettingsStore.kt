@@ -34,7 +34,7 @@ data class UnitSettings(
     val windSpeed: WindSpeedUnit = WindSpeedUnit.KMH
 )
 
-/** Persisted preferences only — no alert engine ships in v1 (see PLANNING). */
+/** Read by the alert engine (Fase 9c): each toggle gates one rule in AlertEngine. */
 data class NotificationSettings(
     val severeWeatherAlerts: Boolean = true,
     val dailySummary: Boolean = false,
@@ -53,13 +53,16 @@ data class AppSettings(
     val units: UnitSettings = UnitSettings(),
     val notifications: NotificationSettings = NotificationSettings(),
     val themeProfileName: String = "Obsidian",
-    val updateFrequencyMin: Int = UpdateFrequencies.first(),
+    val updateFrequencyMin: Int = DefaultUpdateFrequencyMin,
     /** Epoch seconds of the last edit; null until the user changes something. */
     val lastModifiedEpochSeconds: Long? = null
 )
 
-/** Cache TTL choices the sync setting cycles through. */
-val UpdateFrequencies = listOf(15, 30, 60)
+/** Foreground cache TTL AND background polling interval (since the alert engine). */
+val UpdateFrequencies = listOf(15, 30, 60, 120)
+
+/** 60: right default for a polling interval (decision recorded in PLANNING, Fase 7). */
+const val DefaultUpdateFrequencyMin = 60
 
 /** App settings persisted as DataStore preferences. */
 class SettingsStore(private val dataStore: DataStore<Preferences>) {
@@ -82,8 +85,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
                     precipitationWarning = prefs[PrecipWarning] ?: true
                 ),
                 themeProfileName = prefs[ThemeProfileName] ?: "Obsidian",
-                updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: UpdateFrequencies.first())
-                    .takeIf { it in UpdateFrequencies } ?: UpdateFrequencies.first(),
+                updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: DefaultUpdateFrequencyMin)
+                    .takeIf { it in UpdateFrequencies } ?: DefaultUpdateFrequencyMin,
                 lastModifiedEpochSeconds = prefs[LastModified]
             )
         }

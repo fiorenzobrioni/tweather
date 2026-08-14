@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,8 +50,10 @@ import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
+import com.callbackdev.tweather.notifications.AlertScheduler
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
@@ -69,6 +72,21 @@ class SettingsActions(
     val onOpenUrl: (String) -> Unit,
     val onReset: () -> Unit
 )
+
+/** Status of the `notifications` block's dynamic `//` line. */
+enum class NotifLineState {
+    /** All three toggles off — nothing scheduled. */
+    Disabled,
+
+    /** Engine armed: at least one toggle on and permission granted. */
+    Armed,
+
+    /** Toggles on but no permission; tap requests it. */
+    MissingPermission,
+
+    /** Permission permanently denied; tap opens the system app settings. */
+    DeniedPermanently
+}
 
 /** How the `"use_gps"` line renders and reacts; derived in the stateful wrapper. */
 enum class GpsLineState {
@@ -149,8 +167,71 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
         else -> GpsLineState.Off
     }
 
+    // POST_NOTIFICATIONS — same state machine as the GPS permission above.
+    val hasNotifPermission = remember(permissionEpoch) {
+        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+    var notifDeniedPermanently by remember { mutableStateOf(false) }
+    // A toggle the user flipped on before granting: applied right after the grant
+    var pendingNotifToggle by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val scope = rememberCoroutineScope()
+    val notifLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        permissionEpoch++
+        if (granted) {
+            notifDeniedPermanently = false
+            pendingNotifToggle?.invoke()
+            pendingNotifToggle = null
+            // A grant doesn't touch DataStore, so MainActivity's settings collector
+            // won't fire — reconcile the background work explicitly.
+            scope.launch { AlertScheduler.reconcile(context.applicationContext) }
+        } else {
+            pendingNotifToggle = null
+            if (activity?.shouldShowRequestPermissionRationale(
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == false
+            ) {
+                notifDeniedPermanently = true
+            }
+        }
+    }
+    val anyNotifOn = with(settings.notifications) {
+        severeWeatherAlerts || dailySummary || precipitationWarning
+    }
+    val notifState = when {
+        !anyNotifOn -> NotifLineState.Disabled
+        hasNotifPermission -> NotifLineState.Armed
+        notifDeniedPermanently -> NotifLineState.DeniedPermanently
+        else -> NotifLineState.MissingPermission
+    }
+
+    /** Turning a notification toggle ON without the permission asks for it first. */
+    fun gated(setter: (Boolean) -> Unit): (Boolean) -> Unit = { enabled ->
+        if (enabled && !hasNotifPermission) {
+            pendingNotifToggle = { setter(true) }
+            if (notifDeniedPermanently) {
+                context.openAppSystemSettings()
+            } else {
+                notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            setter(enabled)
+        }
+    }
+
     SettingsScreen(
         settings = settings,
+        notifState = notifState,
+        onNotifLine = {
+            when (notifState) {
+                NotifLineState.MissingPermission ->
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                NotifLineState.DeniedPermanently -> context.openAppSystemSettings()
+                else -> Unit
+            }
+        },
         gpsState = gpsState,
         gpsDeniedFlash = gpsDeniedFlash,
         onGpsLine = {
@@ -178,9 +259,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             onToggleTemperature = viewModel::toggleTemperatureUnit,
             onToggleWindSpeed = viewModel::toggleWindSpeedUnit,
             onThemeProfile = viewModel::setThemeProfile,
-            onSevereAlerts = viewModel::setSevereWeatherAlerts,
-            onDailySummary = viewModel::setDailySummary,
-            onPrecipWarning = viewModel::setPrecipitationWarning,
+            onSevereAlerts = gated(viewModel::setSevereWeatherAlerts),
+            onDailySummary = gated(viewModel::setDailySummary),
+            onPrecipWarning = gated(viewModel::setPrecipitationWarning),
             onCycleFrequency = viewModel::cycleUpdateFrequency,
             onOpenUrl = uriHandler::openUri,
             onReset = viewModel::resetToDefaults
@@ -194,7 +275,9 @@ fun SettingsScreen(
     actions: SettingsActions,
     gpsState: GpsLineState = GpsLineState.Off,
     gpsDeniedFlash: Boolean = false,
-    onGpsLine: () -> Unit = {}
+    onGpsLine: () -> Unit = {},
+    notifState: NotifLineState = NotifLineState.Armed,
+    onNotifLine: () -> Unit = {}
 ) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
@@ -210,6 +293,9 @@ fun SettingsScreen(
         settings, syntax, actions,
         changeLabel = { key -> resources.getString(R.string.cd_change_setting, key) },
         openLabel = { name -> resources.getString(R.string.cd_open_link, name) },
+        notifState = notifState,
+        notifLabel = resources.getString(R.string.cd_grant_notifications),
+        onNotifLine = onNotifLine,
         gpsState = gpsState,
         gpsDeniedFlash = gpsDeniedFlash,
         gpsLabel = resources.getString(
@@ -259,6 +345,9 @@ private fun buildSettingsLines(
     actions: SettingsActions,
     changeLabel: (String) -> String,
     openLabel: (String) -> String,
+    notifState: NotifLineState,
+    notifLabel: String,
+    onNotifLine: () -> Unit,
     gpsState: GpsLineState,
     gpsDeniedFlash: Boolean,
     gpsLabel: String,
@@ -354,7 +443,7 @@ private fun buildSettingsLines(
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("notifications", 1, syntax))
-    add(commentLine("// alert engine ships later; preferences persist now", syntax, indent = 2))
+    add(notifStatusLine(notifState, settings.updateFrequencyMin, syntax, notifLabel, onNotifLine))
     add(boolLine("severe_weather_alerts", settings.notifications.severeWeatherAlerts,
         comma = true, syntax = syntax,
         onClickLabel = changeLabel("severe_weather_alerts")) {
@@ -381,7 +470,7 @@ private fun buildSettingsLines(
                 withStyle(SpanStyle(color = syntax.number)) {
                     append(settings.updateFrequencyMin.toString())
                 }
-                withStyle(SpanStyle(color = syntax.comment)) { append("  // 15 | 30 | 60") }
+                withStyle(SpanStyle(color = syntax.comment)) { append("  // 15 | 30 | 60 | 120") }
             },
             indent = 2,
             onClick = actions.onCycleFrequency,
@@ -491,6 +580,37 @@ private fun boolLine(
     onClick = onToggle,
     onClickLabel = onClickLabel
 )
+
+/**
+ * The notifications block's status line — what replaced the placeholder comment
+ * `// alert engine ships later`. Error states are tappable (grant / app settings).
+ */
+private fun notifStatusLine(
+    state: NotifLineState,
+    pollMinutes: Int,
+    syntax: SyntaxColors,
+    onClickLabel: String,
+    onClick: () -> Unit
+): CodeLine {
+    val (text, color) = when (state) {
+        NotifLineState.Disabled ->
+            "// alerts disabled" to syntax.comment.copy(alpha = 0.6f)
+        NotifLineState.Armed ->
+            "// polling every $pollMinutes min" to syntax.comment.copy(alpha = 0.6f)
+        NotifLineState.MissingPermission ->
+            "// ERROR: notifications permission missing — tap to grant" to syntax.diffDel
+        NotifLineState.DeniedPermanently ->
+            "// ERROR: denied — open system settings" to syntax.diffDel
+    }
+    val clickable = state == NotifLineState.MissingPermission ||
+        state == NotifLineState.DeniedPermanently
+    return CodeLine(
+        text = AnnotatedString(text, SpanStyle(color = color)),
+        indent = 2,
+        onClick = onClick.takeIf { clickable },
+        onClickLabel = onClickLabel.takeIf { clickable }
+    )
+}
 
 /**
  * `"use_gps": false  // tap to enable` — the boolean reflects the persisted toggle

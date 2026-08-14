@@ -29,10 +29,20 @@
     <string name="cd_open_link">Apri il sito di %1$s</string>
     <string name="cd_reset_settings">Ripristina tutte le impostazioni predefinite</string>
     <string name="cd_confirm_reset">Conferma il ripristino delle impostazioni</string>
+    <string name="cd_grant_notifications">Concedi il permesso per le notifiche</string>
     <string name="cd_enable_gps">Attiva la posizione GPS</string>
     <string name="cd_disable_gps">Disattiva la posizione GPS</string>
     <string name="cd_grant_location">Concedi il permesso di posizione nelle impostazioni di sistema</string>
     <string name="cd_select_gps">Usa la posizione attuale</string>
+
+    <!-- Notifiche: titoli/nomi canale sono chrome (localizzati); i corpi sono
+         output terminale costruito in codice (inglese by design) -->
+    <string name="notif_channel_severe">Allerte meteo severe</string>
+    <string name="notif_channel_precip">Avvisi di precipitazioni</string>
+    <string name="notif_channel_summary">Riepilogo giornaliero</string>
+    <string name="notif_title_severe">%1$s Allerta meteo — %2$s</string>
+    <string name="notif_title_precip">%1$s Pioggia in arrivo — %2$s</string>
+    <string name="notif_title_summary">%1$s Meteo di oggi — %2$s</string>
 
     <!-- Condizioni meteo (codici WMO) -->
     <string name="cond_clear">Sereno</string>

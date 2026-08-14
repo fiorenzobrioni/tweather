@@ -1,6 +1,7 @@
 package com.callbackdev.tweather.data
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.room.Room
 import com.callbackdev.tweather.BuildConfig
 import com.callbackdev.tweather.data.local.TweatherDatabase
@@ -38,6 +39,9 @@ object ServiceLocator {
     @Volatile
     private var locationProvider: LocationProvider? = null
 
+    @Volatile
+    private var alertStateStore: AlertStateStore? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -66,6 +70,30 @@ object ServiceLocator {
             locationProvider ?: AndroidLocationProvider(context.applicationContext)
                 .also { locationProvider = it }
         }
+
+    fun alertStateStore(context: Context): AlertStateStore =
+        alertStateStore ?: synchronized(this) {
+            alertStateStore ?: AlertStateStore.create(context.applicationContext)
+                .also { alertStateStore = it }
+        }
+
+    /**
+     * Test-only: workers resolve dependencies from here, so worker tests swap in
+     * temp-file stores/fake repositories. Calling with no arguments resets to
+     * lazy real instances (do it in @After — the object outlives the test).
+     */
+    @VisibleForTesting
+    fun overrideForTests(
+        repository: WeatherRepository? = null,
+        cityStore: CityStore? = null,
+        settingsStore: SettingsStore? = null,
+        alertStateStore: AlertStateStore? = null
+    ) {
+        this.repository = repository
+        this.cityStore = cityStore
+        this.settingsStore = settingsStore
+        this.alertStateStore = alertStateStore
+    }
 
     private fun build(appContext: Context): WeatherRepository {
         val okHttp = OkHttpClient.Builder()

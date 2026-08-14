@@ -26,6 +26,8 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 **CI**: `.github/workflows/android-debug-apk.yml` builds the debug APK on every push and uploads it as artifact `tweather-debug-apk`.
 
+**Alert engine** (Fase 9c): background notifications via a single WorkManager periodic job (`weather-sync`, interval = `update_frequency_min`, now 15/30/60/120 default 60, CONNECTED-only constraint, no foreground services/exact alarms/FCM/background location). Pure rules in `domain/AlertEngine.kt` (severe WMO buckets 12h, precip ≥70% 6h, daily summary 06–12), dedup fingerprints in DataStore `alerts`, hybrid notification style (localized title + English terminal body). Background fetches write Logs commits like any fetch.
+
 **GPS current location** (Fase 9b): the device position can be the active weather source — platform `LocationManager`/`Geocoder` only (no play-services), `ACCESS_COARSE_LOCATION` only, GPS pseudo-city with reserved id `-1L` kept out of the saved list, toggle in `settings.config` (`location.use_gps`), pinned `current_location.json` entry in the Explorer (tertiary color).
 
 **Decided (overrides the PRD's OpenWeatherMap example): the weather provider is Open-Meteo** — free, no API key. Forecast API for current/hourly/daily + astronomy, Air Quality API for AQI/pollutants/pollen (pollen is Europe-only), Geocoding API for city search. Moon phase is not provided and must be computed locally. See `PLANNING.md` (Fase 3) for details; `PLANNING.md` is the phased implementation plan with checkable steps — keep it updated as work progresses.

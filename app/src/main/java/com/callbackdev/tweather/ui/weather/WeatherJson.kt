@@ -165,8 +165,12 @@ fun WeatherReport.toDisplayJson(
 private val TemperatureUnit.keySuffix: String
     get() = if (this == TemperatureUnit.CELSIUS) "c" else "f"
 
-private fun TemperatureUnit.convert(celsius: Double): Double =
+// internal: AlertNotifier renders temperatures in the user's unit too
+internal fun TemperatureUnit.convert(celsius: Double): Double =
     if (this == TemperatureUnit.CELSIUS) celsius else celsius * 9 / 5 + 32
+
+internal val TemperatureUnit.symbol: String
+    get() = if (this == TemperatureUnit.CELSIUS) "°C" else "°F"
 
 private val WindSpeedUnit.keySuffix: String
     get() = if (this == WindSpeedUnit.KMH) "kph" else "mph"

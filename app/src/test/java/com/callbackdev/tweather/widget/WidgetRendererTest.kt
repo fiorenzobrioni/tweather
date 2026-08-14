@@ -1,6 +1,9 @@
 package com.callbackdev.tweather.widget
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
@@ -150,6 +153,71 @@ class WidgetRendererTest {
         val opaque = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM, opacityPct = 100)
         assertEquals(255, opaque.findViewById<ImageView>(R.id.widget_bg_fill).imageAlpha)
     }
+
+    /**
+     * `imageAlpha` alone proves nothing: what reaches the launcher is pixels. These
+     * two draw the background layers for real, because a stroke-only shape and a
+     * color filter interact in a way the setter-level assertions cannot see.
+     */
+    @Test
+    fun theFadedFillActuallyDrawsSemiTransparentPixels() {
+        val fill = layeredBackground(opacityPct = 50).first
+
+        val pixel = fill.centerPixel()
+        assertEquals("fill must honour the opacity setting", 128, Color.alpha(pixel).toNearest(128))
+        // premultiplied storage costs a couple of levels per channel on the way back
+        assertNear(0x10, Color.red(pixel))
+        assertNear(0x14, Color.green(pixel))
+        assertNear(0x1A, Color.blue(pixel))
+    }
+
+    @Test
+    fun theBorderLayerPaintsNothingButItsFrame() {
+        val border = layeredBackground(opacityPct = 50).second
+
+        // A filled border layer would sit opaque on top of the fill and make the
+        // opacity setting look broken, whatever alpha the fill carries.
+        assertEquals(
+            "the frame layer must stay hollow, or it hides the fill underneath",
+            0,
+            Color.alpha(border.centerPixel())
+        )
+
+        // ...and hollow must not mean absent: the frame itself still has to be drawn,
+        // opaque and in the theme's border color, however faded the fill is.
+        val edge = (0..2).map { border.getPixel(border.width / 2, it) }
+            .maxBy { Color.alpha(it) }
+        assertTrue("the frame edge is missing", Color.alpha(edge) > 100)
+        assertNear(0x30, Color.red(edge))
+        assertNear(0x36, Color.green(edge))
+        assertNear(0x3D, Color.blue(edge))
+    }
+
+    /** Both background layers of a laid-out MEDIUM widget, each drawn on its own. */
+    private fun layeredBackground(opacityPct: Int): Pair<Bitmap, Bitmap> {
+        val root = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM, opacityPct)
+        val size = (200 * context.resources.displayMetrics.density).toInt()
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY)
+        )
+        root.layout(0, 0, size, size)
+        return root.drawAlone(R.id.widget_bg_fill) to root.drawAlone(R.id.widget_bg_border)
+    }
+
+    private fun View.drawAlone(id: Int): Bitmap {
+        val target = findViewById<View>(id)
+        return Bitmap.createBitmap(target.width, target.height, Bitmap.Config.ARGB_8888)
+            .also { target.draw(Canvas(it)) }
+    }
+
+    private fun Bitmap.centerPixel(): Int = getPixel(width / 2, height / 2)
+
+    /** Alpha maths rounds; anything within a step of the target is the right value. */
+    private fun Int.toNearest(target: Int): Int = if (this in (target - 2)..(target + 2)) target else this
+
+    private fun assertNear(expected: Int, actual: Int) =
+        assertTrue("expected ~$expected but was $actual", actual in (expected - 3)..(expected + 3))
 
     @Test
     fun emptyStateRendersTheNoDataComment() {

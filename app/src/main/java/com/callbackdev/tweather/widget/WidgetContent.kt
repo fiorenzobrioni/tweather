@@ -12,14 +12,19 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 /**
- * Layout tiers picked by the launcher via the RemoteViews sizes map: SMALL is a
- * glanceable emoji+temp strip, MEDIUM is the mockup terminal window, EXTENDED adds
- * `Feels` when there is one more line of room, LARGE adds the rest plus a
- * `# last_sync` freshness line. The rungs are close together on purpose — the map
- * only lets the launcher pick a tier that FITS, so a coarse ladder means a widget
- * with room to spare still gets the short transcript.
+ * How much the launcher has room for, chosen through the RemoteViews sizes map.
+ *
+ * The terminal tiers differ only in how many transcript lines fit, so the ladder is
+ * simply a line budget with one rung per line. A coarse ladder would be worse than
+ * it sounds: the map only ever picks a tier that FITS, so a widget with room for
+ * seven lines but no seven-line rung silently falls back to the five-line one.
  */
-enum class WidgetTier { SMALL, MEDIUM, EXTENDED, LARGE }
+sealed interface WidgetTier {
+    /** The glanceable strip: emoji, temperature, city. Its own layout. */
+    data object Small : WidgetTier
+
+    data class Terminal(val lines: Int) : WidgetTier
+}
 
 /** Semantic color role of a token; the renderer maps roles to [WidgetPalette] ints. */
 enum class TokenRole { PROMPT, PLAIN, DIM, KEY, STRING, NUMBER, COMMENT, ALERT }
@@ -90,41 +95,47 @@ object WidgetContentBuilder {
             )
         }
 
-        val location = snapshot["location"]
+        // City only, never "city, region": the region is what the user already knows
+        // and it is what pushes the city name itself into the ellipsis.
+        val city = snapshot["location"]?.substringBefore(",")
         val (statusDesc, emoji) = splitStatus(snapshot["current.status"])
         val temp = snapshot["current.temp_c"].formatTemp(temperature)
-        val humidity = snapshot["current.humidity_pct"]
         val stale = isStale(timestampEpochSeconds, updateFrequencyMin, now)
+        val syncLine = timestampEpochSeconds?.let {
+            val stamp = SyncTime.format(Instant.ofEpochSecond(it).atZone(zone))
+            // the timestamp is its own evidence, so the whole line turns red
+            token("# last_sync: $stamp", if (stale) TokenRole.ALERT else TokenRole.COMMENT)
+        }
 
-        val lines = buildList {
-            // Only LARGE has the width for "city, region"; on the narrow tiers the
-            // region would push the city name itself into the ellipsis.
-            location
-                ?.let { if (tier == WidgetTier.LARGE) it else it.substringBefore(",") }
-                ?.let { add(kvString("Location", it)) }
-            // The stale marker rides the Temp line on the tiers with no room for a
-            // last_sync line — that is where the eye lands, and a trailing comment is
-            // the first thing `ellipsize` drops on a narrow widget, never the value.
-            // LARGE says it once, on its own last_sync line, instead of twice.
-            val tempMarker = STALE_MARKER.takeIf { stale && tier != WidgetTier.LARGE }
-            temp?.let { add(kvNumber("Temp", it, trailing = tempMarker)) }
-            if (tier == WidgetTier.EXTENDED || tier == WidgetTier.LARGE) {
-                // next to Temp, not buried further down: the two are read together
-                snapshot["current.feels_like_c"].formatTemp(temperature)?.let {
-                    add(kvNumber("Feels", it))
-                }
+        // The whole transcript, most useful first. The tier decides how much of it
+        // is shown — no per-tier branching, so a new rung needs no new code here.
+        val transcript = buildList {
+            city?.let { add(kvString("Location", it)) }
+            temp?.let { add(kvNumber("Temp", it)) }
+            snapshot["current.feels_like_c"].formatTemp(temperature)?.let {
+                add(kvNumber("Feels", it))
             }
             statusDesc?.let { add(kvString("Status", translate(it))) }
-            humidity?.let { add(kvNumber("Humidity", "$it%")) }
-            if (tier == WidgetTier.LARGE) {
-                formatWind(snapshot, windSpeed)?.let { add(kvNumber("Wind", it)) }
-                snapshot["air_quality.aqi"]?.let { add(kvNumber("AQI", it)) }
-                formatSun(snapshot)?.let { add(kvNumber("Sun", it)) }
-                timestampEpochSeconds?.let {
-                    val stamp = SyncTime.format(Instant.ofEpochSecond(it).atZone(zone))
-                    // the timestamp is its own evidence, so the whole line turns red
-                    add(token("# last_sync: $stamp", if (stale) TokenRole.ALERT else TokenRole.COMMENT))
-                }
+            snapshot["current.humidity_pct"]?.let { add(kvNumber("Humidity", "$it%")) }
+            // "will it rain?" outranks the rest — it is why a weather widget is read
+            snapshot["current.precip_chance_pct"]?.let { add(kvNumber("Rain", "$it%")) }
+            snapshot["current.uv_index"]?.trimDecimal()?.let { add(kvNumber("UV", it)) }
+            formatWind(snapshot, windSpeed)?.let { add(kvNumber("Wind", it)) }
+            snapshot["air_quality.aqi"]?.let { add(kvNumber("AQI", it)) }
+            formatSun(snapshot)?.let { add(kvNumber("Sun", it)) }
+            syncLine?.let { add(it) }
+        }
+
+        val lines = transcript.take(bodyLineBudget(tier)).toMutableList()
+        // The stale marker rides the Temp line on the tiers too short for the
+        // last_sync line — that is where the eye lands, and a trailing comment is the
+        // first thing `ellipsize` drops on a narrow widget, never the value.
+        if (stale && lines.none { it === syncLine }) {
+            val temperatureLine = lines.indexOfFirst { it.tokens.firstOrNull()?.text == "Temp" }
+            if (temperatureLine >= 0) {
+                lines[temperatureLine] = TerminalLine(
+                    lines[temperatureLine].tokens + WidgetToken(STALE_MARKER, TokenRole.ALERT)
+                )
             }
         }
         return WidgetContent(
@@ -140,11 +151,19 @@ object WidgetContentBuilder {
             ),
             // plain, not comment: at 11sp a city name is data, and the comment gray
             // only clears ~3:1 against the Dracula/Monokai backgrounds
-            smallLocation = location?.substringBefore(",")
-                ?.let { token(it, TokenRole.PLAIN) }
-                ?: comment("# no data")
+            smallLocation = city?.let { token(it, TokenRole.PLAIN) } ?: comment("# no data")
         )
     }
+
+    /** Body lines the tier has room for; [WidgetTier.Small] renders none of them. */
+    fun bodyLineBudget(tier: WidgetTier): Int = when (tier) {
+        is WidgetTier.Small -> 0
+        is WidgetTier.Terminal -> tier.lines
+    }
+
+    /** `3.0` → `3`: the UV index is read as a whole number. */
+    private fun String.trimDecimal(): String? =
+        toDoubleOrNull()?.roundToInt()?.toString()
 
     /**
      * Two whole polling periods without a commit means something is wrong (no

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The tall tier: medium plus Feels/Wind/AQI/Sun and the `# last_sync` comment
-     line (unused slots are set GONE at render time).
+<!-- The tall tiers: every transcript line past the compact four. The renderer
+     fills as many slots as the picked tier has room for and hides the rest.
      fontFamily="monospace" (not JetBrains Mono) — see @style/WidgetBodyLine. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -137,6 +137,14 @@
 
                     <TextView
                         android:id="@+id/widget_line9"
+                        style="@style/WidgetBodyLine" />
+
+                    <TextView
+                        android:id="@+id/widget_line10"
+                        style="@style/WidgetBodyLine" />
+
+                    <TextView
+                        android:id="@+id/widget_line11"
                         style="@style/WidgetBodyLine" />
                 </LinearLayout>
             </LinearLayout>

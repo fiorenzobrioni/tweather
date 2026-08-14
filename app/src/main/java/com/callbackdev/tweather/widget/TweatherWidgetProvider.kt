@@ -46,15 +46,18 @@ class TweatherWidgetProvider : AppWidgetProvider() {
         needsRender = true
     }
 
-    /** Resize: the sizes map already covers the tiers, but data may have aged. */
+    /**
+     * Resize is deliberately NOT handled: the sizes map exists so the host re-picks
+     * the right tier itself, in-process. Pushing a fresh RemoteViews from here raced
+     * that — the host applied our update against the size it still had on record, so
+     * shrinking a widget could leave the taller transcript in place, clipped.
+     */
     override fun onAppWidgetOptionsChanged(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
         newOptions: Bundle
-    ) {
-        needsRender = true
-    }
+    ) = Unit
 
     /** First instance placed: the background job may now be wanted (see [AlertScheduler]). */
     override fun onEnabled(context: Context) {

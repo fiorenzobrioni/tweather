@@ -42,7 +42,7 @@ class WidgetContentBuilderTest {
 
     private fun build(
         snapshot: Map<String, String>? = sample,
-        tier: WidgetTier = WidgetTier.MEDIUM,
+        tier: WidgetTier = WidgetTier.Terminal(4),
         temperature: TemperatureUnit = TemperatureUnit.CELSIUS,
         windSpeed: WindSpeedUnit = WindSpeedUnit.KMH,
         timestampEpochSeconds: Long? = null,
@@ -92,16 +92,16 @@ class WidgetContentBuilderTest {
                 ),
                 TerminalLine(
                     listOf(
-                        WidgetToken("Status", TokenRole.KEY),
+                        WidgetToken("Feels", TokenRole.KEY),
                         WidgetToken(": ", TokenRole.PLAIN),
-                        WidgetToken("\"Partly Cloudy\"", TokenRole.STRING)
+                        WidgetToken("16°C", TokenRole.NUMBER)
                     )
                 ),
                 TerminalLine(
                     listOf(
-                        WidgetToken("Humidity", TokenRole.KEY),
+                        WidgetToken("Status", TokenRole.KEY),
                         WidgetToken(": ", TokenRole.PLAIN),
-                        WidgetToken("65%", TokenRole.NUMBER)
+                        WidgetToken("\"Partly Cloudy\"", TokenRole.STRING)
                     )
                 )
             ),
@@ -125,7 +125,7 @@ class WidgetContentBuilderTest {
 
     @Test
     fun `celsius and kmh keep the snapshot units untouched`() {
-        val content = build(tier = WidgetTier.LARGE)
+        val content = build(tier = WidgetTier.Terminal(11))
 
         assertEquals("19°C", content.value("Temp"))
         assertEquals("16°C", content.value("Feels"))
@@ -135,7 +135,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `fahrenheit and mph convert temperatures and wind`() {
         val content = build(
-            tier = WidgetTier.LARGE,
+            tier = WidgetTier.Terminal(11),
             temperature = TemperatureUnit.FAHRENHEIT,
             windSpeed = WindSpeedUnit.MPH
         )
@@ -178,7 +178,7 @@ class WidgetContentBuilderTest {
     fun `translate localizes the status description only`() {
         val seen = mutableListOf<String>()
         val content = build(
-            tier = WidgetTier.LARGE,
+            tier = WidgetTier.Terminal(11),
             timestampEpochSeconds = syncEpoch,
             translate = { seen += it; "IT:$it" }
         )
@@ -186,39 +186,64 @@ class WidgetContentBuilderTest {
         assertEquals(listOf("Partly Cloudy"), seen)
         assertEquals("\"IT:Partly Cloudy\"", content.value("Status"))
         // keys, location and the last_sync comment are code, not data
-        assertEquals("\"Milano, Lombardia\"", content.value("Location"))
+        assertEquals("\"Milano\"", content.value("Location"))
         assertTrue(content.keys().none { it.startsWith("IT:") })
         assertTrue(content.bodyLines.last().text.startsWith("# last_sync"))
     }
 
-    // --- extended tier ---
+    // --- the line budget ---
 
     @Test
-    fun `the extended tier spends its extra line on feels, next to temp`() {
-        val content = build(tier = WidgetTier.EXTENDED)
+    fun `each rung keeps the previous transcript and adds the next line`() {
+        // the whole point of a rung per line: growing the widget never reshuffles
+        // what was already on screen, it only appends
+        val budgets = (4..11).map {
+            build(tier = WidgetTier.Terminal(it), timestampEpochSeconds = syncEpoch).keys()
+        }
 
-        assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity"), content.keys())
-        assertEquals("16°C", content.value("Feels"))
+        budgets.zipWithNext { shorter, longer ->
+            assertEquals(shorter, longer.take(shorter.size))
+            assertEquals(shorter.size + 1, longer.size)
+        }
+        assertEquals(listOf("Location", "Temp", "Feels", "Status"), budgets.first())
+        assertEquals(
+            listOf(
+                "Location", "Temp", "Feels", "Status", "Humidity",
+                "Rain", "UV", "Wind", "AQI", "Sun", "# last_sync: 12:00"
+            ),
+            budgets.last()
+        )
     }
 
     @Test
-    fun `only the large tier has room for the region`() {
-        // "Milano, Lombardia" would push the city name itself into the ellipsis
-        assertEquals("\"Milano\"", build(tier = WidgetTier.MEDIUM).value("Location"))
-        assertEquals("\"Milano\"", build(tier = WidgetTier.EXTENDED).value("Location"))
-        assertEquals("\"Milano, Lombardia\"", build(tier = WidgetTier.LARGE).value("Location"))
+    fun `the region never makes it into the widget, at any size`() {
+        // "Milano, Lombardia" would push the city name itself into the ellipsis, and
+        // the region is the part the user already knows
+        (4..11).forEach { lines ->
+            assertEquals("\"Milano\"", build(tier = WidgetTier.Terminal(lines)).value("Location"))
+        }
+    }
+
+    @Test
+    fun `rain outranks uv, and both outrank the enthusiast readings`() {
+        val content = build(tier = WidgetTier.Terminal(7))
+
+        // "will it rain?" is why a weather widget gets read
+        assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity", "Rain", "UV"), content.keys())
+        assertEquals("10%", content.value("Rain"))
+        assertEquals("3", content.value("UV")) // whole number, not 3.0
     }
 
     // --- large tier ---
 
     @Test
     fun `large tier adds feels wind aqi sun and the last_sync comment`() {
-        val content = build(tier = WidgetTier.LARGE, timestampEpochSeconds = syncEpoch)
+        val content = build(tier = WidgetTier.Terminal(11), timestampEpochSeconds = syncEpoch)
 
         assertEquals(
             listOf(
                 "Location", "Temp", "Feels", "Status", "Humidity",
-                "Wind", "AQI", "Sun", "# last_sync: 12:00"
+                "Rain", "UV", "Wind", "AQI", "Sun", "# last_sync: 12:00"
             ),
             content.keys()
         )
@@ -230,8 +255,8 @@ class WidgetContentBuilderTest {
 
     @Test
     fun `last_sync is formatted in the zone passed in`() {
-        val utc = build(tier = WidgetTier.LARGE, timestampEpochSeconds = syncEpoch)
-        val local = build(tier = WidgetTier.LARGE, timestampEpochSeconds = syncEpoch, zone = rome)
+        val utc = build(tier = WidgetTier.Terminal(11), timestampEpochSeconds = syncEpoch)
+        val local = build(tier = WidgetTier.Terminal(11), timestampEpochSeconds = syncEpoch, zone = rome)
 
         assertEquals("# last_sync: 12:00", utc.bodyLines.last().text)
         assertEquals("# last_sync: 14:00", local.bodyLines.last().text)
@@ -239,18 +264,18 @@ class WidgetContentBuilderTest {
 
     @Test
     fun `large tier without a timestamp shows no last_sync line`() {
-        val content = build(tier = WidgetTier.LARGE)
+        val content = build(tier = WidgetTier.Terminal(11))
 
         assertTrue(content.bodyLines.none { it.text.startsWith("# last_sync") })
     }
 
     @Test
     fun `the aqi line appears only when the snapshot carries it`() {
-        assertEquals("42", build(tier = WidgetTier.LARGE).value("AQI"))
+        assertEquals("42", build(tier = WidgetTier.Terminal(11)).value("AQI"))
         // outside Europe / on a failed air-quality call the key is simply absent
-        val noAqi = build(sample - "air_quality.aqi", tier = WidgetTier.LARGE)
+        val noAqi = build(sample - "air_quality.aqi", tier = WidgetTier.Terminal(11))
         assertNull(noAqi.line("AQI"))
-        assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity", "Wind", "Sun"), noAqi.keys())
+        assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity", "Rain", "UV", "Wind", "Sun"), noAqi.keys())
     }
 
     // --- degenerate snapshots ---
@@ -280,7 +305,7 @@ class WidgetContentBuilderTest {
     fun `an unparsable temperature drops the line and falls back to the small placeholder`() {
         val content = build(sample + ("current.temp_c" to "n/a"))
 
-        assertEquals(listOf("Location", "Status", "Humidity"), content.keys())
+        assertEquals(listOf("Location", "Feels", "Status", "Humidity"), content.keys())
         assertEquals("--°", content.smallTemp.text)
     }
 
@@ -288,7 +313,7 @@ class WidgetContentBuilderTest {
 
     @Test
     fun `small tier exposes the temperature and the city part of the location`() {
-        val content = build(tier = WidgetTier.SMALL)
+        val content = build(tier = WidgetTier.Small)
 
         assertEquals("19°C", content.smallTemp.text)
         assertEquals("Milano", content.smallLocation.text) // region dropped, it never fits
@@ -316,7 +341,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `data younger than two update periods shows no alert anywhere`() {
         val content = build(
-            tier = WidgetTier.LARGE,
+            tier = WidgetTier.Terminal(11),
             timestampEpochSeconds = syncEpoch,
             updateFrequencyMin = 60,
             now = afterSync(119)
@@ -345,7 +370,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `stale data turns the whole last_sync line into one alert token`() {
         val content = build(
-            tier = WidgetTier.LARGE,
+            tier = WidgetTier.Terminal(11),
             timestampEpochSeconds = syncEpoch,
             updateFrequencyMin = 60,
             now = afterSync(121)
@@ -361,7 +386,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `stale data appends the marker to the small temperature`() {
         val content = build(
-            tier = WidgetTier.SMALL,
+            tier = WidgetTier.Small,
             timestampEpochSeconds = syncEpoch,
             updateFrequencyMin = 60,
             now = afterSync(121)
@@ -371,7 +396,7 @@ class WidgetContentBuilderTest {
         assertEquals(listOf(TokenRole.NUMBER, TokenRole.ALERT), content.smallTemp.roles)
         // fresh keeps the bare temperature: no stray empty token to eat the tiny cell
         val fresh = build(
-            tier = WidgetTier.SMALL,
+            tier = WidgetTier.Small,
             timestampEpochSeconds = syncEpoch,
             updateFrequencyMin = 60,
             now = afterSync(1)
@@ -382,7 +407,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `two periods exactly is still fresh — the comparison is strict`() {
         fun atAgeSeconds(seconds: Long) = build(
-            tier = WidgetTier.LARGE,
+            tier = WidgetTier.Terminal(11),
             timestampEpochSeconds = syncEpoch,
             updateFrequencyMin = 60,
             now = Instant.ofEpochSecond(syncEpoch + seconds)
@@ -395,7 +420,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `without a clock nothing is ever stale`() {
         // `now` defaults to null: a caller with no clock must not guess, whatever the age
-        val content = build(tier = WidgetTier.LARGE, timestampEpochSeconds = syncEpoch, updateFrequencyMin = 15)
+        val content = build(tier = WidgetTier.Terminal(11), timestampEpochSeconds = syncEpoch, updateFrequencyMin = 15)
 
         assertFalse(content.showsStale())
         assertEquals(listOf(TokenRole.COMMENT), content.bodyLines.last().roles)
@@ -404,7 +429,7 @@ class WidgetContentBuilderTest {
     @Test
     fun `a snapshot without a timestamp is never stale`() {
         val content = build(
-            tier = WidgetTier.LARGE,
+            tier = WidgetTier.Terminal(11),
             timestampEpochSeconds = null,
             updateFrequencyMin = 15,
             now = afterSync(60 * 24)

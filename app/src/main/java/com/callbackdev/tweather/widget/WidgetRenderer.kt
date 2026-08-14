@@ -25,20 +25,18 @@ object WidgetRenderer {
     private val LineIds = listOf(
         R.id.widget_line1, R.id.widget_line2, R.id.widget_line3,
         R.id.widget_line4, R.id.widget_line5, R.id.widget_line6,
-        R.id.widget_line7, R.id.widget_line8, R.id.widget_line9
+        R.id.widget_line7, R.id.widget_line8, R.id.widget_line9,
+        R.id.widget_line10, R.id.widget_line11
     )
-    /** How many body slots each tier fills; the rest are hidden. */
-    internal fun lineCount(tier: WidgetTier): Int = when (tier) {
-        WidgetTier.SMALL -> 0
-        WidgetTier.MEDIUM -> 4
-        WidgetTier.EXTENDED -> 5
-        WidgetTier.LARGE -> LineIds.size
-    }
 
-    // Measured off the layouts (15sp line + 3dp lineSpacingExtra; 22sp temp over a
-    // 12sp city in the small tier) — keep in sync if the styles change.
-    private const val ChromeHeightDp = 73f
-    private const val BodyLineHeightDp = 23f
+    /** Slots the compact layout carries; taller transcripts use the large one. */
+    private const val MediumSlots = 4
+
+    // Not estimated: `noRungClaimsMoreHeightThanItsTranscriptNeeds` binary-searches
+    // the real laid-out minimum and fails if these drift from it. Estimating cost the
+    // user lines — a rung 30dp too tall is a line of weather they had room for.
+    private const val ChromeHeightDp = 64f
+    private const val BodyLineHeightDp = 21.5f
     private const val SmallMinHeightDp = 52f
 
     /** Width the trailing ↻/cursor overlay needs on the last visible body line. */
@@ -57,19 +55,23 @@ object WidgetRenderer {
 
     /**
      * A sizes-map key is a promise that the layout FITS in that many dp — the host
-     * clips silently otherwise, so the heights are derived from the layouts instead
-     * of guessed: fixed chrome (header 34 + divider 1 + prompt 38) + one body line
-     * per slot + the body's bottom padding. Below the smallest key the launcher
-     * falls back to it, so a minimum-size widget still gets SMALL.
+     * clips silently otherwise. Chrome (title bar, divider, prompt, bottom padding)
+     * plus one line per slot. Below the smallest key the launcher falls back to it,
+     * so a minimum-size widget still gets the glanceable strip.
      */
-    internal fun minHeightDp(lines: Int): Float = ChromeHeightDp + lines * BodyLineHeightDp + 12f
+    internal fun minHeightDp(lines: Int): Float = ChromeHeightDp + lines * BodyLineHeightDp
 
-    internal fun breakpoints(): Map<WidgetTier, SizeF> = mapOf(
-        WidgetTier.SMALL to SizeF(110f, SmallMinHeightDp),
-        WidgetTier.MEDIUM to SizeF(160f, minHeightDp(lineCount(WidgetTier.MEDIUM))),
-        WidgetTier.EXTENDED to SizeF(160f, minHeightDp(lineCount(WidgetTier.EXTENDED))),
-        WidgetTier.LARGE to SizeF(160f, minHeightDp(lineCount(WidgetTier.LARGE)))
-    )
+    /**
+     * One rung per transcript line, not a handful of named sizes: the launcher only
+     * picks a rung that fits, so a missing rung means a widget with room for seven
+     * lines silently settles for five.
+     */
+    internal fun breakpoints(): Map<WidgetTier, SizeF> = buildMap {
+        put(WidgetTier.Small, SizeF(110f, SmallMinHeightDp))
+        (MediumSlots..LineIds.size).forEach { lines ->
+            put(WidgetTier.Terminal(lines), SizeF(160f, minHeightDp(lines)))
+        }
+    }
 
     internal fun render(
         context: Context,
@@ -96,7 +98,7 @@ object WidgetRenderer {
             context.getString(R.string.cd_widget_refresh)
         )
 
-        if (tier == WidgetTier.SMALL) {
+        if (tier is WidgetTier.Small) {
             views.setTextViewText(R.id.widget_temp, content.smallTemp.spannable(palette))
             views.setTextViewText(R.id.widget_location, content.smallLocation.spannable(palette))
         } else {
@@ -107,7 +109,7 @@ object WidgetRenderer {
             views.setTextViewText(R.id.widget_prompt, content.promptLine.spannable(palette))
             views.setTextColor(R.id.widget_cursor, palette.key)
 
-            val slots = LineIds.take(lineCount(tier))
+            val slots = LineIds.take(slotsFor(tier))
             val lastVisible = minOf(content.bodyLines.size, slots.size) - 1
             slots.forEachIndexed { index, id ->
                 val line = content.bodyLines.getOrNull(index)
@@ -134,11 +136,16 @@ object WidgetRenderer {
         return views
     }
 
-    internal fun layoutFor(tier: WidgetTier): Int = when (tier) {
-        WidgetTier.SMALL -> R.layout.widget_tweather_small
-        WidgetTier.MEDIUM -> R.layout.widget_tweather_medium
-        // EXTENDED is MEDIUM plus one line: the large layout already has the slots
-        WidgetTier.EXTENDED, WidgetTier.LARGE -> R.layout.widget_tweather_large
+    /** Slots this tier binds — never more than its layout carries. */
+    private fun slotsFor(tier: WidgetTier): Int =
+        minOf(WidgetContentBuilder.bodyLineBudget(tier), LineIds.size)
+
+    internal fun layoutFor(tier: WidgetTier): Int = when {
+        tier is WidgetTier.Small -> R.layout.widget_tweather_small
+        // the compact layout stops at four slots; past that the large one has them all
+        WidgetContentBuilder.bodyLineBudget(tier) <= MediumSlots ->
+            R.layout.widget_tweather_medium
+        else -> R.layout.widget_tweather_large
     }
 
     private fun TerminalLine.spannable(palette: WidgetPalette): CharSequence =

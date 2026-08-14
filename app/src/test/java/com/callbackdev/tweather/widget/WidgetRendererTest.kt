@@ -43,6 +43,8 @@ class WidgetRendererTest {
         "current.feels_like_c" to "20.1",
         "current.wind_kph" to "12.0",
         "current.wind_dir" to "NW",
+        "current.precip_chance_pct" to "10",
+        "current.uv_index" to "3.0",
         "air_quality.aqi" to "34",
         "astronomical.sunrise" to "06:12",
         "astronomical.sunset" to "20:35"
@@ -82,7 +84,7 @@ class WidgetRendererTest {
 
     @Test
     fun mediumBindsHeaderPromptAndFourBodyLines() {
-        val view = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM)
+        val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
 
         assertEquals(WidgetContentBuilder.HEADER, view.text(R.id.widget_title))
         assertEquals("sys@tweather:~$ get weather -current", view.text(R.id.widget_prompt))
@@ -90,8 +92,8 @@ class WidgetRendererTest {
         // the region is dropped on the narrow tiers — it would eat the city name
         assertEquals("Location: \"Milan\"", view.text(R.id.widget_line1))
         assertEquals("Temp: 21°C", view.text(R.id.widget_line2))
-        assertEquals("Status: \"Partly Cloudy\"", view.text(R.id.widget_line3))
-        assertEquals("Humidity: 58%", view.text(R.id.widget_line4))
+        assertEquals("Feels: 20°C", view.text(R.id.widget_line3))
+        assertEquals("Status: \"Partly Cloudy\"", view.text(R.id.widget_line4))
         listOf(R.id.widget_line1, R.id.widget_line2, R.id.widget_line3, R.id.widget_line4)
             .forEach { assertEquals(View.VISIBLE, view.visibility(it)) }
 
@@ -103,36 +105,39 @@ class WidgetRendererTest {
     @Test
     fun largeHidesTheSlotsWithoutAContentLine() {
         val sparse = mapOf("location" to "Milan, IT", "current.temp_c" to "21.4")
-        val view = inflate(content(WidgetTier.LARGE, sparse), WidgetTier.LARGE)
+        val view = inflate(content(WidgetTier.Terminal(11), sparse), WidgetTier.Terminal(11))
 
         assertEquals(View.VISIBLE, view.visibility(R.id.widget_line1))
         assertEquals(View.VISIBLE, view.visibility(R.id.widget_line2))
         listOf(
             R.id.widget_line3, R.id.widget_line4, R.id.widget_line5, R.id.widget_line6,
-            R.id.widget_line7, R.id.widget_line8, R.id.widget_line9
+            R.id.widget_line7, R.id.widget_line8, R.id.widget_line9,
+            R.id.widget_line10, R.id.widget_line11
         ).forEach { assertEquals(View.GONE, view.visibility(it)) }
     }
 
     @Test
     fun largeFillsEverySlotWhenTheSnapshotIsComplete() {
         val view = inflate(
-            content(WidgetTier.LARGE, timestampEpochSeconds = 1_700_000_000L),
-            WidgetTier.LARGE
+            content(WidgetTier.Terminal(11), timestampEpochSeconds = 1_700_000_000L),
+            WidgetTier.Terminal(11)
         )
 
         // Feels sits next to Temp, so the tail shifts down by one
         assertEquals("Feels: 20°C", view.text(R.id.widget_line3))
         assertEquals("Humidity: 58%", view.text(R.id.widget_line5))
-        assertEquals("Wind: 12 km/h NW", view.text(R.id.widget_line6))
-        assertEquals("AQI: 34", view.text(R.id.widget_line7))
-        assertEquals("Sun: 06:12 → 20:35", view.text(R.id.widget_line8))
-        assertEquals("# last_sync: 22:13", view.text(R.id.widget_line9))
-        assertEquals(View.VISIBLE, view.visibility(R.id.widget_line9))
+        assertEquals("Rain: 10%", view.text(R.id.widget_line6))
+        assertEquals("UV: 3", view.text(R.id.widget_line7))
+        assertEquals("Wind: 12 km/h NW", view.text(R.id.widget_line8))
+        assertEquals("AQI: 34", view.text(R.id.widget_line9))
+        assertEquals("Sun: 06:12 → 20:35", view.text(R.id.widget_line10))
+        assertEquals("# last_sync: 22:13", view.text(R.id.widget_line11))
+        assertEquals(View.VISIBLE, view.visibility(R.id.widget_line11))
     }
 
     @Test
     fun tokenRolesTravelAsForegroundColorSpans() {
-        val view = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM)
+        val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
 
         val prompt = view.findViewById<TextView>(R.id.widget_prompt).text as Spanned
         val promptSpans = prompt.getSpans(0, prompt.length, ForegroundColorSpan::class.java)
@@ -149,12 +154,12 @@ class WidgetRendererTest {
 
     @Test
     fun opacityFadesOnlyTheFill() {
-        val faded = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM, opacityPct = 70)
+        val faded = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4), opacityPct = 70)
         assertEquals(178, faded.findViewById<ImageView>(R.id.widget_bg_fill).imageAlpha)
         // The 1px frame must stay crisp whatever the user picked for the fill.
         assertEquals(255, faded.findViewById<ImageView>(R.id.widget_bg_border).imageAlpha)
 
-        val opaque = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM, opacityPct = 100)
+        val opaque = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4), opacityPct = 100)
         assertEquals(255, opaque.findViewById<ImageView>(R.id.widget_bg_fill).imageAlpha)
     }
 
@@ -199,7 +204,7 @@ class WidgetRendererTest {
 
     /** Both background layers of a laid-out MEDIUM widget, each drawn on its own. */
     private fun layeredBackground(opacityPct: Int): Pair<Bitmap, Bitmap> {
-        val root = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM, opacityPct)
+        val root = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4), opacityPct)
         val size = (200 * context.resources.displayMetrics.density).toInt()
         root.measure(
             View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY),
@@ -225,7 +230,7 @@ class WidgetRendererTest {
 
     @Test
     fun emptyStateRendersTheNoDataComment() {
-        val view = inflate(content(WidgetTier.MEDIUM, snapshot = null), WidgetTier.MEDIUM)
+        val view = inflate(content(WidgetTier.Terminal(4), snapshot = null), WidgetTier.Terminal(4))
 
         assertTrue(view.text(R.id.widget_line1).startsWith("# no data yet"))
         assertEquals(palette.comment, view.tokenColorAt(R.id.widget_line1, 0))
@@ -236,7 +241,7 @@ class WidgetRendererTest {
 
     @Test
     fun smallBindsTemperatureAndCity() {
-        val view = inflate(content(WidgetTier.SMALL), WidgetTier.SMALL)
+        val view = inflate(content(WidgetTier.Small), WidgetTier.Small)
 
         assertEquals("21°C", view.text(R.id.widget_temp))
         assertEquals("Milan", view.text(R.id.widget_location))
@@ -263,7 +268,7 @@ class WidgetRendererTest {
             )
             root.layout(0, 0, widthPx, heightPx)
 
-            val visibleLines = (if (tier == WidgetTier.SMALL) {
+            val visibleLines = (if (tier == WidgetTier.Small) {
                 listOf(R.id.widget_temp, R.id.widget_location)
             } else {
                 listOf(
@@ -282,15 +287,70 @@ class WidgetRendererTest {
         }
     }
 
+    /**
+     * A rung that is taller than the transcript actually needs is not harmless: the
+     * launcher only picks a rung that fits, so every wasted dp is a line the user
+     * paid for in screen space and did not get. Binary-search the real minimum and
+     * hold the promised height close to it.
+     */
     @Test
-    fun breakpointHeightsFollowTheSlotCount() {
-        // chrome (34 header + 1 divider + 38 prompt) + lines * 23 + 12 body padding
-        assertEquals(177f, WidgetRenderer.minHeightDp(4), 0.01f)
-        assertEquals(200f, WidgetRenderer.minHeightDp(5), 0.01f)
-        assertEquals(292f, WidgetRenderer.minHeightDp(9), 0.01f)
+    fun noRungClaimsMoreHeightThanItsTranscriptNeeds() {
+        val density = context.resources.displayMetrics.density
+        val widthPx = (200 * density).toInt()
 
-        // every rung must be reachable: equal heights would make one tier dead
-        val heights = WidgetTier.entries.map { WidgetRenderer.breakpoints().getValue(it).height }
+        val slack = WidgetRenderer.breakpoints()
+            .filterKeys { it is WidgetTier.Terminal }
+            .toSortedMap(compareBy { WidgetContentBuilder.bodyLineBudget(it) })
+            .map { (tier, size) ->
+                val lines = WidgetContentBuilder.bodyLineBudget(tier)
+                var low = 0
+                var high = (500 * density).toInt()
+                while (low < high) {
+                    val mid = (low + high) / 2
+                    if (fitsAt(tier, widthPx, mid, lines)) high = mid else low = mid + 1
+                }
+                Triple(lines, low / density, size.height)
+            }
+
+        val wrong = slack.filter { (_, needed, promised) ->
+            promised < needed || promised - needed > 10f
+        }
+        assertTrue(
+            "rungs out of step (lines, needed dp, promised dp): $wrong — all: $slack",
+            wrong.isEmpty()
+        )
+    }
+
+    /** True when every bound line is fully inside a widget of [heightPx]. */
+    private fun fitsAt(tier: WidgetTier, widthPx: Int, heightPx: Int, lines: Int): Boolean {
+        val root = inflate(content(tier, timestampEpochSeconds = 1_700_000_000L), tier)
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
+        )
+        root.layout(0, 0, widthPx, heightPx)
+        return (1..lines).all { slot ->
+            val id = context.resources.getIdentifier(
+                "widget_line$slot", "id", context.packageName
+            )
+            val view = root.findViewById<View>(id) ?: return@all true
+            if (view.visibility != View.VISIBLE) return@all true
+            val bottom = IntArray(2).also { view.getLocationInWindow(it) }[1] + view.height
+            view.height > 0 && bottom <= heightPx
+        }
+    }
+
+    @Test
+    fun theLadderHasARungPerTranscriptLine() {
+        val rungs = WidgetRenderer.breakpoints()
+            .filterKeys { it is WidgetTier.Terminal }
+            .mapKeys { (tier, _) -> (tier as WidgetTier.Terminal).lines }
+
+        // a gap would strand a widget on a shorter transcript than it has room for
+        assertEquals((4..11).toList(), rungs.keys.sorted())
+
+        // every rung must be reachable: equal heights would make one of them dead
+        val heights = rungs.toSortedMap().values.map { it.height }
         assertEquals(heights.sorted(), heights)
         assertEquals(heights.distinct(), heights)
     }
@@ -301,7 +361,7 @@ class WidgetRendererTest {
      */
     @Test
     fun onlyTheBottomLineReservesTheRefreshGutter() {
-        val view = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM)
+        val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
 
         fun endMarginOf(id: Int) =
             (view.findViewById<View>(id).layoutParams as ViewGroup.MarginLayoutParams).marginEnd
@@ -313,10 +373,10 @@ class WidgetRendererTest {
 
     @Test
     fun layoutForMapsEveryTier() {
-        assertEquals(R.layout.widget_tweather_small, WidgetRenderer.layoutFor(WidgetTier.SMALL))
-        assertEquals(R.layout.widget_tweather_medium, WidgetRenderer.layoutFor(WidgetTier.MEDIUM))
+        assertEquals(R.layout.widget_tweather_small, WidgetRenderer.layoutFor(WidgetTier.Small))
+        assertEquals(R.layout.widget_tweather_medium, WidgetRenderer.layoutFor(WidgetTier.Terminal(4)))
         // EXTENDED borrows the large layout: same slots, fewer of them filled
-        assertEquals(R.layout.widget_tweather_large, WidgetRenderer.layoutFor(WidgetTier.EXTENDED))
-        assertEquals(R.layout.widget_tweather_large, WidgetRenderer.layoutFor(WidgetTier.LARGE))
+        assertEquals(R.layout.widget_tweather_large, WidgetRenderer.layoutFor(WidgetTier.Terminal(5)))
+        assertEquals(R.layout.widget_tweather_large, WidgetRenderer.layoutFor(WidgetTier.Terminal(11)))
     }
 }

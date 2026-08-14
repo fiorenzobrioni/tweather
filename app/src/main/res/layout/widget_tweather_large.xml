@@ -149,37 +149,21 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Only the prompt tail sits over the body now, and the renderer gives
-                 the bottom line the matching end margin so nothing hides under it. -->
-            <LinearLayout
+            <!-- The only control over the body, in the corner. minWidth/minHeight
+                 rather than padding: the glyph stays 20sp while the tappable box
+                 reaches the 48dp accessibility minimum, and the renderer gives the
+                 bottom line the matching end margin so nothing hides under it. -->
+            <TextView
+                android:id="@+id/widget_refresh"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end|bottom"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <!-- minWidth/minHeight, not padding: the glyph stays 16sp while the
-                     tappable box reaches the 48dp accessibility minimum -->
-                <TextView
-                    android:id="@+id/widget_refresh"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:gravity="center"
-                    android:minWidth="48dp"
-                    android:minHeight="48dp"
-                    android:text="@string/widget_refresh_glyph"
-                    android:textSize="16sp" />
-
-                <TextView
-                    android:id="@+id/widget_cursor"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:importantForAccessibility="no"
-                    android:text="@string/widget_cursor_glyph"
-                    android:textSize="15sp" />
-            </LinearLayout>
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:text="@string/widget_refresh_glyph"
+                android:textSize="20sp" />
         </FrameLayout>
     </LinearLayout>
 </FrameLayout>

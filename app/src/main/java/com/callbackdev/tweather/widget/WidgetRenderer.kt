@@ -39,8 +39,8 @@ object WidgetRenderer {
     private const val BodyLineHeightDp = 21.5f
     private const val SmallMinHeightDp = 52f
 
-    /** Width the trailing ↻/cursor overlay needs on the last visible body line. */
-    private const val RefreshGutterDp = 56f
+    /** Width the corner ↻ needs on the last visible body line — its tap target. */
+    private const val RefreshGutterDp = 48f
 
     fun sizeMap(
         context: Context,
@@ -107,7 +107,6 @@ object WidgetRenderer {
             views.setInt(R.id.widget_divider, "setBackgroundColor", palette.divider)
             views.setInt(R.id.widget_guide, "setBackgroundColor", palette.divider)
             views.setTextViewText(R.id.widget_prompt, content.promptLine.spannable(palette))
-            views.setTextColor(R.id.widget_cursor, palette.key)
 
             val slots = LineIds.take(slotsFor(tier))
             val lastVisible = minOf(content.bodyLines.size, slots.size) - 1

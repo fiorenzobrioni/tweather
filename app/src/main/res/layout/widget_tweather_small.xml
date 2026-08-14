@@ -72,6 +72,6 @@
             android:gravity="center"
             android:minWidth="48dp"
             android:text="@string/widget_refresh_glyph"
-            android:textSize="16sp" />
+            android:textSize="20sp" />
     </LinearLayout>
 </FrameLayout>

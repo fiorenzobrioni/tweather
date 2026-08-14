@@ -198,29 +198,16 @@
             </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end|bottom"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:padding="8dp"
-                    android:text="@string/widget_refresh_glyph"
-                    android:textColor="#DFE2EB"
-                    android:textSize="16sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="monospace"
-                    android:text="@string/widget_cursor_glyph"
-                    android:textColor="#79C0FF"
-                    android:textSize="15sp" />
-        </LinearLayout>
+            android:fontFamily="monospace"
+            android:gravity="center"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
+            android:text="@string/widget_refresh_glyph"
+            android:textColor="#DFE2EB"
+            android:textSize="20sp" />
     </FrameLayout>
 </LinearLayout>

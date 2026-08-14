@@ -95,17 +95,6 @@ glanceable strip up to the full transcript, one extra reading per line of room.
 
 <img src="docs/screenshots/widget.jpg" width="420" alt="The widget on a home screen, showing a terminal transcript of the current weather">
 
-```console
-sys@tweather:~$ get weather -current
-  Location: "Milano"
-  Temp: 34°C
-  Feels: 35°C
-  Status: "Sereno"
-  Humidity: 34%
-  Rain: 0%
-  UV: 7
-```
-
 It never polls on its own. It repaints when a fetch commits new data, riding the same
 background job the alerts already use — so adding the widget costs no extra battery
 beyond what notifications already spend. If a sync fails and the data goes stale, it

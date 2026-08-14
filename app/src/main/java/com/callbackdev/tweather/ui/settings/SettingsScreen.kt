@@ -69,6 +69,7 @@ class SettingsActions(
     val onDailySummary: (Boolean) -> Unit,
     val onPrecipWarning: (Boolean) -> Unit,
     val onCycleFrequency: () -> Unit,
+    val onCycleWidgetOpacity: () -> Unit,
     val onOpenUrl: (String) -> Unit,
     val onReset: () -> Unit
 )
@@ -263,6 +264,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             onDailySummary = gated(viewModel::setDailySummary),
             onPrecipWarning = gated(viewModel::setPrecipitationWarning),
             onCycleFrequency = viewModel::cycleUpdateFrequency,
+            onCycleWidgetOpacity = viewModel::cycleWidgetOpacity,
             onOpenUrl = uriHandler::openUri,
             onReset = viewModel::resetToDefaults
         )
@@ -475,6 +477,24 @@ private fun buildSettingsLines(
             indent = 2,
             onClick = actions.onCycleFrequency,
             onClickLabel = changeLabel("update_frequency_min")
+        )
+    )
+    add(punctLine("},", 1, syntax))
+
+    add(keyOpenLine("widget", 1, syntax))
+    add(
+        CodeLine(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.key)) { append("\"bg_opacity_pct\"") }
+                withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+                withStyle(SpanStyle(color = syntax.number)) {
+                    append(settings.widgetOpacityPct.toString())
+                }
+                withStyle(SpanStyle(color = syntax.comment)) { append("  // 100 | 85 | 70 | 50") }
+            },
+            indent = 2,
+            onClick = actions.onCycleWidgetOpacity,
+            onClickLabel = changeLabel("bg_opacity_pct")
         )
     )
     add(punctLine("},", 1, syntax))
@@ -704,7 +724,7 @@ private fun SettingsScreenPreview() {
     TweatherTheme {
         SettingsScreen(
             settings = AppSettings(),
-            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         )
     }
 }

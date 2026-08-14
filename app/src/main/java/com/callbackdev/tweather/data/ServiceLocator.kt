@@ -8,6 +8,7 @@ import com.callbackdev.tweather.data.local.TweatherDatabase
 import com.callbackdev.tweather.data.remote.OpenMeteoAirQualityApi
 import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import com.callbackdev.tweather.data.remote.OpenMeteoGeocodingApi
+import com.callbackdev.tweather.widget.TweatherWidgetUpdater
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -41,6 +42,9 @@ object ServiceLocator {
 
     @Volatile
     private var alertStateStore: AlertStateStore? = null
+
+    @Volatile
+    private var widgetCityStore: WidgetCityStore? = null
 
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
@@ -77,6 +81,12 @@ object ServiceLocator {
                 .also { alertStateStore = it }
         }
 
+    fun widgetCityStore(context: Context): WidgetCityStore =
+        widgetCityStore ?: synchronized(this) {
+            widgetCityStore ?: WidgetCityStore.create(context.applicationContext)
+                .also { widgetCityStore = it }
+        }
+
     /**
      * Test-only: workers resolve dependencies from here, so worker tests swap in
      * temp-file stores/fake repositories. Calling with no arguments resets to
@@ -87,12 +97,14 @@ object ServiceLocator {
         repository: WeatherRepository? = null,
         cityStore: CityStore? = null,
         settingsStore: SettingsStore? = null,
-        alertStateStore: AlertStateStore? = null
+        alertStateStore: AlertStateStore? = null,
+        widgetCityStore: WidgetCityStore? = null
     ) {
         this.repository = repository
         this.cityStore = cityStore
         this.settingsStore = settingsStore
         this.alertStateStore = alertStateStore
+        this.widgetCityStore = widgetCityStore
     }
 
     private fun build(appContext: Context): WeatherRepository {
@@ -126,7 +138,10 @@ object ServiceLocator {
             geocodingApi = retrofit(OpenMeteoGeocodingApi.BASE_URL)
                 .create(OpenMeteoGeocodingApi::class.java),
             historyDao = database.weatherHistoryDao(),
-            json = json
+            json = json,
+            // Every fetch that commits new data repaints the home widget, so it
+            // needs no polling of its own (no-op when no widget is placed)
+            onHistoryCommitted = { TweatherWidgetUpdater.updateAll(appContext) }
         )
     }
 }

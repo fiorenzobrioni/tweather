@@ -54,6 +54,7 @@ data class AppSettings(
     val notifications: NotificationSettings = NotificationSettings(),
     val themeProfileName: String = "Obsidian",
     val updateFrequencyMin: Int = DefaultUpdateFrequencyMin,
+    val widgetOpacityPct: Int = DefaultWidgetOpacityPct,
     /** Epoch seconds of the last edit; null until the user changes something. */
     val lastModifiedEpochSeconds: Long? = null
 )
@@ -63,6 +64,11 @@ val UpdateFrequencies = listOf(15, 30, 60, 120)
 
 /** 60: right default for a polling interval (decision recorded in PLANNING, Fase 7). */
 const val DefaultUpdateFrequencyMin = 60
+
+/** Home-widget background opacity: alpha on the card fill only, the border stays crisp. */
+val WidgetOpacities = listOf(100, 85, 70, 50)
+
+const val DefaultWidgetOpacityPct = 100
 
 /** App settings persisted as DataStore preferences. */
 class SettingsStore(private val dataStore: DataStore<Preferences>) {
@@ -87,6 +93,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
                 themeProfileName = prefs[ThemeProfileName] ?: "Obsidian",
                 updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: DefaultUpdateFrequencyMin)
                     .takeIf { it in UpdateFrequencies } ?: DefaultUpdateFrequencyMin,
+                widgetOpacityPct = (prefs[WidgetOpacity] ?: DefaultWidgetOpacityPct)
+                    .takeIf { it in WidgetOpacities } ?: DefaultWidgetOpacityPct,
                 lastModifiedEpochSeconds = prefs[LastModified]
             )
         }
@@ -102,6 +110,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun setPrecipitationWarning(enabled: Boolean) = set(PrecipWarning, enabled)
     suspend fun setThemeProfile(name: String) = set(ThemeProfileName, name)
     suspend fun setUpdateFrequency(minutes: Int) = set(UpdateFrequencyMin, minutes)
+    suspend fun setWidgetOpacity(pct: Int) = set(WidgetOpacity, pct)
 
     /**
      * `$ git restore settings.config` — clears every stored preference (including
@@ -133,6 +142,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         private val PrecipWarning = booleanPreferencesKey("notif_precip_warning")
         private val ThemeProfileName = stringPreferencesKey("theme_profile")
         private val UpdateFrequencyMin = intPreferencesKey("sync_update_frequency_min")
+        private val WidgetOpacity = intPreferencesKey("widget_bg_opacity_pct")
         private val LastModified = longPreferencesKey("last_modified_epoch")
 
         fun create(context: Context) = SettingsStore(context.settingsDataStore)

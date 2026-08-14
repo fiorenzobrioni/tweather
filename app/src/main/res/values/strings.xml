@@ -48,6 +48,17 @@
     <string name="notif_title_precip">%1$s Rain incoming — %2$s</string>
     <string name="notif_title_summary">%1$s Today\'s weather — %2$s</string>
 
+    <!-- Home widget: label/glyphs are terminal code (untranslated); the picker
+         description and accessibility text are chrome (localized) -->
+    <string name="widget_label" translatable="false">tweather --now</string>
+    <string name="widget_menu_glyph" translatable="false">⋯</string>
+    <string name="widget_refresh_glyph" translatable="false">↻</string>
+    <string name="widget_cursor_glyph" translatable="false">_</string>
+    <string name="widget_description">Current weather as a terminal window</string>
+    <string name="cd_widget_refresh">Refresh weather data</string>
+    <string name="cd_widget_follow_app">Follow the app\'s active location</string>
+    <string name="widget_config_hint">tap a file to pin this widget</string>
+
     <!-- Weather conditions (WMO codes) -->
     <string name="cond_clear">Clear</string>
     <string name="cond_mainly_clear">Mainly Clear</string>

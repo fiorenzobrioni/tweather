@@ -24,6 +24,32 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Home widget (Fase 9d). exported=false: the system delivers APPWIDGET_*
+             regardless, and it keeps our custom refresh action private. -->
+        <receiver
+            android:name=".widget.TweatherWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_tweather_info" />
+        </receiver>
+
+        <!-- Optional widget configuration: pins one instance to a city. exported
+             because the launcher starts it; it acts only on the appWidgetId it is
+             handed, and reads nothing sensitive. -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Tweather">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

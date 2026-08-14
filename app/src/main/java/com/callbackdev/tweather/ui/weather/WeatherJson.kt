@@ -175,8 +175,12 @@ internal val TemperatureUnit.symbol: String
 private val WindSpeedUnit.keySuffix: String
     get() = if (this == WindSpeedUnit.KMH) "kph" else "mph"
 
-private fun WindSpeedUnit.convert(kph: Double): Double =
+// internal: the home widget renders wind in the user's unit too
+internal fun WindSpeedUnit.convert(kph: Double): Double =
     if (this == WindSpeedUnit.KMH) kph else kph / 1.609344
+
+internal val WindSpeedUnit.symbol: String
+    get() = if (this == WindSpeedUnit.KMH) "km/h" else "mph"
 
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")

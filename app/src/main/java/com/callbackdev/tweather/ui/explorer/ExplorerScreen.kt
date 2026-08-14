@@ -219,8 +219,8 @@ private fun AddCityRow(onAddCity: () -> Unit) {
     }
 }
 
-/** `New York` → `new_york`, the fake filename shown in the tree. */
-private fun City.fileSlug(): String =
+/** `New York` → `new_york`, the fake filename shown in the tree (and in widget.config). */
+internal fun City.fileSlug(): String =
     name.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "city" }
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)

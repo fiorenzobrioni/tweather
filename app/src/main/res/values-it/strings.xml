@@ -44,6 +44,13 @@
     <string name="notif_title_precip">%1$s Pioggia in arrivo — %2$s</string>
     <string name="notif_title_summary">%1$s Meteo di oggi — %2$s</string>
 
+    <!-- Widget home: label/glifi sono codice terminale (non tradotti); descrizione
+         del picker e accessibilità sono chrome (localizzati) -->
+    <string name="widget_description">Meteo attuale come finestra terminale</string>
+    <string name="cd_widget_refresh">Aggiorna i dati meteo</string>
+    <string name="cd_widget_follow_app">Segui la località attiva dell\'app</string>
+    <string name="widget_config_hint">tocca un file per fissare questo widget</string>
+
     <!-- Condizioni meteo (codici WMO) -->
     <string name="cond_clear">Sereno</string>
     <string name="cond_mainly_clear">Prevalentemente sereno</string>

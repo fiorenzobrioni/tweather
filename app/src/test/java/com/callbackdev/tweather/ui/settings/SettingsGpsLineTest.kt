@@ -23,7 +23,7 @@ class SettingsGpsLineTest {
     val compose = createComposeRule()
 
     private val noActions = SettingsActions(
-        {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+        {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
     )
 
     private fun setScreen(

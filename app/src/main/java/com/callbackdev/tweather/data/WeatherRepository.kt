@@ -36,7 +36,14 @@ class WeatherRepository(
     private val historyDao: WeatherHistoryDao,
     private val json: Json = Json,
     private val clock: Clock = Clock.systemUTC(),
-    private val cacheTtl: Duration = Duration.ofMinutes(15)
+    private val cacheTtl: Duration = Duration.ofMinutes(15),
+    /**
+     * Fired after every history commit — the single choke point where new data
+     * lands, whichever caller fetched it (FAB, cold start, background worker).
+     * Wired to the home-widget re-render in [ServiceLocator]; a cache HIT rightly
+     * skips it, as nothing changed.
+     */
+    private val onHistoryCommitted: suspend () -> Unit = {}
 ) {
 
     private data class CacheEntry(val report: WeatherReport, val fetchedAt: Instant)
@@ -118,6 +125,16 @@ class WeatherRepository(
             )
         )
         historyDao.prune(HISTORY_RETENTION)
+        // A failing observer must never sink a successful fetch — but a cancelled
+        // caller still has to unwind, and runCatching would eat the cancellation
+        // too, letting a superseded load publish its stale report.
+        try {
+            onHistoryCommitted()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // report already cached and committed; at worst the widget misses a repaint
+        }
     }
 
     private inline fun <T> wrapErrors(block: () -> T): T = try {

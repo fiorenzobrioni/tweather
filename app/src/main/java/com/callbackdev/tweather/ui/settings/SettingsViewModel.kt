@@ -11,6 +11,7 @@ import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.UpdateFrequencies
+import com.callbackdev.tweather.data.WidgetOpacities
 import com.callbackdev.tweather.data.WindSpeedUnit
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -74,6 +75,13 @@ class SettingsViewModel(
         val current = this@SettingsViewModel.settings.value.updateFrequencyMin
         val index = UpdateFrequencies.indexOf(current)
         setUpdateFrequency(UpdateFrequencies[(index + 1) % UpdateFrequencies.size])
+    }
+
+    /** Cycles 100 → 85 → 70 → 50 → 100 percent. */
+    fun cycleWidgetOpacity() = save {
+        val current = this@SettingsViewModel.settings.value.widgetOpacityPct
+        val index = WidgetOpacities.indexOf(current)
+        setWidgetOpacity(WidgetOpacities[(index + 1) % WidgetOpacities.size])
     }
 
     private fun save(block: suspend SettingsStore.() -> Unit) {

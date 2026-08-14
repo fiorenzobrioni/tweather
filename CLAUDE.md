@@ -43,7 +43,7 @@ Four screens, each presented as a fake "file" behind a bottom navigation bar (Ex
 
 ## Design constraints (non-negotiable per the design system)
 
-- **Typography**: JetBrains Mono everywhere, no exceptions. 4px baseline grid, 20px indent per nesting level.
+- **Typography**: JetBrains Mono everywhere, 4px baseline grid, 20px indent per nesting level. The **home widget is the single exception** (Fase 9d): since CVE-2021-0567 the launcher inflates widget layouts in a restricted context that silently drops `@font/` resources, so its layouts use the system `monospace` family. Glance has the same limitation; the only workaround would be rasterizing text to bitmaps, which costs system font scaling and TalkBack. Decided with the committente.
 - **Syntax highlight colors**: keys `#79c0ff`, string values `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff additions `#2ea043`, deletions `#f85149`.
 - **Core palette**: background `#10141a`, surface container `#181c22`, on-surface `#e6edf3`, borders `#30363d`. Full Material 3 token set is in the `obsidian_syntax/DESIGN.md` frontmatter.
 - **No drop shadows** — depth comes from 1px borders and tonal stacking. The only exceptions: the FAB (circular, with a glow `box-shadow: 0 0 15px #79c0ff88`) is also the only non-rectangular element; everything else uses a 4px corner radius.

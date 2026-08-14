@@ -16,6 +16,8 @@ import com.callbackdev.tweather.notifications.AlertScheduler
 import com.callbackdev.tweather.ui.navigation.TweatherApp
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import com.callbackdev.tweather.widget.TweatherWidgetUpdater
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -43,6 +45,18 @@ class MainActivity : ComponentActivity() {
                 .map { it.notifications to it.updateFrequencyMin }
                 .distinctUntilChanged()
                 .collect { AlertScheduler.reconcile(this@MainActivity) }
+        }
+        // Widget re-renders that no fetch would trigger: theme, units, opacity and
+        // active-city changes. (New data repaints it from the repository hook.)
+        lifecycleScope.launch {
+            combine(
+                settingsStore.settings.map {
+                    Triple(it.themeProfileName, it.units, it.widgetOpacityPct)
+                },
+                ServiceLocator.cityStore(this@MainActivity).activeSource
+            ) { appearance, source -> appearance to source }
+                .distinctUntilChanged()
+                .collect { TweatherWidgetUpdater.updateAll(this@MainActivity) }
         }
         setContent {
             // Theme switches at runtime with settings.config's "active_profile"

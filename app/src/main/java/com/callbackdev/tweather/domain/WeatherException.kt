@@ -24,4 +24,20 @@ sealed class WeatherException(
     class Unknown(cause: Throwable) : WeatherException(
         "panic: unexpected error — ${cause.message ?: cause::class.simpleName}", cause
     )
+
+    class LocationPermissionDenied : WeatherException(
+        "gps::PERMISSION_DENIED — grant location access"
+    )
+
+    class LocationDisabled : WeatherException(
+        "gps::PROVIDER_DISABLED — turn on location services"
+    )
+
+    class LocationTimeout : WeatherException(
+        "gps::TIMEOUT — no position fix acquired"
+    )
+
+    class LocationUnavailable(cause: Throwable? = null) : WeatherException(
+        "gps::NO_FIX — position unavailable", cause
+    )
 }

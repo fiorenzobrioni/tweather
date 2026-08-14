@@ -29,6 +29,10 @@
     <string name="cd_open_link">Apri il sito di %1$s</string>
     <string name="cd_reset_settings">Ripristina tutte le impostazioni predefinite</string>
     <string name="cd_confirm_reset">Conferma il ripristino delle impostazioni</string>
+    <string name="cd_enable_gps">Attiva la posizione GPS</string>
+    <string name="cd_disable_gps">Disattiva la posizione GPS</string>
+    <string name="cd_grant_location">Concedi il permesso di posizione nelle impostazioni di sistema</string>
+    <string name="cd_select_gps">Usa la posizione attuale</string>
 
     <!-- Condizioni meteo (codici WMO) -->
     <string name="cond_clear">Sereno</string>

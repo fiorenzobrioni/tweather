@@ -5,13 +5,16 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.CityStore
+import com.callbackdev.tweather.data.LocationProvider
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.WeatherReport
+import com.callbackdev.tweather.domain.model.toGpsCity
 import java.time.Duration
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,13 +33,16 @@ import kotlinx.coroutines.launch
 data class WeatherUiState(
     val report: WeatherReport? = null,
     val isLoading: Boolean = true,
-    val error: WeatherException? = null
+    val error: WeatherException? = null,
+    /** True while waiting for a GPS fix (rendered as its own comment line). */
+    val acquiringFix: Boolean = false
 )
 
 class WeatherViewModel(
     private val repository: WeatherRepository,
-    cityStore: CityStore,
-    settingsStore: SettingsStore
+    private val cityStore: CityStore,
+    settingsStore: SettingsStore,
+    private val locationProvider: LocationProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeatherUiState())
@@ -55,6 +61,14 @@ class WeatherViewModel(
 
     private var city: City? = null
     private var loadJob: Job? = null
+    private var gpsJob: Job? = null
+    private var isGpsSource = false
+
+    /**
+     * Identity of what's on screen: id AND cacheKey, so a GPS fix that moves under
+     * the stable sentinel id still triggers a reload (id alone would miss it).
+     */
+    private var currentKey: String? = null
 
     @Volatile
     private var cacheTtl: Duration? = null // null = repository default
@@ -66,21 +80,97 @@ class WeatherViewModel(
                 cacheTtl = Duration.ofMinutes(it.updateFrequencyMin.toLong())
             }
         }
-        // Follow the Explorer's selection: every change of active city reloads the
-        // document (cache-friendly — an unexpired city comes back as a HIT).
+        // Follow the Explorer's selection: every change of active source reloads
+        // the document (cache-friendly — an unexpired city comes back as a HIT).
         viewModelScope.launch {
-            cityStore.activeCity.collect { active ->
-                if (city?.id != active.id) {
-                    city = active
-                    load(active, forceRefresh = false, clearReport = true)
+            cityStore.activeSource.collect { active ->
+                isGpsSource = active is ActiveSource.Gps
+                when (active) {
+                    is ActiveSource.Saved -> {
+                        gpsJob?.cancel()
+                        switchTo(active.city)
+                    }
+                    is ActiveSource.Gps -> {
+                        val lastFix = active.lastFix
+                        if (lastFix == null) {
+                            // First selection ever: nothing to show until a fix lands
+                            if (currentKey != GpsPendingKey) {
+                                currentKey = GpsPendingKey
+                                city = null
+                                loadJob?.cancel()
+                                acquireAndLoad(forceRefresh = false)
+                            }
+                        } else if (switchTo(lastFix)) {
+                            // Stale-while-revalidate: the persisted fix renders now,
+                            // the real position catches up in the background.
+                            revalidateFix()
+                        }
+                    }
                 }
             }
         }
     }
 
-    /** FAB action: bypasses the cache, so `last_sync` and history advance. */
+    /** Loads [target] if it isn't what's on screen already; true when it loaded. */
+    private fun switchTo(target: City): Boolean {
+        if (currentKey == target.sourceKey) return false
+        currentKey = target.sourceKey
+        city = target
+        load(target, forceRefresh = false, clearReport = true)
+        return true
+    }
+
+    /** FAB action: bypasses the cache, so `last_sync` and history advance. GPS
+     * source re-acquires the position first — that's what "refresh" means there. */
     fun refresh() {
-        city?.let { load(it, forceRefresh = true, clearReport = false) }
+        if (isGpsSource) {
+            acquireAndLoad(forceRefresh = true)
+        } else {
+            city?.let { load(it, forceRefresh = true, clearReport = false) }
+        }
+    }
+
+    /**
+     * Fresh fix, then fetch. [currentKey] is set before [CityStore.updateGpsCity]
+     * so the resulting flow emission is a no-op in the collector (no double load).
+     */
+    private fun acquireAndLoad(forceRefresh: Boolean) {
+        gpsJob?.cancel()
+        gpsJob = viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, acquiringFix = true, error = null) }
+            try {
+                val fix = locationProvider.currentFix().toGpsCity()
+                currentKey = fix.sourceKey
+                city = fix
+                _uiState.update { it.copy(acquiringFix = false) }
+                cityStore.updateGpsCity(fix)
+                load(fix, forceRefresh, clearReport = false)
+            } catch (e: WeatherException) {
+                _uiState.update { it.copy(isLoading = false, acquiringFix = false, error = e) }
+            }
+        }
+    }
+
+    /** Background re-acquisition behind a just-rendered stale fix (cold start). */
+    private fun revalidateFix() {
+        gpsJob?.cancel()
+        gpsJob = viewModelScope.launch {
+            try {
+                val fix = locationProvider.currentFix().toGpsCity()
+                if (fix.sourceKey != currentKey) {
+                    currentKey = fix.sourceKey
+                    city = fix
+                    cityStore.updateGpsCity(fix)
+                    load(fix, forceRefresh = false, clearReport = true)
+                } else {
+                    cityStore.updateGpsCity(fix) // reverse geocode may improve the name
+                }
+            } catch (e: WeatherException) {
+                // Keep the stale report; surface the error once the load settled
+                loadJob?.join()
+                _uiState.update { it.copy(error = e) }
+            }
+        }
     }
 
     private fun load(city: City, forceRefresh: Boolean, clearReport: Boolean) {
@@ -105,13 +195,18 @@ class WeatherViewModel(
     }
 
     companion object {
+        private const val GpsPendingKey = "gps:pending"
+
+        private val City.sourceKey: String get() = "$id:$cacheKey"
+
         val Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[AndroidViewModelFactory.APPLICATION_KEY])
                 WeatherViewModel(
                     repository = ServiceLocator.weatherRepository(app),
                     cityStore = ServiceLocator.cityStore(app),
-                    settingsStore = ServiceLocator.settingsStore(app)
+                    settingsStore = ServiceLocator.settingsStore(app),
+                    locationProvider = ServiceLocator.locationProvider(app)
                 )
             }
         }

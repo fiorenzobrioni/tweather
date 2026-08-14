@@ -1,5 +1,13 @@
 package com.callbackdev.tweather.ui.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +28,11 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.callbackdev.tweather.BuildConfig
@@ -57,6 +70,21 @@ class SettingsActions(
     val onReset: () -> Unit
 )
 
+/** How the `"use_gps"` line renders and reacts; derived in the stateful wrapper. */
+enum class GpsLineState {
+    /** Feature off; tap asks for the permission (if needed) and enables. */
+    Off,
+
+    /** Feature on and permitted; tap disables. */
+    On,
+
+    /** Permission permanently denied; tap opens the system app settings. */
+    DeniedPermanently,
+
+    /** Feature on but the permission was revoked; tap re-requests it. */
+    Revoked
+}
+
 /**
  * Settings screen: the fake file `settings.config`, mockup format (JSON body with
  * `//` comments). Every editable value is a plain tappable code line (booleans flip,
@@ -67,9 +95,82 @@ class SettingsActions(
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val useGps by viewModel.useGps.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+
+    // The app's only runtime permission. Re-check on every resume so a grant or a
+    // revocation made in the system settings is reflected as soon as we're back.
+    var permissionEpoch by remember { mutableIntStateOf(0) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) permissionEpoch++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val hasPermission = remember(permissionEpoch) {
+        context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    var deniedPermanently by remember { mutableStateOf(false) }
+    var gpsDeniedFlash by remember { mutableStateOf(false) }
+    LaunchedEffect(gpsDeniedFlash) {
+        if (gpsDeniedFlash) {
+            delay(4_000)
+            gpsDeniedFlash = false
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        permissionEpoch++
+        if (granted) {
+            deniedPermanently = false
+            viewModel.setUseGps(true)
+        } else if (
+            activity?.shouldShowRequestPermissionRationale(
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == false
+        ) {
+            deniedPermanently = true
+        } else {
+            gpsDeniedFlash = true
+        }
+    }
+
+    val gpsState = when {
+        useGps && hasPermission -> GpsLineState.On
+        useGps -> GpsLineState.Revoked
+        deniedPermanently && !hasPermission -> GpsLineState.DeniedPermanently
+        else -> GpsLineState.Off
+    }
+
     SettingsScreen(
         settings = settings,
+        gpsState = gpsState,
+        gpsDeniedFlash = gpsDeniedFlash,
+        onGpsLine = {
+            when (gpsState) {
+                GpsLineState.On -> viewModel.setUseGps(false)
+                GpsLineState.Off ->
+                    if (hasPermission) {
+                        viewModel.setUseGps(true)
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    }
+                GpsLineState.Revoked ->
+                    if (deniedPermanently) {
+                        context.openAppSystemSettings()
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    }
+                GpsLineState.DeniedPermanently -> context.openAppSystemSettings()
+            }
+        },
         actions = SettingsActions(
             onLineNumbers = viewModel::setLineNumbers,
             onWordWrap = viewModel::setWordWrap,
@@ -88,7 +189,13 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
 }
 
 @Composable
-fun SettingsScreen(settings: AppSettings, actions: SettingsActions) {
+fun SettingsScreen(
+    settings: AppSettings,
+    actions: SettingsActions,
+    gpsState: GpsLineState = GpsLineState.Off,
+    gpsDeniedFlash: Boolean = false,
+    onGpsLine: () -> Unit = {}
+) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
     // Two-tap confirm for the reset command; disarms by itself after a few seconds.
@@ -103,6 +210,16 @@ fun SettingsScreen(settings: AppSettings, actions: SettingsActions) {
         settings, syntax, actions,
         changeLabel = { key -> resources.getString(R.string.cd_change_setting, key) },
         openLabel = { name -> resources.getString(R.string.cd_open_link, name) },
+        gpsState = gpsState,
+        gpsDeniedFlash = gpsDeniedFlash,
+        gpsLabel = resources.getString(
+            when (gpsState) {
+                GpsLineState.On -> R.string.cd_disable_gps
+                GpsLineState.DeniedPermanently -> R.string.cd_grant_location
+                else -> R.string.cd_enable_gps
+            }
+        ),
+        onGpsLine = onGpsLine,
         resetArmed = resetArmed,
         resetLabel = resources.getString(
             if (resetArmed) R.string.cd_confirm_reset else R.string.cd_reset_settings
@@ -142,6 +259,10 @@ private fun buildSettingsLines(
     actions: SettingsActions,
     changeLabel: (String) -> String,
     openLabel: (String) -> String,
+    gpsState: GpsLineState,
+    gpsDeniedFlash: Boolean,
+    gpsLabel: String,
+    onGpsLine: () -> Unit,
     resetArmed: Boolean,
     resetLabel: String,
     onResetLine: () -> Unit
@@ -269,6 +390,22 @@ private fun buildSettingsLines(
     )
     add(punctLine("},", 1, syntax))
 
+    add(keyOpenLine("location", 1, syntax))
+    add(gpsLine(gpsState, syntax, gpsLabel, onGpsLine))
+    if (gpsDeniedFlash) {
+        // transient (~4 s), like the search screen's terminal errors
+        add(
+            CodeLine(
+                AnnotatedString(
+                    "// ERROR: permission denied — gps stays off",
+                    SpanStyle(color = syntax.diffDel)
+                ),
+                indent = 2
+            )
+        )
+    }
+    add(punctLine("},", 1, syntax))
+
     // Read-only About block; the attribution/license lines open the related site.
     add(keyOpenLine("about", 1, syntax))
     add(stringValueLine("app_name", "tweather", comma = true, syntax = syntax))
@@ -356,6 +493,40 @@ private fun boolLine(
 )
 
 /**
+ * `"use_gps": false  // tap to enable` — the boolean reflects the persisted toggle
+ * (a revoked permission keeps it true, with the problem in the hint); the hint goes
+ * diff-deletion red for the two permission-error states.
+ */
+private fun gpsLine(
+    state: GpsLineState,
+    syntax: SyntaxColors,
+    onClickLabel: String,
+    onClick: () -> Unit
+): CodeLine {
+    val value = state == GpsLineState.On || state == GpsLineState.Revoked
+    val (hint, hintColor) = when (state) {
+        GpsLineState.Off -> "// tap to enable" to syntax.comment.copy(alpha = 0.6f)
+        GpsLineState.On ->
+            "// current_location.json in explorer" to syntax.comment.copy(alpha = 0.6f)
+        GpsLineState.DeniedPermanently ->
+            "// ERROR: denied — open system settings" to syntax.diffDel
+        GpsLineState.Revoked ->
+            "// ERROR: permission revoked — tap to re-grant" to syntax.diffDel
+    }
+    return CodeLine(
+        text = buildAnnotatedString {
+            withStyle(SpanStyle(color = syntax.key)) { append("\"use_gps\"") }
+            withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+            withStyle(SpanStyle(color = syntax.number)) { append(value.toString()) }
+            withStyle(SpanStyle(color = hintColor)) { append("  $hint") }
+        },
+        indent = 2,
+        onClick = onClick,
+        onClickLabel = onClickLabel
+    )
+}
+
+/**
  * `"temperature": "celsius",` — the string value flips/cycles (or opens a link)
  * on tap; with no [onClick] it is a plain read-only line (About block).
  */
@@ -384,6 +555,16 @@ private fun stringValueLine(
     onClick = onClick,
     onClickLabel = onClickLabel
 )
+
+/** Permanently denied permissions can only be granted back from the app's page. */
+private fun android.content.Context.openAppSystemSettings() {
+    startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null)
+        )
+    )
+}
 
 private fun punctLine(text: String, indent: Int, syntax: SyntaxColors) =
     CodeLine(AnnotatedString(text, SpanStyle(color = syntax.comment)), indent)

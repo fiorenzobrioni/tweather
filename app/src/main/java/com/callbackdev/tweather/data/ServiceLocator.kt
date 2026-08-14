@@ -35,6 +35,9 @@ object ServiceLocator {
     @Volatile
     private var settingsStore: SettingsStore? = null
 
+    @Volatile
+    private var locationProvider: LocationProvider? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -56,6 +59,12 @@ object ServiceLocator {
         settingsStore ?: synchronized(this) {
             settingsStore ?: SettingsStore.create(context.applicationContext)
                 .also { settingsStore = it }
+        }
+
+    fun locationProvider(context: Context): LocationProvider =
+        locationProvider ?: synchronized(this) {
+            locationProvider ?: AndroidLocationProvider(context.applicationContext)
+                .also { locationProvider = it }
         }
 
     private fun build(appContext: Context): WeatherRepository {

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.callbackdev.tweather.data.AppSettings
+import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.TemperatureUnit
@@ -13,13 +14,26 @@ import com.callbackdev.tweather.data.UpdateFrequencies
 import com.callbackdev.tweather.data.WindSpeedUnit
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() {
+class SettingsViewModel(
+    private val settingsStore: SettingsStore,
+    private val cityStore: CityStore
+) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+
+    /** `location.use_gps` lives in CityStore so gps↔city transitions stay atomic. */
+    val useGps: StateFlow<Boolean> = cityStore.locationSettings
+        .map { it.useGps }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setUseGps(enabled: Boolean) {
+        viewModelScope.launch { cityStore.setUseGps(enabled) }
+    }
 
     fun setLineNumbers(enabled: Boolean) = save { setLineNumbers(enabled) }
     fun setWordWrap(enabled: Boolean) = save { setWordWrap(enabled) }
@@ -28,7 +42,12 @@ class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() 
     fun setDailySummary(enabled: Boolean) = save { setDailySummary(enabled) }
     fun setPrecipitationWarning(enabled: Boolean) = save { setPrecipitationWarning(enabled) }
     fun setThemeProfile(name: String) = save { setThemeProfile(name) }
-    fun resetToDefaults() = save { resetToDefaults() }
+
+    /** `$ git restore settings.config` — also turns gps back off (its default). */
+    fun resetToDefaults() {
+        save { resetToDefaults() }
+        viewModelScope.launch { cityStore.setUseGps(false) }
+    }
 
     fun toggleTemperatureUnit() = save {
         setTemperatureUnit(
@@ -65,7 +84,10 @@ class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() 
         val Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[AndroidViewModelFactory.APPLICATION_KEY])
-                SettingsViewModel(ServiceLocator.settingsStore(app))
+                SettingsViewModel(
+                    settingsStore = ServiceLocator.settingsStore(app),
+                    cityStore = ServiceLocator.cityStore(app)
+                )
             }
         }
     }

@@ -78,7 +78,7 @@ fun WeatherScreen(
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
     val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
-    val lines = remember(state.report, state.isLoading, state.error, syntax, locale, displayOptions) {
+    val lines = remember(state, syntax, locale, displayOptions) {
         buildScreenLines(state, syntax, WeatherTranslations.translator(resources), locale, displayOptions)
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -186,7 +186,9 @@ private fun buildScreenLines(
     locale: Locale,
     displayOptions: DisplayOptions
 ): List<CodeLine> = buildList {
-    if (state.isLoading) {
+    if (state.acquiringFix) {
+        add(commentLine("// gps: acquiring position …", syntax))
+    } else if (state.isLoading) {
         add(commentLine("// fetching weather_data.json …", syntax))
         add(commentLine("// GET https://api.open-meteo.com/v1/forecast", syntax))
     }

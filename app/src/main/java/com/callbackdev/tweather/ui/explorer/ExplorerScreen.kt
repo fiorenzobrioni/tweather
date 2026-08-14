@@ -47,6 +47,7 @@ fun ExplorerScreen(
     ExplorerScreen(
         state = state,
         onSelect = { viewModel.select(it); onCitySelected() },
+        onSelectGps = { viewModel.selectGps(); onCitySelected() },
         onRemove = viewModel::remove,
         onAddCity = onAddCity
     )
@@ -57,7 +58,8 @@ fun ExplorerScreen(
     state: ExplorerUiState,
     onSelect: (City) -> Unit,
     onRemove: (City) -> Unit,
-    onAddCity: () -> Unit
+    onAddCity: () -> Unit,
+    onSelectGps: () -> Unit = {}
 ) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -69,6 +71,9 @@ fun ExplorerScreen(
                     .padding(16.dp)
             ) {
                 TreeViewItem(label = "~/tweather/cities/") {
+                    if (state.useGps) {
+                        GpsFileRow(isActive = state.gpsActive, onSelect = onSelectGps)
+                    }
                     state.cities.forEach { city ->
                         CityFileRow(
                             city = city,
@@ -82,11 +87,57 @@ fun ExplorerScreen(
                 }
             }
             TerminalStatusBar {
-                StatusBarText("⎇ ${state.activeCity?.name ?: "—"}", shrink = true)
+                val activeName = if (state.gpsActive) {
+                    state.gpsCity?.name ?: "current_location"
+                } else {
+                    state.activeCity?.name ?: "—"
+                }
+                StatusBarText("⎇ $activeName", shrink = true)
                 StatusBarDivider()
-                StatusBarText(stringResource(R.string.status_files, state.cities.size))
+                StatusBarText(
+                    stringResource(
+                        R.string.status_files,
+                        state.cities.size + if (state.useGps) 1 else 0
+                    )
+                )
             }
         }
+    }
+}
+
+/**
+ * The device position as a pinned tree leaf: `· current_location.json  // gps`.
+ * Tertiary color per the design system ("reserved for … global constants like
+ * 'Current Location'"); never removable, so no `[rm]`.
+ */
+@Composable
+private fun GpsFileRow(isActive: Boolean, onSelect: () -> Unit) {
+    val syntax = TweatherTheme.syntax
+    val style = MaterialTheme.typography.bodySmall
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(
+                role = Role.Button,
+                onClickLabel = stringResource(R.string.cd_select_gps)
+            ) { onSelect() }
+    ) {
+        Text(
+            text = "·",
+            style = style,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(20.dp)
+        )
+        Text(
+            text = "current_location.json",
+            style = style,
+            color = MaterialTheme.colorScheme.tertiary
+        )
+        Text(
+            text = if (isActive) "  // active" else "  // gps",
+            style = style,
+            color = syntax.comment
+        )
     }
 }
 
@@ -180,7 +231,8 @@ private fun ExplorerScreenPreview() {
         ExplorerScreen(
             state = ExplorerUiState(
                 cities = listOf(CityStore.DefaultCity, milan),
-                activeCity = milan
+                activeCity = milan,
+                useGps = true
             ),
             onSelect = {},
             onRemove = {},

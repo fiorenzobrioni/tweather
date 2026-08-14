@@ -29,6 +29,8 @@
     <string name="cd_open_link">Apri il sito di %1$s</string>
     <string name="cd_reset_settings">Ripristina tutte le impostazioni predefinite</string>
     <string name="cd_confirm_reset">Conferma il ripristino delle impostazioni</string>
+    <string name="cd_clear_history">Cancella le ricerche recenti</string>
+    <string name="cd_confirm_clear_history">Conferma la cancellazione delle ricerche recenti</string>
     <string name="cd_grant_notifications">Concedi il permesso per le notifiche</string>
     <string name="cd_enable_gps">Attiva la posizione GPS</string>
     <string name="cd_disable_gps">Disattiva la posizione GPS</string>

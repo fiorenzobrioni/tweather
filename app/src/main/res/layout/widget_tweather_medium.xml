@@ -45,18 +45,19 @@
                 android:fontFamily="monospace"
                 android:textStyle="bold"
                 android:singleLine="true"
-                android:textSize="14sp" />
+                android:textSize="15sp" />
 
+            <!-- The weather glyph lives in the title bar, not floating over the body:
+                 down there it had to be given a permanent width reservation on every
+                 line, and the values are worth more than the decoration.
+                 Default font family on purpose — the color-emoji font must kick in. -->
             <TextView
-                android:id="@+id/widget_menu"
+                android:id="@+id/widget_emoji"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end|center_vertical"
-                android:fontFamily="monospace"
-                android:textStyle="bold"
                 android:importantForAccessibility="no"
-                android:text="@string/widget_menu_glyph"
-                android:textSize="14sp" />
+                android:textSize="20sp" />
         </FrameLayout>
 
         <ImageView
@@ -75,7 +76,7 @@
             android:paddingTop="10dp"
             android:paddingBottom="6dp"
             android:singleLine="true"
-            android:textSize="13sp" />
+            android:textSize="15sp" />
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -97,14 +98,10 @@
                     android:layout_marginStart="6dp"
                     android:importantForAccessibility="no" />
 
-                <!-- marginEnd reserves the floating emoji/refresh column: without it
-                     ellipsize measures against the full width and long values are
-                     painted underneath the glyphs instead of being truncated. -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:layout_marginEnd="56dp"
                     android:orientation="vertical">
 
                     <TextView
@@ -125,50 +122,36 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <!-- Only the prompt tail sits over the body now, and the renderer gives
+                 the bottom line the matching end margin so nothing hides under it. -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end|bottom"
-                android:gravity="end"
-                android:orientation="vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <!-- Default font family on purpose: the color-emoji font must kick in -->
+                <!-- minWidth/minHeight, not padding: the glyph stays 16sp while the
+                     tappable box reaches the 48dp accessibility minimum -->
                 <TextView
-                    android:id="@+id/widget_emoji"
+                    android:id="@+id/widget_refresh"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="end"
+                    android:fontFamily="monospace"
+                    android:gravity="center"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    android:text="@string/widget_refresh_glyph"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/widget_cursor"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
                     android:importantForAccessibility="no"
-                    android:textSize="34sp" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <!-- minWidth/minHeight, not padding: the glyph stays 16sp while the
-                         tappable box reaches the 48dp accessibility minimum -->
-                    <TextView
-                        android:id="@+id/widget_refresh"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:gravity="center"
-                        android:minWidth="48dp"
-                        android:minHeight="48dp"
-                        android:text="@string/widget_refresh_glyph"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        android:id="@+id/widget_cursor"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:importantForAccessibility="no"
-                        android:text="@string/widget_cursor_glyph"
-                        android:textSize="13sp" />
-                </LinearLayout>
+                    android:text="@string/widget_cursor_glyph"
+                    android:textSize="15sp" />
             </LinearLayout>
         </FrameLayout>
     </LinearLayout>

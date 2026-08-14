@@ -33,6 +33,8 @@
     <string name="cd_open_link">Open %1$s website</string>
     <string name="cd_reset_settings">Reset all settings to defaults</string>
     <string name="cd_confirm_reset">Confirm settings reset</string>
+    <string name="cd_clear_history">Clear recent searches</string>
+    <string name="cd_confirm_clear_history">Confirm clearing recent searches</string>
     <string name="cd_grant_notifications">Grant notifications permission</string>
     <string name="cd_enable_gps">Enable GPS location</string>
     <string name="cd_disable_gps">Disable GPS location</string>
@@ -51,7 +53,6 @@
     <!-- Home widget: label/glyphs are terminal code (untranslated); the picker
          description and accessibility text are chrome (localized) -->
     <string name="widget_label" translatable="false">tweather --now</string>
-    <string name="widget_menu_glyph" translatable="false">⋯</string>
     <string name="widget_refresh_glyph" translatable="false">↻</string>
     <string name="widget_cursor_glyph" translatable="false">_</string>
     <string name="widget_description">Current weather as a terminal window</string>

@@ -43,6 +43,15 @@ class SearchHistoryStore(
         }
     }
 
+    /**
+     * `$ history -c` — forgets what was searched for. Deliberately narrow: the saved
+     * cities are the user's files, not history, and live in [CityStore] where the
+     * Explorer's own `[rm]` removes them one by one.
+     */
+    suspend fun clear() {
+        dataStore.edit { it.remove(RecentsJson) }
+    }
+
     companion object {
         const val MAX_ENTRIES = 5
         private val RecentsJson = stringPreferencesKey("recent_searches_json")

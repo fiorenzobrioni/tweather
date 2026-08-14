@@ -13,10 +13,13 @@ import kotlin.math.roundToInt
 
 /**
  * Layout tiers picked by the launcher via the RemoteViews sizes map: SMALL is a
- * glanceable emoji+temp strip, MEDIUM is the mockup terminal window, LARGE adds
- * the extra readings plus a `# last_sync` freshness line.
+ * glanceable emoji+temp strip, MEDIUM is the mockup terminal window, EXTENDED adds
+ * `Feels` when there is one more line of room, LARGE adds the rest plus a
+ * `# last_sync` freshness line. The rungs are close together on purpose — the map
+ * only lets the launcher pick a tier that FITS, so a coarse ladder means a widget
+ * with room to spare still gets the short transcript.
  */
-enum class WidgetTier { SMALL, MEDIUM, LARGE }
+enum class WidgetTier { SMALL, MEDIUM, EXTENDED, LARGE }
 
 /** Semantic color role of a token; the renderer maps roles to [WidgetPalette] ints. */
 enum class TokenRole { PROMPT, PLAIN, DIM, KEY, STRING, NUMBER, COMMENT, ALERT }
@@ -94,19 +97,26 @@ object WidgetContentBuilder {
         val stale = isStale(timestampEpochSeconds, updateFrequencyMin, now)
 
         val lines = buildList {
-            location?.let { add(kvString("Location", it)) }
+            // Only LARGE has the width for "city, region"; on the narrow tiers the
+            // region would push the city name itself into the ellipsis.
+            location
+                ?.let { if (tier == WidgetTier.LARGE) it else it.substringBefore(",") }
+                ?.let { add(kvString("Location", it)) }
             // The stale marker rides the Temp line on the tiers with no room for a
             // last_sync line — that is where the eye lands, and a trailing comment is
             // the first thing `ellipsize` drops on a narrow widget, never the value.
             // LARGE says it once, on its own last_sync line, instead of twice.
             val tempMarker = STALE_MARKER.takeIf { stale && tier != WidgetTier.LARGE }
             temp?.let { add(kvNumber("Temp", it, trailing = tempMarker)) }
-            statusDesc?.let { add(kvString("Status", translate(it))) }
-            humidity?.let { add(kvNumber("Humidity", "$it%")) }
-            if (tier == WidgetTier.LARGE) {
+            if (tier == WidgetTier.EXTENDED || tier == WidgetTier.LARGE) {
+                // next to Temp, not buried further down: the two are read together
                 snapshot["current.feels_like_c"].formatTemp(temperature)?.let {
                     add(kvNumber("Feels", it))
                 }
+            }
+            statusDesc?.let { add(kvString("Status", translate(it))) }
+            humidity?.let { add(kvNumber("Humidity", "$it%")) }
+            if (tier == WidgetTier.LARGE) {
                 formatWind(snapshot, windSpeed)?.let { add(kvNumber("Wind", it)) }
                 snapshot["air_quality.aqi"]?.let { add(kvNumber("AQI", it)) }
                 formatSun(snapshot)?.let { add(kvNumber("Sun", it)) }

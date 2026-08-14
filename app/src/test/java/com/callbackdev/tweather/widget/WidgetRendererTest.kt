@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -86,7 +87,8 @@ class WidgetRendererTest {
         assertEquals(WidgetContentBuilder.HEADER, view.text(R.id.widget_title))
         assertEquals("sys@tweather:~$ get weather -current", view.text(R.id.widget_prompt))
 
-        assertEquals("Location: \"Milan, IT\"", view.text(R.id.widget_line1))
+        // the region is dropped on the narrow tiers — it would eat the city name
+        assertEquals("Location: \"Milan\"", view.text(R.id.widget_line1))
         assertEquals("Temp: 21°C", view.text(R.id.widget_line2))
         assertEquals("Status: \"Partly Cloudy\"", view.text(R.id.widget_line3))
         assertEquals("Humidity: 58%", view.text(R.id.widget_line4))
@@ -118,7 +120,9 @@ class WidgetRendererTest {
             WidgetTier.LARGE
         )
 
-        assertEquals("Feels: 20°C", view.text(R.id.widget_line5))
+        // Feels sits next to Temp, so the tail shifts down by one
+        assertEquals("Feels: 20°C", view.text(R.id.widget_line3))
+        assertEquals("Humidity: 58%", view.text(R.id.widget_line5))
         assertEquals("Wind: 12 km/h NW", view.text(R.id.widget_line6))
         assertEquals("AQI: 34", view.text(R.id.widget_line7))
         assertEquals("Sun: 06:12 → 20:35", view.text(R.id.widget_line8))
@@ -248,10 +252,8 @@ class WidgetRendererTest {
     @Test
     fun everyTierFitsInsideItsOwnBreakpoint() {
         val density = context.resources.displayMetrics.density
-        val tiers = listOf(WidgetTier.SMALL, WidgetTier.MEDIUM, WidgetTier.LARGE)
 
-        WidgetRenderer.breakpoints().forEachIndexed { index, size ->
-            val tier = tiers[index]
+        WidgetRenderer.breakpoints().forEach { (tier, size) ->
             val root = inflate(content(tier, timestampEpochSeconds = 1_700_000_000L), tier)
             val widthPx = (size.width * density).toInt()
             val heightPx = (size.height * density).toInt()
@@ -282,18 +284,39 @@ class WidgetRendererTest {
 
     @Test
     fun breakpointHeightsFollowTheSlotCount() {
-        // chrome (34 header + 1 divider + 33 prompt) + lines * 20 + 12 body padding
-        assertEquals(160f, WidgetRenderer.minHeightDp(4), 0.01f)
-        assertEquals(260f, WidgetRenderer.minHeightDp(9), 0.01f)
+        // chrome (34 header + 1 divider + 38 prompt) + lines * 23 + 12 body padding
+        assertEquals(177f, WidgetRenderer.minHeightDp(4), 0.01f)
+        assertEquals(200f, WidgetRenderer.minHeightDp(5), 0.01f)
+        assertEquals(292f, WidgetRenderer.minHeightDp(9), 0.01f)
 
-        val heights = WidgetRenderer.breakpoints().map { it.height }
+        // every rung must be reachable: equal heights would make one tier dead
+        val heights = WidgetTier.entries.map { WidgetRenderer.breakpoints().getValue(it).height }
         assertEquals(heights.sorted(), heights)
+        assertEquals(heights.distinct(), heights)
+    }
+
+    /**
+     * The ↻ overlay is anchored bottom-right, so only the bottom line has to leave it
+     * room; charging every line for it is what used to truncate the values.
+     */
+    @Test
+    fun onlyTheBottomLineReservesTheRefreshGutter() {
+        val view = inflate(content(WidgetTier.MEDIUM), WidgetTier.MEDIUM)
+
+        fun endMarginOf(id: Int) =
+            (view.findViewById<View>(id).layoutParams as ViewGroup.MarginLayoutParams).marginEnd
+
+        assertEquals(0, endMarginOf(R.id.widget_line1))
+        assertEquals(0, endMarginOf(R.id.widget_line3))
+        assertTrue("the bottom line must clear the ↻", endMarginOf(R.id.widget_line4) > 0)
     }
 
     @Test
     fun layoutForMapsEveryTier() {
         assertEquals(R.layout.widget_tweather_small, WidgetRenderer.layoutFor(WidgetTier.SMALL))
         assertEquals(R.layout.widget_tweather_medium, WidgetRenderer.layoutFor(WidgetTier.MEDIUM))
+        // EXTENDED borrows the large layout: same slots, fewer of them filled
+        assertEquals(R.layout.widget_tweather_large, WidgetRenderer.layoutFor(WidgetTier.EXTENDED))
         assertEquals(R.layout.widget_tweather_large, WidgetRenderer.layoutFor(WidgetTier.LARGE))
     }
 }

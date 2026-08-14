@@ -71,12 +71,25 @@ class SearchViewModel(
         runSearch(query.trim())
     }
 
-    /** Search result tapped: save + activate the city, remember the search. */
+    /**
+     * Search result tapped: save + activate the city, remember the search. The query
+     * and its results are cleared because the search is finished — the city is now a
+     * file in the Explorer. Leaving them would mean coming back to a stale query and
+     * stale results that have to be deleted by hand before searching again.
+     */
     fun select(city: City) {
         viewModelScope.launch {
             cityStore.add(city)
             historyStore.add(city.label)
         }
+        searchJob?.cancel()
+        queryFlow.value = ""
+        _uiState.value = SearchUiState()
+    }
+
+    /** `$ history -c` — drops the recent searches only; saved cities are not history. */
+    fun clearRecentSearches() {
+        viewModelScope.launch { historyStore.clear() }
     }
 
     private fun runSearch(query: String) {

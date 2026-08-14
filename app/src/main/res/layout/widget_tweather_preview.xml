@@ -25,17 +25,14 @@
             android:singleLine="true"
             android:text="@string/widget_label"
             android:textColor="#DFE2EB"
-            android:textSize="14sp" />
+            android:textSize="15sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end|center_vertical"
-            android:fontFamily="monospace"
-            android:textStyle="bold"
-            android:text="@string/widget_menu_glyph"
-            android:textColor="#8B949E"
-            android:textSize="14sp" />
+            android:text="⛅"
+            android:textSize="20sp" />
     </FrameLayout>
 
     <ImageView
@@ -92,7 +89,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
-                android:layout_marginEnd="48dp"
                 android:orientation="vertical">
 
                 <LinearLayout
@@ -112,7 +108,7 @@
 
                     <TextView
                         style="@style/WidgetPreviewText"
-                        android:text="&quot;Milan, Lombardy&quot;"
+                        android:text="&quot;Milan&quot;"
                         android:textColor="#A5D6FF" />
                 </LinearLayout>
 
@@ -134,6 +130,27 @@
                     <TextView
                         style="@style/WidgetPreviewText"
                         android:text="18°C"
+                        android:textColor="#FFA657" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        style="@style/WidgetPreviewText"
+                        android:text="Feels"
+                        android:textColor="#79C0FF" />
+
+                    <TextView
+                        style="@style/WidgetPreviewText"
+                        android:text=": "
+                        android:textColor="#DFE2EB" />
+
+                    <TextView
+                        style="@style/WidgetPreviewText"
+                        android:text="16°C"
                         android:textColor="#FFA657" />
                 </LinearLayout>
 
@@ -185,22 +202,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end|bottom"
-            android:gravity="end"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:importantForAccessibility="no"
-                android:text="⛅"
-                android:textSize="34sp" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="wrap_content"
@@ -217,8 +220,7 @@
                     android:fontFamily="monospace"
                     android:text="@string/widget_cursor_glyph"
                     android:textColor="#79C0FF"
-                    android:textSize="13sp" />
-            </LinearLayout>
+                    android:textSize="15sp" />
         </LinearLayout>
     </FrameLayout>
 </LinearLayout>

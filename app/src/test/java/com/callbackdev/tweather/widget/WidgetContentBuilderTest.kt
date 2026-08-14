@@ -80,7 +80,7 @@ class WidgetContentBuilderTest {
                     listOf(
                         WidgetToken("Location", TokenRole.KEY),
                         WidgetToken(": ", TokenRole.PLAIN),
-                        WidgetToken("\"Milano, Lombardia\"", TokenRole.STRING)
+                        WidgetToken("\"Milano\"", TokenRole.STRING)
                     )
                 ),
                 TerminalLine(
@@ -191,6 +191,24 @@ class WidgetContentBuilderTest {
         assertTrue(content.bodyLines.last().text.startsWith("# last_sync"))
     }
 
+    // --- extended tier ---
+
+    @Test
+    fun `the extended tier spends its extra line on feels, next to temp`() {
+        val content = build(tier = WidgetTier.EXTENDED)
+
+        assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity"), content.keys())
+        assertEquals("16°C", content.value("Feels"))
+    }
+
+    @Test
+    fun `only the large tier has room for the region`() {
+        // "Milano, Lombardia" would push the city name itself into the ellipsis
+        assertEquals("\"Milano\"", build(tier = WidgetTier.MEDIUM).value("Location"))
+        assertEquals("\"Milano\"", build(tier = WidgetTier.EXTENDED).value("Location"))
+        assertEquals("\"Milano, Lombardia\"", build(tier = WidgetTier.LARGE).value("Location"))
+    }
+
     // --- large tier ---
 
     @Test
@@ -199,8 +217,8 @@ class WidgetContentBuilderTest {
 
         assertEquals(
             listOf(
-                "Location", "Temp", "Status", "Humidity",
-                "Feels", "Wind", "AQI", "Sun", "# last_sync: 12:00"
+                "Location", "Temp", "Feels", "Status", "Humidity",
+                "Wind", "AQI", "Sun", "# last_sync: 12:00"
             ),
             content.keys()
         )
@@ -232,7 +250,7 @@ class WidgetContentBuilderTest {
         // outside Europe / on a failed air-quality call the key is simply absent
         val noAqi = build(sample - "air_quality.aqi", tier = WidgetTier.LARGE)
         assertNull(noAqi.line("AQI"))
-        assertEquals(listOf("Location", "Temp", "Status", "Humidity", "Feels", "Wind", "Sun"), noAqi.keys())
+        assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity", "Wind", "Sun"), noAqi.keys())
     }
 
     // --- degenerate snapshots ---

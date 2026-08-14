@@ -52,7 +52,7 @@
                 android:fontFamily="monospace"
                 android:textStyle="bold"
                 android:singleLine="true"
-                android:textSize="20sp" />
+                android:textSize="22sp" />
 
             <TextView
                 android:id="@+id/widget_location"
@@ -61,7 +61,7 @@
                 android:ellipsize="end"
                 android:fontFamily="monospace"
                 android:singleLine="true"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <TextView

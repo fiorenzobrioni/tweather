@@ -26,6 +26,7 @@
     <string name="cd_select_city">Aggiungi %1$s</string>
     <string name="cd_search_again">Cerca di nuovo %1$s</string>
     <string name="cd_change_setting">Cambia %1$s</string>
+    <string name="cd_open_link">Apri il sito di %1$s</string>
 
     <!-- Condizioni meteo (codici WMO) -->
     <string name="cond_clear">Sereno</string>

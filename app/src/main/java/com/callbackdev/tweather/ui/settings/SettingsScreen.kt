@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -17,6 +18,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.callbackdev.tweather.BuildConfig
 import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.AppSettings
 import com.callbackdev.tweather.data.TemperatureUnit
@@ -45,7 +47,8 @@ class SettingsActions(
     val onSevereAlerts: (Boolean) -> Unit,
     val onDailySummary: (Boolean) -> Unit,
     val onPrecipWarning: (Boolean) -> Unit,
-    val onCycleFrequency: () -> Unit
+    val onCycleFrequency: () -> Unit,
+    val onOpenUrl: (String) -> Unit
 )
 
 /**
@@ -58,6 +61,7 @@ class SettingsActions(
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val uriHandler = LocalUriHandler.current
     SettingsScreen(
         settings = settings,
         actions = SettingsActions(
@@ -70,7 +74,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             onSevereAlerts = viewModel::setSevereWeatherAlerts,
             onDailySummary = viewModel::setDailySummary,
             onPrecipWarning = viewModel::setPrecipitationWarning,
-            onCycleFrequency = viewModel::cycleUpdateFrequency
+            onCycleFrequency = viewModel::cycleUpdateFrequency,
+            onOpenUrl = uriHandler::openUri
         )
     )
 }
@@ -79,9 +84,11 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
 fun SettingsScreen(settings: AppSettings, actions: SettingsActions) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
-    val lines = buildSettingsLines(settings, syntax, actions) { key ->
-        resources.getString(R.string.cd_change_setting, key)
-    }
+    val lines = buildSettingsLines(
+        settings, syntax, actions,
+        changeLabel = { key -> resources.getString(R.string.cd_change_setting, key) },
+        openLabel = { name -> resources.getString(R.string.cd_open_link, name) }
+    )
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTab(fileName = "settings.config")
@@ -106,7 +113,8 @@ private fun buildSettingsLines(
     settings: AppSettings,
     syntax: SyntaxColors,
     actions: SettingsActions,
-    changeLabel: (String) -> String
+    changeLabel: (String) -> String,
+    openLabel: (String) -> String
 ): List<CanvasLine> = buildList {
     add(commentLine("// Tweather Configuration File", syntax))
     settings.lastModifiedEpochSeconds?.let { epoch ->
@@ -229,6 +237,39 @@ private fun buildSettingsLines(
             onClickLabel = changeLabel("update_frequency_min")
         )
     )
+    add(punctLine("},", 1, syntax))
+
+    // Read-only About block; the attribution/license lines open the related site.
+    add(keyOpenLine("about", 1, syntax))
+    add(stringValueLine("app_name", "tweather", comma = true, syntax = syntax))
+    add(stringValueLine("version", BuildConfig.VERSION_NAME, comma = true, syntax = syntax))
+    add(stringValueLine("developer", "Callback Dev", comma = true, syntax = syntax))
+    add(stringValueLine("copyright", "© 2026 Fiorenzo Brioni", comma = true, syntax = syntax))
+    add(
+        stringValueLine(
+            "license", "GPL-3.0", comma = true, syntax = syntax,
+            onClickLabel = openLabel("license"),
+            onClick = { actions.onOpenUrl("https://www.gnu.org/licenses/gpl-3.0.html") }
+        )
+    )
+    add(keyOpenLine("credits", 2, syntax))
+    add(
+        stringValueLine(
+            "weather_data", "Open-Meteo.com", comma = true, syntax = syntax, indent = 3,
+            hint = "// CC BY 4.0",
+            onClickLabel = openLabel("Open-Meteo"),
+            onClick = { actions.onOpenUrl("https://open-meteo.com/") }
+        )
+    )
+    add(
+        stringValueLine(
+            "font", "JetBrains Mono", comma = false, syntax = syntax, indent = 3,
+            hint = "// SIL OFL 1.1",
+            onClickLabel = openLabel("JetBrains Mono"),
+            onClick = { actions.onOpenUrl("https://www.jetbrains.com/lp/mono/") }
+        )
+    )
+    add(punctLine("}", 2, syntax))
     add(punctLine("}", 1, syntax))
 
     add(punctLine("}", 0, syntax))
@@ -263,22 +304,32 @@ private fun boolLine(
     onClickLabel = onClickLabel
 )
 
-/** `"temperature": "celsius",` — the string value flips/cycles on tap. */
+/**
+ * `"temperature": "celsius",` — the string value flips/cycles (or opens a link)
+ * on tap; with no [onClick] it is a plain read-only line (About block).
+ */
 private fun stringValueLine(
     key: String,
     value: String,
     comma: Boolean,
     syntax: SyntaxColors,
+    indent: Int = 2,
+    hint: String? = null,
     onClickLabel: String? = null,
-    onClick: () -> Unit
+    onClick: (() -> Unit)? = null
 ): CodeLine = CodeLine(
     text = buildAnnotatedString {
         withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
         withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
         withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
         if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
+        if (hint != null) {
+            withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
+                append("  $hint")
+            }
+        }
     },
-    indent = 2,
+    indent = indent,
     onClick = onClick,
     onClickLabel = onClickLabel
 )
@@ -301,7 +352,7 @@ private fun SettingsScreenPreview() {
     TweatherTheme {
         SettingsScreen(
             settings = AppSettings(),
-            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         )
     }
 }

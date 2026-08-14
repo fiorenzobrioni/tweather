@@ -20,10 +20,9 @@ rather than swapping in a hyphen: a `-` standing in for a dash reads as a typo. 
 colon when the clause explains, a full stop when the thoughts are separate, parentheses
 when it is an aside.
 
-The reason is presentation, not grammar: the em dash now reads to many people as a
-tell-tale of machine-written prose, and the README is the project's shop window. This
-rule is **deliberately scoped to that one file** — every other file in the repo,
-including `PLANNING.md` and `CLAUDE.md` itself, keeps normal punctuation.
+This is a house style for the project's shop window, not a grammar rule, and it is
+**deliberately scoped to that one file** — every other file in the repo, including
+`PLANNING.md` and `CLAUDE.md` itself, keeps normal punctuation.
 
 ## Build and commands
 

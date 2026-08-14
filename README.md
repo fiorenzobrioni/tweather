@@ -16,9 +16,9 @@ is a shell prompt, and the weather icons are the emoji sitting inside the JSON.
 It is a real weather app underneath: live data, background alerts, a home-screen
 widget. The editor is the interface, not a skin over a list of cards.
 
-<!-- Screenshots go here once captured from a device — see docs/screenshots/README.md
-     for the four shots and their filenames. The mockups under */screen.png are
-     reference art the app deliberately departs from, so they are not used. -->
+| `weather_data.json` | `weather_history.diff` | `settings.config` |
+|:---:|:---:|:---:|
+| <img src="docs/screenshots/main.jpg" width="250" alt="The forecast rendered as syntax-highlighted JSON"> | <img src="docs/screenshots/logs.jpg" width="250" alt="Update history as a git diff"> | <img src="docs/screenshots/settings.jpg" width="250" alt="Settings as an editable config file"> |
 
 ---
 
@@ -92,6 +92,8 @@ allowed values. Resetting is a command with a two-tap confirm:
 
 A terminal window on the home screen. It re-lays itself out as you resize: from a
 glanceable strip up to the full transcript, one extra reading per line of room.
+
+<img src="docs/screenshots/widget.jpg" width="420" alt="The widget on a home screen, showing a terminal transcript of the current weather">
 
 ```console
 sys@tweather:~$ get weather -current

@@ -1,18 +1,19 @@
-# Screenshots for the README
+# Screenshots used by the README
 
 Real captures from a device, not the design mockups in `*/screen.png` — those are
 reference art the finished app deliberately departs from in several places (the
 deviations are listed in `PLANNING.md`), so showing them as the product would
 misrepresent it.
 
-Four shots, in this order of importance:
-
-| File | What to capture |
+| File | What it shows |
 | --- | --- |
-| `main.png` | the Explorer tab on `weather_data.json`, scrolled to the top so `location` and `current_conditions` are both visible |
-| `logs.png` | the Logs tab, with at least one commit showing `+`/`-` lines |
-| `settings.png` | the Settings tab, anywhere the toggles and the `//` hints are visible |
-| `widget.png` | the widget on the home screen, at a size showing several readings |
+| `main.jpg` | the Explorer tab on `weather_data.json` |
+| `logs.jpg` | the Logs tab, one commit with its `+`/`-` lines |
+| `settings.jpg` | the Settings tab |
+| `widget.jpg` | the home-screen widget, cropped |
 
-Portrait, default Obsidian theme. Once they are here, the README's screenshot block
-gets filled in — the placeholder is the HTML comment right under the intro.
+JPEG on purpose, not an oversight. These are already-lossy captures, so re-encoding
+them as PNG would produce a lossless copy of a lossy image: PNG's size with JPEG's
+quality. Measured on this set, that trade is 945 KB → 3.4 MB for a difference GitHub
+scales away in the README column anyway. If a screenshot is ever retaken, capture it
+straight to PNG and keep it that way.

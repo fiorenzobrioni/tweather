@@ -20,11 +20,14 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 - Build debug APK: `./gradlew :app:assembleDebug` (output: `app/build/outputs/apk/debug/app-debug.apk`)
 - Unit tests: `./gradlew :app:testDebugUnitTest` — single test class: `./gradlew :app:testDebugUnitTest --tests "com.callbackdev.tweather.SomeTest"`
 - Lint: `./gradlew :app:lintDebug`
+- Installable minified build: `./gradlew :app:assembleRelease -PsignReleaseWithDebugKey`
 - On this machine there is no system JDK: prepend `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"` (Android Studio's bundled JDK) to gradlew commands.
 
 **Debug signing**: `keystore/debug.keystore` is intentionally committed (alias `tweather-debug`, store/key password `android`) so debug APKs from CI and any machine share one signature and can update an existing install. Do not regenerate it.
 
-**CI**: `.github/workflows/android-debug-apk.yml` builds the debug APK on every push and uploads it as artifact `tweather-debug-apk`.
+**CI**: `.github/workflows/android-ci.yml` runs on every push — unit tests, lint, then both APKs. Artifacts: `tweather-debug-apk`, `tweather-release-apk-testing-only`, `tweather-release-mapping` (the R8 map, needed to read a release stack trace), plus `app/build/reports/` on failure. Tests run *before* the builds so a red suite never produces an installable artifact.
+
+**Release signing**: the release build is unsigned by default (`app-release-unsigned.apk`). Passing `-PsignReleaseWithDebugKey` signs it with the committed debug key so the minified build is installable for testing — R8 breakage shows up nowhere else. It is opt-in precisely so a store artifact can never be signed with a committed key by accident; Fase 10 replaces it with a real keystore.
 
 **Alert engine** (Fase 9c): background notifications via a single WorkManager periodic job (`weather-sync`, interval = `update_frequency_min`, now 15/30/60/120 default 60, CONNECTED-only constraint, no foreground services/exact alarms/FCM/background location). Pure rules in `domain/AlertEngine.kt` (severe WMO buckets 12h, precip ≥70% 6h, daily summary 06–12), dedup fingerprints in DataStore `alerts`, hybrid notification style (localized title + English terminal body). Background fetches write Logs commits like any fetch.
 

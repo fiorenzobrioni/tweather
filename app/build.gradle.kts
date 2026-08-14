@@ -44,6 +44,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Opt-in only, and never by default: with the flag, CI signs the minified
+            // build with the shared debug key so it can actually be installed and
+            // smoke-tested (R8 breakage only shows up in a release build). Off by
+            // default so a store artifact can never be produced with a committed key
+            // by accident — Fase 10 replaces this with a real keystore.
+            if (project.hasProperty("signReleaseWithDebugKey")) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 

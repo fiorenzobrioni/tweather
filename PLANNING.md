@@ -14,7 +14,7 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 - [x] Aggiungere dipendenze base: Retrofit + OkHttp, Kotlinx.serialization (+ converter Retrofit), Navigation Compose, DataStore (Room rinviata alla Fase 3 quando serve lo storico; Hilt da valutare in Fase 3; Coil non necessario, icone = emoji Unicode)
 - [x] Importare il font **JetBrains Mono** (pesi 400/500/600/700) in `res/font`
 - [x] Configurare versioning e build variants (debug/release); keystore debug condiviso committato in `keystore/debug.keystore` (alias `tweather-debug`, password `android`) così gli APK debug di CI e macchine diverse si aggiornano senza reinstallare
-- [x] CI GitHub Actions: `.github/workflows/android-debug-apk.yml` compila l'APK debug a ogni push e lo carica come artifact
+- [x] CI GitHub Actions: `.github/workflows/android-debug-apk.yml` compila l'APK debug a ogni push e lo carica come artifact — *da ago 2026 sostituito da `android-ci.yml`, vedi Note trasversali*
 - [x] Primo commit: progetto scheletro che compila e mostra una schermata vuota
 
 ## Fase 1 — Design system e tema
@@ -172,7 +172,7 @@ Mockup di riferimento: `tweather_widget/tweather_widget.png` (finestra terminale
 
 ## Fase 10 — Release
 
-- [ ] Configurare signing config e build release (R8/ProGuard, regole per Retrofit/serialization)
+- [ ] Configurare signing config e build release (R8/ProGuard, regole per Retrofit/serialization) — **la firma va sostituita**: oggi la release è non firmata di default e la CI la firma con la chiave di debug committata solo per poterla installare e provare (`-PsignReleaseWithDebugKey`); serve un keystore vero da GitHub Secrets
 - [ ] Screenshot e testi per lo store
 - [ ] Versione 1.0.0, tag git e changelog
 - [ ] (Opzionale) CI: build + test su push
@@ -184,3 +184,4 @@ Mockup di riferimento: `tweather_widget/tweather_widget.png` (finestra terminale
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.
 - **Ordine consigliato**: le fasi 1–2 sono il fondamento di tutte le schermate; la fase 3 può procedere in parallelo alla 2. Le fasi 4–8 dipendono da 1–3.
 - Aggiornare questo file smarcando i passi completati e annotando eventuali deviazioni dal PRD.
+- **CI (rivista ago 2026)**: `.github/workflows/android-ci.yml` — action portate alle major su Node 24 (checkout v7, setup-java v5, upload-artifact v7, gradle/actions v6), e soprattutto la pipeline ora esegue **test unitari e lint prima delle build**: i 181 test esistevano ma non facevano da guardia sul repo, e un artifact installabile non deve poter nascere da una suite rossa. Oltre all'APK debug produce l'APK **release minificato** (l'unica build dove i problemi R8 possono manifestarsi) e la **mapping R8**, senza la quale uno stack trace di release è illeggibile. La release è firmata con la chiave di debug **solo su flag esplicito**, così un artifact da store non può nascere per sbaglio con una chiave committata.

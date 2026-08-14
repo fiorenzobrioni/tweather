@@ -29,8 +29,9 @@ class CityStoreTest {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    private val milan = City(3_173_435, "Milano", "Lombardia", "Italy",
-        Coordinates(45.4643, 9.1895), "Europe/Rome")
+    // Distinct from DefaultCity (Milan) so add/setActive really change the store
+    private val turin = City(3_165_524, "Turin", "Piedmont", "Italy",
+        Coordinates(45.0703, 7.6869), "Europe/Rome")
     private val gpsCity = GeoFix(Coordinates(45.46, 9.19), "Milano", null, "Italy").toGpsCity()
 
     private fun store(): CityStore = CityStore(
@@ -76,8 +77,8 @@ class CityStoreTest {
     fun `adding a searched city switches away from gps but keeps it enabled`() = runBlocking {
         val store = store()
         store.setUseGps(true)
-        store.add(milan)
-        assertEquals(ActiveSource.Saved(milan), store.activeSource.first())
+        store.add(turin)
+        assertEquals(ActiveSource.Saved(turin), store.activeSource.first())
         assertTrue(store.locationSettings.first().useGps)
     }
 
@@ -89,7 +90,7 @@ class CityStoreTest {
 
         store.setUseGps(true)
         store.updateGpsCity(gpsCity)
-        store.add(milan)
+        store.add(turin)
         store.setActiveGps()
         assertEquals(ActiveSource.Gps(gpsCity), store.activeSource.first())
     }
@@ -113,6 +114,6 @@ class CityStoreTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun `updateGpsCity rejects a regular city`(): Unit = runBlocking {
-        store().updateGpsCity(milan)
+        store().updateGpsCity(turin)
     }
 }

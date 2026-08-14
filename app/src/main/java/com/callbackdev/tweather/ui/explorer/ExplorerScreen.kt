@@ -227,11 +227,11 @@ private fun City.fileSlug(): String =
 @Composable
 private fun ExplorerScreenPreview() {
     TweatherTheme {
-        val milan = City(3_173_435, "Milan", "Lombardy", "Italy", Coordinates(45.46, 9.19), "Europe/Rome")
+        val newYork = City(5_128_581, "New York", "NY", "USA", Coordinates(40.7128, -74.0060), "America/New_York")
         ExplorerScreen(
             state = ExplorerUiState(
-                cities = listOf(CityStore.DefaultCity, milan),
-                activeCity = milan,
+                cities = listOf(CityStore.DefaultCity, newYork),
+                activeCity = newYork,
                 useGps = true
             ),
             onSelect = {},

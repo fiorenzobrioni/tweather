@@ -138,14 +138,15 @@ class CityStore(
         private val UseGps = booleanPreferencesKey("use_gps")
         private val GpsCityJson = stringPreferencesKey("gps_city_json")
 
-        /** The PRD's sample city, seeded on first run so the app opens on data. */
+        /** Seeded on first run so the app opens on data. Milan — where the app is
+         * developed (deviation from the PRD's New York sample, see PLANNING). */
         val DefaultCity = City(
-            id = 5_128_581, // GeoNames id, as Open-Meteo geocoding would return
-            name = "New York",
-            region = "NY",
-            country = "USA",
-            coordinates = Coordinates(40.7128, -74.0060),
-            timezone = "America/New_York"
+            id = 3_173_435, // GeoNames id, as Open-Meteo geocoding would return
+            name = "Milan",
+            region = "Lombardy",
+            country = "Italy",
+            coordinates = Coordinates(45.4643, 9.1895),
+            timezone = "Europe/Rome"
         )
 
         fun create(context: Context, json: Json) = CityStore(context.citiesDataStore, json)

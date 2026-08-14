@@ -6,12 +6,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `search_query.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-The Android project skeleton exists (Fase 0 of `PLANNING.md` done); screens are not implemented yet. Design artifacts and specifications:
+All four screens plus the home widget are implemented (see `PLANNING.md`, phases 0 through 9e); what remains is Fase 10, release. Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
 - `*/code.html` + `*/screen.png` — static Tailwind HTML mockups and screenshots for each screen (main editor, search, settings, logs/diff, brand logo). These are reference-only prototypes, not production code.
 - `weather_data.json_sample.json` / `weather_data.json_full_sample.json` — sample data shapes the main screen renders. The full sample defines the expected weather data model (location, current conditions, air quality, pollen, astronomical, hourly/daily forecast, system info).
+
+## Writing `README.md` (root file only)
+
+**No em dashes (`—`) or en dashes (`–`) in the root `README.md`.** Rewrite the sentence
+rather than swapping in a hyphen: a `-` standing in for a dash reads as a typo. Use a
+colon when the clause explains, a full stop when the thoughts are separate, parentheses
+when it is an aside.
+
+The reason is presentation, not grammar: the em dash now reads to many people as a
+tell-tale of machine-written prose, and the README is the project's shop window. This
+rule is **deliberately scoped to that one file** — every other file in the repo,
+including `PLANNING.md` and `CLAUDE.md` itself, keeps normal punctuation.
 
 ## Build and commands
 

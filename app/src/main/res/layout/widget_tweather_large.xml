@@ -28,36 +28,52 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- minHeight, not a fixed height: the title bar has to grow with the system
-             font scale instead of clipping (same rule as the app's editor bars) -->
-        <FrameLayout
+        <!-- Both controls live in the title bar, in matching 48dp boxes so the title
+             sits optically centred between them and the corners mirror each other.
+             A LinearLayout, not a FrameLayout: the weighted title then shrinks
+             instead of running underneath the glyphs on a narrow widget. Height is
+             wrap_content so the bar grows with the system font scale. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="34dp"
-            android:paddingHorizontal="14dp">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- minWidth/minHeight rather than padding: the glyph stays 20sp while
+                 the tappable box reaches the 48dp accessibility minimum -->
+            <TextView
+                android:id="@+id/widget_refresh"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:text="@string/widget_refresh_glyph"
+                android:textSize="20sp" />
 
             <TextView
                 android:id="@+id/widget_title"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
+                android:layout_weight="1"
+                android:ellipsize="end"
                 android:fontFamily="monospace"
-                android:textStyle="bold"
+                android:gravity="center"
                 android:singleLine="true"
+                android:textStyle="bold"
                 android:textSize="15sp" />
 
-            <!-- The weather glyph lives in the title bar, not floating over the body:
-                 down there it had to be given a permanent width reservation on every
-                 line, and the values are worth more than the decoration.
-                 Default font family on purpose — the color-emoji font must kick in. -->
+            <!-- Default font family on purpose — the color-emoji font must kick in -->
             <TextView
                 android:id="@+id/widget_emoji"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end|center_vertical"
+                android:gravity="center"
                 android:importantForAccessibility="no"
+                android:minWidth="48dp"
                 android:textSize="20sp" />
-        </FrameLayout>
+        </LinearLayout>
 
         <ImageView
             android:id="@+id/widget_divider"
@@ -65,30 +81,46 @@
             android:layout_height="1dp"
             android:importantForAccessibility="no" />
 
-        <TextView
-            android:id="@+id/widget_prompt"
+        <!-- The command flag is split off into its own weighted view: it gets only
+             the width left over, so on a narrow widget it collapses to nothing
+             instead of chopping the command itself mid-word. -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:fontFamily="monospace"
+            android:orientation="horizontal"
             android:paddingHorizontal="14dp"
             android:paddingTop="10dp"
-            android:paddingBottom="6dp"
-            android:singleLine="true"
-            android:textSize="15sp" />
+            android:paddingBottom="6dp">
 
-        <FrameLayout
+            <TextView
+                android:id="@+id/widget_prompt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/widget_prompt_tail"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <!-- No overlay over the body any more, so every line runs the full width -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:orientation="horizontal"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:paddingBottom="12dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal">
 
                 <ImageView
                     android:id="@+id/widget_guide"
@@ -147,23 +179,6 @@
                         android:id="@+id/widget_line11"
                         style="@style/WidgetBodyLine" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- The only control over the body, in the corner. minWidth/minHeight
-                 rather than padding: the glyph stays 20sp while the tappable box
-                 reaches the 48dp accessibility minimum, and the renderer gives the
-                 bottom line the matching end margin so nothing hides under it. -->
-            <TextView
-                android:id="@+id/widget_refresh"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end|bottom"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:minWidth="48dp"
-                android:minHeight="48dp"
-                android:text="@string/widget_refresh_glyph"
-                android:textSize="20sp" />
-        </FrameLayout>
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

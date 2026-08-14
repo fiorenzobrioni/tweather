@@ -7,7 +7,6 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.util.SizeF
-import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import com.callbackdev.tweather.MainActivity
@@ -35,12 +34,9 @@ object WidgetRenderer {
     // Not estimated: `noRungClaimsMoreHeightThanItsTranscriptNeeds` binary-searches
     // the real laid-out minimum and fails if these drift from it. Estimating cost the
     // user lines — a rung 30dp too tall is a line of weather they had room for.
-    private const val ChromeHeightDp = 64f
+    private const val ChromeHeightDp = 78f
     private const val BodyLineHeightDp = 21.5f
     private const val SmallMinHeightDp = 52f
-
-    /** Width the corner ↻ needs on the last visible body line — its tap target. */
-    private const val RefreshGutterDp = 48f
 
     fun sizeMap(
         context: Context,
@@ -107,10 +103,9 @@ object WidgetRenderer {
             views.setInt(R.id.widget_divider, "setBackgroundColor", palette.divider)
             views.setInt(R.id.widget_guide, "setBackgroundColor", palette.divider)
             views.setTextViewText(R.id.widget_prompt, content.promptLine.spannable(palette))
+            views.setTextViewText(R.id.widget_prompt_tail, content.promptTail.spannable(palette))
 
-            val slots = LineIds.take(slotsFor(tier))
-            val lastVisible = minOf(content.bodyLines.size, slots.size) - 1
-            slots.forEachIndexed { index, id ->
+            LineIds.take(slotsFor(tier)).forEachIndexed { index, id ->
                 val line = content.bodyLines.getOrNull(index)
                 if (line != null) {
                     views.setTextViewText(id, line.spannable(palette))
@@ -118,15 +113,6 @@ object WidgetRenderer {
                 } else {
                     views.setViewVisibility(id, View.GONE)
                 }
-                // The ↻/cursor overlay is anchored bottom-right, so only the bottom
-                // line has to make room for it; the others run the full width. Set
-                // per line rather than on the column, or every line pays for it.
-                views.setViewLayoutMargin(
-                    id,
-                    RemoteViews.MARGIN_END,
-                    if (index == lastVisible) RefreshGutterDp else 0f,
-                    TypedValue.COMPLEX_UNIT_DIP
-                )
             }
         }
 

@@ -113,12 +113,15 @@ class WidgetContentBuilderTest {
     fun `the prompt line is a terminal transcript with the command dimmed`() {
         val prompt = build().promptLine
 
-        assertEquals(listOf("sys@tweather", ":~", "\$ ", "get weather -current"), prompt.texts)
+        assertEquals(listOf("sys@tweather", ":~", "\$ ", "get weather"), prompt.texts)
         assertEquals(
             listOf(TokenRole.PROMPT, TokenRole.PLAIN, TokenRole.PLAIN, TokenRole.DIM),
             prompt.roles
         )
-        assertEquals("sys@tweather:~\$ get weather -current", prompt.text)
+        assertEquals("sys@tweather:~\$ get weather", prompt.text)
+        // the flag is its own line so the layout can drop it whole when it does not fit
+        assertEquals(" -current", build().promptTail.text)
+        assertEquals(listOf(TokenRole.DIM), build().promptTail.tokens.map { it.role })
     }
 
     // --- units ---
@@ -297,7 +300,7 @@ class WidgetContentBuilderTest {
             )
             // the shell chrome stays put so the widget never looks broken
             assertEquals(WidgetContentBuilder.HEADER, content.headerTitle)
-            assertEquals("sys@tweather:~\$ get weather -current", content.promptLine.text)
+            assertEquals("sys@tweather:~\$ get weather", content.promptLine.text)
         }
     }
 

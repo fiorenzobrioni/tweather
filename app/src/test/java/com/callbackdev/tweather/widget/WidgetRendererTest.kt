@@ -87,7 +87,9 @@ class WidgetRendererTest {
         val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
 
         assertEquals(WidgetContentBuilder.HEADER, view.text(R.id.widget_title))
-        assertEquals("sys@tweather:~$ get weather -current", view.text(R.id.widget_prompt))
+        // the flag lives in its own view so a narrow widget can drop it whole
+        assertEquals("sys@tweather:~$ get weather", view.text(R.id.widget_prompt))
+        assertEquals(" -current", view.text(R.id.widget_prompt_tail))
 
         // the region is dropped on the narrow tiers — it would eat the city name
         assertEquals("Location: \"Milan\"", view.text(R.id.widget_line1))
@@ -356,19 +358,41 @@ class WidgetRendererTest {
     }
 
     /**
-     * The ↻ overlay is anchored bottom-right, so only the bottom line has to leave it
-     * room; charging every line for it is what used to truncate the values.
+     * With both controls in the title bar nothing floats over the body any more, so
+     * no line owes width to a glyph — the reason the values used to truncate.
      */
     @Test
-    fun onlyTheBottomLineReservesTheRefreshGutter() {
+    fun everyBodyLineRunsTheFullWidth() {
         val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
 
-        fun endMarginOf(id: Int) =
-            (view.findViewById<View>(id).layoutParams as ViewGroup.MarginLayoutParams).marginEnd
+        listOf(R.id.widget_line1, R.id.widget_line2, R.id.widget_line3, R.id.widget_line4)
+            .forEach { id ->
+                val params = view.findViewById<View>(id).layoutParams
+                        as ViewGroup.MarginLayoutParams
+                assertEquals("line $id still reserves a gutter", 0, params.marginEnd)
+            }
+    }
 
-        assertEquals(0, endMarginOf(R.id.widget_line1))
-        assertEquals(0, endMarginOf(R.id.widget_line3))
-        assertTrue("the bottom line must clear the ↻", endMarginOf(R.id.widget_line4) > 0)
+    /**
+     * The flag is a separate weighted view precisely so it can vanish: measured
+     * narrow, the command survives intact and only the flag loses its width.
+     */
+    @Test
+    fun theCommandFlagCollapsesInsteadOfChoppingTheCommand() {
+        val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
+        val density = context.resources.displayMetrics.density
+        val narrow = (150 * density).toInt()
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(narrow, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec((200 * density).toInt(), View.MeasureSpec.EXACTLY)
+        )
+        view.layout(0, 0, narrow, (200 * density).toInt())
+
+        assertEquals(0, view.findViewById<View>(R.id.widget_prompt_tail).width)
+        assertTrue(
+            "the command itself must keep its width",
+            view.findViewById<View>(R.id.widget_prompt).width > 0
+        )
     }
 
     @Test

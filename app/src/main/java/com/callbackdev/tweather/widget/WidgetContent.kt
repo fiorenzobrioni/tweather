@@ -44,12 +44,6 @@ data class TerminalLine(val tokens: List<WidgetToken>) {
 data class WidgetContent(
     val headerTitle: String,
     val promptLine: TerminalLine,
-    /**
-     * The command's flag, kept apart from [promptLine] so the layout can give it
-     * only the leftover width: on a narrow widget it collapses to nothing instead
-     * of chopping the command itself mid-word.
-     */
-    val promptTail: TerminalLine,
     val bodyLines: List<TerminalLine>,
     val emoji: String?,
     val smallTemp: TerminalLine,
@@ -87,15 +81,13 @@ object WidgetContentBuilder {
                 WidgetToken("sys@tweather", TokenRole.PROMPT),
                 WidgetToken(":~", TokenRole.PLAIN),
                 WidgetToken("$ ", TokenRole.PLAIN),
-                WidgetToken("get weather", TokenRole.DIM)
+                WidgetToken("get weather -current", TokenRole.DIM)
             )
         )
-        val promptTail = token(" -current", TokenRole.DIM)
         if (snapshot.isNullOrEmpty()) {
             return WidgetContent(
                 headerTitle = HEADER,
                 promptLine = prompt,
-                promptTail = promptTail,
                 bodyLines = listOf(comment("# no data yet — open tweather")),
                 emoji = null,
                 smallTemp = token("--°", TokenRole.NUMBER),
@@ -149,7 +141,6 @@ object WidgetContentBuilder {
         return WidgetContent(
             headerTitle = HEADER,
             promptLine = prompt,
-            promptTail = promptTail,
             bodyLines = lines,
             emoji = emoji,
             smallTemp = TerminalLine(

@@ -38,20 +38,21 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
+            android:minHeight="34dp"
             android:orientation="horizontal">
 
-            <!-- minWidth/minHeight rather than padding: the glyph stays 20sp while
-                 the tappable box reaches the 48dp accessibility minimum -->
+            <!-- 48dp WIDE but only as tall as the bar: a 48dp-high box made the
+                 title bar eat a whole line of weather, which is a bad trade for a
+                 control that is already easy to hit. -->
             <TextView
                 android:id="@+id/widget_refresh"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:fontFamily="monospace"
                 android:gravity="center"
                 android:minWidth="48dp"
-                android:minHeight="48dp"
                 android:text="@string/widget_refresh_glyph"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
 
             <TextView
                 android:id="@+id/widget_title"
@@ -73,7 +74,7 @@
                 android:gravity="center"
                 android:importantForAccessibility="no"
                 android:minWidth="48dp"
-                android:textSize="20sp" />
+                android:textSize="18sp" />
         </LinearLayout>
 
         <ImageView
@@ -82,36 +83,20 @@
             android:layout_height="1dp"
             android:importantForAccessibility="no" />
 
-        <!-- The command flag is split off into its own weighted view: it gets only
-             the width left over, so on a narrow widget it collapses to nothing
-             instead of chopping the command itself mid-word. -->
-        <LinearLayout
+        <!-- One view, ellipsized: splitting the flag into its own weighted view was
+             tried and reverted — with little room left it shrank to "-…" instead of
+             disappearing, which reads worse than a truncated command. -->
+        <TextView
+            android:id="@+id/widget_prompt"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:ellipsize="end"
+            android:fontFamily="monospace"
             android:paddingHorizontal="14dp"
-            android:paddingTop="10dp"
-            android:paddingBottom="6dp">
-
-            <TextView
-                android:id="@+id/widget_prompt"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:singleLine="true"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/widget_prompt_tail"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:fontFamily="monospace"
-                android:singleLine="true"
-                android:textSize="15sp" />
-        </LinearLayout>
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp"
+            android:singleLine="true"
+            android:textSize="15sp" />
 
         <!-- No overlay over the body any more, so every line runs the full width -->
         <LinearLayout

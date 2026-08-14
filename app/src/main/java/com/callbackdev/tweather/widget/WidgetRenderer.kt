@@ -31,11 +31,17 @@ object WidgetRenderer {
     /** Slots the compact layout carries; taller transcripts use the large one. */
     private const val MediumSlots = 4
 
-    // Not estimated: `noRungClaimsMoreHeightThanItsTranscriptNeeds` binary-searches
-    // the real laid-out minimum and fails if these drift from it. Estimating cost the
-    // user lines — a rung 30dp too tall is a line of weather they had room for.
-    private const val ChromeHeightDp = 78f
-    private const val BodyLineHeightDp = 21.5f
+    // `noRungClaimsMoreHeightThanItsTranscriptNeeds` binary-searches the real laid-out
+    // minimum and fails if these drift from it, so they are measured rather than
+    // estimated — a rung too tall costs a line of weather the user had room for.
+    //
+    // They do carry a deliberate margin over that measurement (~4dp of chrome, ~2dp
+    // per line), because the test measures with the JVM's monospace font and the
+    // device uses the OEM's: on a Samsung the transcript came out a hair taller and
+    // the bottom line was left showing a few pixels of itself. One line fewer is a
+    // far better failure than one line sliced.
+    private const val ChromeHeightDp = 64f
+    private const val BodyLineHeightDp = 23f
     private const val SmallMinHeightDp = 52f
 
     fun sizeMap(
@@ -103,7 +109,6 @@ object WidgetRenderer {
             views.setInt(R.id.widget_divider, "setBackgroundColor", palette.divider)
             views.setInt(R.id.widget_guide, "setBackgroundColor", palette.divider)
             views.setTextViewText(R.id.widget_prompt, content.promptLine.spannable(palette))
-            views.setTextViewText(R.id.widget_prompt_tail, content.promptTail.spannable(palette))
 
             LineIds.take(slotsFor(tier)).forEachIndexed { index, id ->
                 val line = content.bodyLines.getOrNull(index)

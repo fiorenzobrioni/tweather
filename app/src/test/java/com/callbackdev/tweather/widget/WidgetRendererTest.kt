@@ -87,9 +87,7 @@ class WidgetRendererTest {
         val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
 
         assertEquals(WidgetContentBuilder.HEADER, view.text(R.id.widget_title))
-        // the flag lives in its own view so a narrow widget can drop it whole
-        assertEquals("sys@tweather:~$ get weather", view.text(R.id.widget_prompt))
-        assertEquals(" -current", view.text(R.id.widget_prompt_tail))
+        assertEquals("sys@tweather:~$ get weather -current", view.text(R.id.widget_prompt))
 
         // the region is dropped on the narrow tiers — it would eat the city name
         assertEquals("Location: \"Milan\"", view.text(R.id.widget_line1))
@@ -314,8 +312,11 @@ class WidgetRendererTest {
                 Triple(lines, low / density, size.height)
             }
 
-        val wrong = slack.filter { (_, needed, promised) ->
-            promised < needed || promised - needed > 10f
+        // Never below the measured minimum, and never wildly above it: the deliberate
+        // safety margin for the device's own font is worth ~2dp a line, the bug this
+        // test was written for was worth 30.
+        val wrong = slack.filter { (lines, needed, promised) ->
+            promised < needed || promised - needed > 6f + 2.5f * lines
         }
         assertTrue(
             "rungs out of step (lines, needed dp, promised dp): $wrong — all: $slack",
@@ -371,28 +372,6 @@ class WidgetRendererTest {
                         as ViewGroup.MarginLayoutParams
                 assertEquals("line $id still reserves a gutter", 0, params.marginEnd)
             }
-    }
-
-    /**
-     * The flag is a separate weighted view precisely so it can vanish: measured
-     * narrow, the command survives intact and only the flag loses its width.
-     */
-    @Test
-    fun theCommandFlagCollapsesInsteadOfChoppingTheCommand() {
-        val view = inflate(content(WidgetTier.Terminal(4)), WidgetTier.Terminal(4))
-        val density = context.resources.displayMetrics.density
-        val narrow = (150 * density).toInt()
-        view.measure(
-            View.MeasureSpec.makeMeasureSpec(narrow, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec((200 * density).toInt(), View.MeasureSpec.EXACTLY)
-        )
-        view.layout(0, 0, narrow, (200 * density).toInt())
-
-        assertEquals(0, view.findViewById<View>(R.id.widget_prompt_tail).width)
-        assertTrue(
-            "the command itself must keep its width",
-            view.findViewById<View>(R.id.widget_prompt).width > 0
-        )
     }
 
     @Test

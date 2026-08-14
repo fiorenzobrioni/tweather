@@ -28,6 +28,7 @@ class SettingsViewModel(private val settingsStore: SettingsStore) : ViewModel() 
     fun setDailySummary(enabled: Boolean) = save { setDailySummary(enabled) }
     fun setPrecipitationWarning(enabled: Boolean) = save { setPrecipitationWarning(enabled) }
     fun setThemeProfile(name: String) = save { setThemeProfile(name) }
+    fun resetToDefaults() = save { resetToDefaults() }
 
     fun toggleTemperatureUnit() = save {
         setTemperatureUnit(

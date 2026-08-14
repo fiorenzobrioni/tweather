@@ -31,6 +31,8 @@
     <string name="cd_search_again">Search %1$s again</string>
     <string name="cd_change_setting">Change %1$s</string>
     <string name="cd_open_link">Open %1$s website</string>
+    <string name="cd_reset_settings">Reset all settings to defaults</string>
+    <string name="cd_confirm_reset">Confirm settings reset</string>
 
     <!-- Weather conditions (WMO codes) -->
     <string name="cond_clear">Clear</string>

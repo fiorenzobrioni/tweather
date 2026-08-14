@@ -100,6 +100,14 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun setThemeProfile(name: String) = set(ThemeProfileName, name)
     suspend fun setUpdateFrequency(minutes: Int) = set(UpdateFrequencyMin, minutes)
 
+    /**
+     * `$ git restore settings.config` — clears every stored preference (including
+     * the last-modified stamp), so the file reads pristine again.
+     */
+    suspend fun resetToDefaults() {
+        dataStore.edit { it.clear() }
+    }
+
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
         dataStore.edit {
             it[key] = value

@@ -7,7 +7,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -33,6 +37,7 @@ import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
@@ -48,7 +53,8 @@ class SettingsActions(
     val onDailySummary: (Boolean) -> Unit,
     val onPrecipWarning: (Boolean) -> Unit,
     val onCycleFrequency: () -> Unit,
-    val onOpenUrl: (String) -> Unit
+    val onOpenUrl: (String) -> Unit,
+    val onReset: () -> Unit
 )
 
 /**
@@ -75,7 +81,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             onDailySummary = viewModel::setDailySummary,
             onPrecipWarning = viewModel::setPrecipitationWarning,
             onCycleFrequency = viewModel::cycleUpdateFrequency,
-            onOpenUrl = uriHandler::openUri
+            onOpenUrl = uriHandler::openUri,
+            onReset = viewModel::resetToDefaults
         )
     )
 }
@@ -84,10 +91,30 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
 fun SettingsScreen(settings: AppSettings, actions: SettingsActions) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
+    // Two-tap confirm for the reset command; disarms by itself after a few seconds.
+    var resetArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(resetArmed) {
+        if (resetArmed) {
+            delay(4_000)
+            resetArmed = false
+        }
+    }
     val lines = buildSettingsLines(
         settings, syntax, actions,
         changeLabel = { key -> resources.getString(R.string.cd_change_setting, key) },
-        openLabel = { name -> resources.getString(R.string.cd_open_link, name) }
+        openLabel = { name -> resources.getString(R.string.cd_open_link, name) },
+        resetArmed = resetArmed,
+        resetLabel = resources.getString(
+            if (resetArmed) R.string.cd_confirm_reset else R.string.cd_reset_settings
+        ),
+        onResetLine = {
+            if (resetArmed) {
+                resetArmed = false
+                actions.onReset()
+            } else {
+                resetArmed = true
+            }
+        }
     )
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -114,7 +141,10 @@ private fun buildSettingsLines(
     syntax: SyntaxColors,
     actions: SettingsActions,
     changeLabel: (String) -> String,
-    openLabel: (String) -> String
+    openLabel: (String) -> String,
+    resetArmed: Boolean,
+    resetLabel: String,
+    onResetLine: () -> Unit
 ): List<CanvasLine> = buildList {
     add(commentLine("// Tweather Configuration File", syntax))
     settings.lastModifiedEpochSeconds?.let { epoch ->
@@ -273,6 +303,27 @@ private fun buildSettingsLines(
     add(punctLine("}", 1, syntax))
 
     add(punctLine("}", 0, syntax))
+
+    // Terminal prompt below the buffer: factory reset as a git command. First tap
+    // arms it (confirm hint in diff-deletion red), second tap runs it.
+    add(punctLine("", 0, syntax))
+    add(commentLine("// restore defaults (discards local changes):", syntax))
+    add(
+        CodeLine(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
+                append("git restore settings.config")
+                if (resetArmed) {
+                    withStyle(SpanStyle(color = syntax.diffDel)) {
+                        append("  // tap again to confirm")
+                    }
+                }
+            },
+            indent = 0,
+            onClick = onResetLine,
+            onClickLabel = resetLabel
+        )
+    )
 }
 
 /**
@@ -352,7 +403,7 @@ private fun SettingsScreenPreview() {
     TweatherTheme {
         SettingsScreen(
             settings = AppSettings(),
-            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         )
     }
 }

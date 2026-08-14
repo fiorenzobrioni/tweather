@@ -139,6 +139,10 @@ private fun buildSearchLines(
                 )
             )
         }
+        if (state.results.isNotEmpty()) {
+            // discoverability: selection lands in the Explorer's file tree
+            add(commentLine("// tap to add — cities are saved in [ files ]", syntax, indent = 2))
+        }
         add(punctLine("],", 1, syntax))
     }
 

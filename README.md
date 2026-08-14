@@ -10,8 +10,9 @@
 
 Every screen is a file. The forecast is syntax-highlighted JSON with a line-number
 gutter, settings are a `.config` you edit by tapping values, and the update history is
-a git diff — hash, author, `+`/`-` lines and all. Checkboxes are `[x]`, the search box
-is a shell prompt, and the weather icons are the emoji sitting inside the JSON.
+a git diff, complete with hash, author and `+`/`-` lines. Checkboxes are `[x]`, the
+search box is a shell prompt, and the weather icons are the emoji sitting inside the
+JSON.
 
 It is a real weather app underneath: live data, background alerts, a home-screen
 widget. The editor is the interface, not a skin over a list of cards.
@@ -26,7 +27,7 @@ widget. The editor is the interface, not a skin over a list of cards.
 
 The bottom bar has four tabs, and each one opens a file rather than a screen.
 
-### `weather_data.json` — the forecast
+### `weather_data.json`: the forecast
 
 Tap the FAB to re-run the request. The `//` comments are the loading and error
 channel, so a failure reads like a compiler message instead of a toast.
@@ -50,10 +51,10 @@ channel, so a failure reads like a compiler message instead of a toast.
 }
 ```
 
-Switch to Fahrenheit and the **keys change too** — `temp_f`, `speed_mph`. A JSON file
-should not lie about its units.
+Switch to Fahrenheit and the **keys change too**, to `temp_f` and `speed_mph`. A JSON
+file should not lie about its units.
 
-### `weather_history.diff` — the update log
+### `weather_history.diff`: the update log
 
 Every fetch is committed. The diff is computed between consecutive snapshots of the
 same city, so you can see exactly what moved and when.
@@ -73,14 +74,14 @@ Date:   2 hours ago
    }
 ```
 
-### `search_query.json` — the search
+### `search_query.json`: the search
 
 The input field *is* the `"search_term"` value, quotes included, with a blinking
 underscore for a cursor. Recent searches are a JSON array you can tap to re-run, and
-`$ history -c` clears them — the shell's own verb, and deliberately narrow: it forgets
-what you searched for and never touches the cities you saved.
+`$ history -c` clears them. That is the shell's own verb, and it is deliberately
+narrow: it forgets what you searched for and never touches the cities you saved.
 
-### `settings.config` — the settings
+### `settings.config`: the settings
 
 Booleans flip on tap, strings and numbers cycle, and the trailing hint tells you the
 allowed values. Resetting is a command with a two-tap confirm:
@@ -96,7 +97,7 @@ glanceable strip up to the full transcript, one extra reading per line of room.
 <img src="docs/screenshots/widget.jpg" width="420" alt="The widget on a home screen, showing a terminal transcript of the current weather">
 
 It never polls on its own. It repaints when a fetch commits new data, riding the same
-background job the alerts already use — so adding the widget costs no extra battery
+background job the alerts already use, so adding the widget costs no extra battery
 beyond what notifications already spend. If a sync fails and the data goes stale, it
 says so (`# stale`) instead of presenting old numbers as current.
 
@@ -107,17 +108,17 @@ showing. Background opacity is configurable.
 
 ## Data
 
-[Open-Meteo](https://open-meteo.com/) — free, **no API key, no account**.
+[Open-Meteo](https://open-meteo.com/): free, **no API key, no account**.
 
 | What | Source |
 | --- | --- |
 | Current, hourly, daily, sunrise/sunset | Forecast API |
 | AQI, pollutants, pollen *(Europe only)* | Air Quality API |
 | City search | Geocoding API |
-| Moon phase | computed locally — the API does not provide it |
+| Moon phase | computed locally, since the API does not provide it |
 
 Location is optional and **coarse only** (`ACCESS_COARSE_LOCATION`): city-level accuracy
-is all a forecast needs. There is no background location — the alert worker uses the
+is all a forecast needs. There is no background location: the alert worker uses the
 last position you acquired while the app was open, and nothing else.
 
 ---
@@ -141,7 +142,7 @@ installable one for testing:
 
 That flag signs it with the debug keystore committed in `keystore/`. The keystore is in
 the repo on purpose, so debug builds from CI and from any machine share one signature
-and can update an existing install — it is not a release key, and the opt-in flag
+and can update an existing install. It is not a release key, and the opt-in flag
 exists so a store artifact can never be produced with it by accident.
 
 CI runs the tests and lint **before** the builds, so a red suite never produces an
@@ -156,7 +157,7 @@ Kotlin 2.2, Jetpack Compose with Material 3, single module, no DI framework.
 
 | Concern | Choice |
 | --- | --- |
-| Dependency injection | a hand-rolled `ServiceLocator` — the app is small enough that Hilt would cost more than it saves |
+| Dependency injection | a hand-rolled `ServiceLocator`, the app being small enough that Hilt would cost more than it saves |
 | Settings, cities, search history | DataStore |
 | Update history | Room, pruned to the last 100 commits |
 | Background work | one WorkManager periodic job shared by the alerts and the widget, network-constrained, no flex window |
@@ -169,7 +170,7 @@ from the original design, is recorded there with the reason.
 
 ## Design
 
-The theme is **Obsidian Syntax** — full token set in `obsidian_syntax/DESIGN.md`.
+The theme is **Obsidian Syntax**, with the full token set in `obsidian_syntax/DESIGN.md`.
 Dracula and Monokai ship as alternate profiles, switchable at runtime.
 
 | | |
@@ -181,14 +182,14 @@ Dracula and Monokai ship as alternate profiles, switchable at runtime.
 | Additions / deletions | `#2ea043` / `#f85149` |
 | Background | `#10141a` |
 
-JetBrains Mono everywhere, a 4px baseline grid, 20px per nesting level, no drop
-shadows — depth comes from 1px borders. The one exception is the home widget: since
+JetBrains Mono everywhere, a 4px baseline grid, 20px per nesting level, and no drop
+shadows: depth comes from 1px borders instead. The one exception is the home widget: since
 CVE-2021-0567 the launcher refuses to load font resources into a widget layout, so it
 falls back to the system monospace. The badges above are tinted with the same palette.
 
-English and Italian, following the system per-app language. The rule: "code" stays
-English — JSON keys, filenames, `//` comments, terminal output — while the chrome and
-the weather *values* are translated.
+English and Italian, following the system per-app language. The rule is that "code"
+stays English (JSON keys, filenames, `//` comments, terminal output) while the chrome
+and the weather *values* are translated.
 
 ---
 

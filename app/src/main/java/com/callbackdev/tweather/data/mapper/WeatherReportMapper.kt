@@ -2,6 +2,7 @@ package com.callbackdev.tweather.data.mapper
 
 import com.callbackdev.tweather.data.remote.dto.AirQualityCurrentDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
+import com.callbackdev.tweather.data.remote.dto.bestMatchInts
 import com.callbackdev.tweather.data.remote.dto.mergedDoubles
 import com.callbackdev.tweather.data.remote.dto.mergedInts
 import com.callbackdev.tweather.data.remote.dto.mergedNullableInts
@@ -64,7 +65,7 @@ object WeatherReportMapper {
         val dewPointC = hourly.mergedDoubles("dew_point_2m", size)
         val isDay = hourly.mergedInts("is_day", size)
         val precipitationMm = hourly.mergedDoubles("precipitation", size)
-        val weatherCode = hourly.mergedInts("weather_code", size)
+        val weatherCode = hourly.bestMatchInts("weather_code", size)
         val pressureMslHpa = hourly.mergedDoubles("pressure_msl", size)
         val windSpeedKph = hourly.mergedDoubles("wind_speed_10m", size)
         val windDirectionDeg = hourly.mergedInts("wind_direction_10m", size)
@@ -151,7 +152,7 @@ object WeatherReportMapper {
         val daily = forecast.daily
         val times = daily.timeSeries()
         val size = times.size
-        val weatherCode = daily.mergedInts("weather_code", size)
+        val weatherCode = daily.bestMatchInts("weather_code", size)
         val temperatureMaxC = daily.mergedDoubles("temperature_2m_max", size)
         val temperatureMinC = daily.mergedDoubles("temperature_2m_min", size)
         val precipitationProbabilityMaxPct = daily.mergedNullableInts("precipitation_probability_max", size)

@@ -51,3 +51,18 @@ fun JsonObject.mergedNullableInts(variable: String, size: Int): List<Int?> =
 
 fun JsonObject.mergedStrings(variable: String, size: Int): List<String> =
     (0 until size).map { mergedElementAt(variable, it)?.jsonPrimitive?.contentOrNull ?: "" }
+
+/**
+ * `weather_code` is deliberately read from best_match only, never merged with a local
+ * model: it's a categorical read of cloud cover / precipitation type, which is far more
+ * volatile hour-to-hour than a continuous field like temperature, and a single raw
+ * high-res model's cell can disagree sharply with reality at a given instant. Verified
+ * live for Milan: italia_meteo_arpae_icon_2i reported "overcast" (weather_code 3, 100%
+ * cloud cover) while best_match reported "partly cloudy" (weather_code 2, 90%) for the
+ * same hour, and best_match already blends multiple sources for exactly this kind of
+ * field rather than trusting one raw model run.
+ */
+fun JsonObject.bestMatchInts(variable: String, size: Int): List<Int> {
+    val values = this["${variable}_${OpenMeteoForecastApi.PRIMARY_MODEL}"] as? JsonArray
+    return (0 until size).map { values?.getOrNull(it)?.jsonPrimitive?.intOrNull ?: 0 }
+}

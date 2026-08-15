@@ -195,6 +195,27 @@ class WeatherReportMapperTest {
     }
 
     @Test
+    fun `weather_code always reads from best_match even when a local model disagrees`() {
+        // Reproduces the live Milan case: italia_meteo_arpae_icon_2i said "overcast"
+        // (3) while best_match said "light rain" (61, the fixture's value at index 14)
+        // and every other source agreed with best_match. weather_code must never take
+        // the local model's read, unlike continuous fields such as temperature.
+        val base = forecast()
+        val hourlyWithLocalModel = JsonObject(
+            base.hourly.toMutableMap().apply {
+                val bestMatch = (this["weather_code_best_match"] as JsonArray)
+                val local = bestMatch.mapIndexed { idx, _ ->
+                    if (idx == 14) JsonPrimitive(3) else JsonNull
+                }
+                put("weather_code_italia_meteo_arpae_icon_2i", JsonArray(local))
+            }
+        )
+        val report = map(forecast = base.copy(hourly = hourlyWithLocalModel))
+        assertEquals("Light Rain 🌧️", report.current.condition.label)
+        assertEquals("Light Rain 🌧️", report.hourly.first().condition.label)
+    }
+
+    @Test
     fun `missing air quality response leaves both sections null`() {
         val report = map(airQuality = null)
         assertNull(report.airQuality)

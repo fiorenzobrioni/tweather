@@ -86,6 +86,22 @@ class ForecastDtoMergeTest {
     }
 
     @Test
+    fun `bestMatchInts ignores a disagreeing local model, unlike mergedInts`() {
+        // weather_code is deliberately never merged with a local model (see
+        // ForecastDto.kt): a single raw high-res run can disagree sharply with reality
+        // on a categorical, fast-changing field like cloud cover.
+        val obj = buildJsonObject {
+            put("weather_code_best_match", JsonArray(listOf(JsonPrimitive(2))))
+            put(
+                "weather_code_italia_meteo_arpae_icon_2i",
+                JsonArray(listOf(JsonPrimitive(3)))
+            )
+        }
+        assertEquals(listOf(2), obj.bestMatchInts("weather_code", 1))
+        assertEquals(listOf(3), obj.mergedInts("weather_code", 1)) // what mergedInts would pick instead
+    }
+
+    @Test
     fun `timeSeries reads the unsuffixed shared time array`() {
         val obj = buildJsonObject {
             put("time", JsonArray(listOf(JsonPrimitive("2026-08-13T00:00"), JsonPrimitive("2026-08-13T01:00"))))

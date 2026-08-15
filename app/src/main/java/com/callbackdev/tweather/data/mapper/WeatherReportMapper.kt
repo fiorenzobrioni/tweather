@@ -2,6 +2,11 @@ package com.callbackdev.tweather.data.mapper
 
 import com.callbackdev.tweather.data.remote.dto.AirQualityCurrentDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
+import com.callbackdev.tweather.data.remote.dto.mergedDoubles
+import com.callbackdev.tweather.data.remote.dto.mergedInts
+import com.callbackdev.tweather.data.remote.dto.mergedNullableInts
+import com.callbackdev.tweather.data.remote.dto.mergedStrings
+import com.callbackdev.tweather.data.remote.dto.timeSeries
 import com.callbackdev.tweather.domain.WeatherCodes
 import com.callbackdev.tweather.domain.model.AirQuality
 import com.callbackdev.tweather.domain.model.Astronomical
@@ -23,6 +28,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
@@ -41,14 +47,34 @@ object WeatherReportMapper {
         responseTimeMs: Long,
         cacheStatus: CacheStatus
     ): WeatherReport {
-        val current = forecast.current
-        val localTime = LocalDateTime.parse(current.time)
-        val isDay = current.isDay == 1
-
-        val hourlyTimes = forecast.hourly.time.map(LocalDateTime::parse)
+        // The API's own `current` block can't be split per model (see ForecastDto.kt),
+        // so "now" is the hourly slot nearest to fetchedAt in the location's timezone.
+        val localTime = LocalDateTime.ofInstant(fetchedAt, ZoneId.of(forecast.timezone))
         val currentHour = localTime.truncatedTo(ChronoUnit.HOURS)
+
+        val hourly = forecast.hourly
+        val hourlyTimes = hourly.timeSeries().map(LocalDateTime::parse)
+        val size = hourlyTimes.size
         val currentHourIndex = hourlyTimes.indexOfFirst { !it.isBefore(currentHour) }
             .coerceAtLeast(0)
+
+        val temperatureC = hourly.mergedDoubles("temperature_2m", size)
+        val humidityPct = hourly.mergedInts("relative_humidity_2m", size)
+        val apparentTemperatureC = hourly.mergedDoubles("apparent_temperature", size)
+        val dewPointC = hourly.mergedDoubles("dew_point_2m", size)
+        val isDay = hourly.mergedInts("is_day", size)
+        val precipitationMm = hourly.mergedDoubles("precipitation", size)
+        val weatherCode = hourly.mergedInts("weather_code", size)
+        val pressureMslHpa = hourly.mergedDoubles("pressure_msl", size)
+        val windSpeedKph = hourly.mergedDoubles("wind_speed_10m", size)
+        val windDirectionDeg = hourly.mergedInts("wind_direction_10m", size)
+        val windGustsKph = hourly.mergedDoubles("wind_gusts_10m", size)
+        val visibilityM = hourly.mergedDoubles("visibility", size)
+        val uvIndex = hourly.mergedDoubles("uv_index", size)
+        val precipitationProbabilityPct = hourly.mergedNullableInts("precipitation_probability", size)
+
+        val i = currentHourIndex
+        val uvIndexNow = uvIndex.getOrElse(i) { 0.0 }.roundToInt()
 
         return WeatherReport(
             location = Location(
@@ -60,31 +86,40 @@ object WeatherReportMapper {
                 localTime = localTime
             ),
             current = CurrentConditions(
-                condition = WeatherCodes.condition(current.weatherCode, isDay),
-                tempC = current.temperatureC,
-                feelsLikeC = current.apparentTemperatureC,
-                humidityPct = current.humidityPct,
-                dewPointC = current.dewPointC,
-                visibilityKm = current.visibilityM / 1000.0,
-                pressureMb = current.pressureMslHpa,
-                uvIndex = current.uvIndex.roundToInt(),
-                uvDescription = WeatherCodes.uvDescription(current.uvIndex.roundToInt()),
+                condition = WeatherCodes.condition(
+                    weatherCode.getOrElse(i) { 0 },
+                    isDay = isDay.getOrElse(i) { 1 } == 1
+                ),
+                tempC = temperatureC.getOrElse(i) { 0.0 },
+                feelsLikeC = apparentTemperatureC.getOrElse(i) { 0.0 },
+                humidityPct = humidityPct.getOrElse(i) { 0 },
+                dewPointC = dewPointC.getOrElse(i) { 0.0 },
+                visibilityKm = visibilityM.getOrElse(i) { 0.0 } / 1000.0,
+                pressureMb = pressureMslHpa.getOrElse(i) { 0.0 },
+                uvIndex = uvIndexNow,
+                uvDescription = WeatherCodes.uvDescription(uvIndexNow),
                 wind = Wind(
-                    speedKph = current.windSpeedKph,
-                    directionCompass = WeatherCodes.windCompass(current.windDirectionDeg),
-                    degree = current.windDirectionDeg,
-                    gustKph = current.windGustsKph
+                    speedKph = windSpeedKph.getOrElse(i) { 0.0 },
+                    directionCompass = WeatherCodes.windCompass(windDirectionDeg.getOrElse(i) { 0 }),
+                    degree = windDirectionDeg.getOrElse(i) { 0 },
+                    gustKph = windGustsKph.getOrElse(i) { 0.0 }
                 ),
                 precipitation = Precipitation(
-                    lastHourMm = current.precipitationMm,
-                    chancePct = forecast.hourly.precipitationProbabilityPct
-                        .getOrNull(currentHourIndex) ?: 0
+                    lastHourMm = precipitationMm.getOrElse(i) { 0.0 },
+                    chancePct = precipitationProbabilityPct.getOrNull(i) ?: 0
                 )
             ),
             airQuality = airQuality?.toAirQuality(),
             pollen = airQuality?.toPollenReport(),
             astronomical = mapAstronomical(forecast, fetchedAt),
-            hourly = mapHourly(forecast, hourlyTimes, currentHourIndex),
+            hourly = mapHourly(
+                times = hourlyTimes,
+                fromIndex = currentHourIndex,
+                temperatureC = temperatureC,
+                weatherCode = weatherCode,
+                isDay = isDay,
+                precipitationProbabilityPct = precipitationProbabilityPct
+            ),
             daily = mapDaily(forecast),
             systemInfo = SystemInfo(
                 source = SOURCE,
@@ -96,45 +131,52 @@ object WeatherReportMapper {
     }
 
     private fun mapHourly(
-        forecast: ForecastResponseDto,
         times: List<LocalDateTime>,
-        fromIndex: Int
-    ): List<HourlyForecast> {
-        val hourly = forecast.hourly
-        return (fromIndex until (fromIndex + HOURLY_WINDOW).coerceAtMost(times.size))
-            .map { i ->
-                HourlyForecast(
-                    time = times[i],
-                    tempC = hourly.temperatureC[i],
-                    condition = WeatherCodes.condition(
-                        hourly.weatherCode[i],
-                        isDay = hourly.isDay[i] == 1
-                    ),
-                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0
-                )
-            }
-    }
+        fromIndex: Int,
+        temperatureC: List<Double>,
+        weatherCode: List<Int>,
+        isDay: List<Int>,
+        precipitationProbabilityPct: List<Int?>
+    ): List<HourlyForecast> =
+        (fromIndex until (fromIndex + HOURLY_WINDOW).coerceAtMost(times.size)).map { idx ->
+            HourlyForecast(
+                time = times[idx],
+                tempC = temperatureC[idx],
+                condition = WeatherCodes.condition(weatherCode[idx], isDay = isDay[idx] == 1),
+                precipChancePct = precipitationProbabilityPct.getOrNull(idx) ?: 0
+            )
+        }
 
     private fun mapDaily(forecast: ForecastResponseDto): List<DailyForecast> {
         val daily = forecast.daily
-        return daily.time.take(DAILY_WINDOW).mapIndexed { i, date ->
+        val times = daily.timeSeries()
+        val size = times.size
+        val weatherCode = daily.mergedInts("weather_code", size)
+        val temperatureMaxC = daily.mergedDoubles("temperature_2m_max", size)
+        val temperatureMinC = daily.mergedDoubles("temperature_2m_min", size)
+        val precipitationProbabilityMaxPct = daily.mergedNullableInts("precipitation_probability_max", size)
+        return times.take(DAILY_WINDOW).mapIndexed { idx, date ->
             DailyForecast(
                 date = LocalDate.parse(date),
-                highC = daily.temperatureMaxC[i],
-                lowC = daily.temperatureMinC[i],
-                condition = WeatherCodes.condition(daily.weatherCode[i], isDay = true),
-                precipPct = daily.precipitationProbabilityMaxPct.getOrNull(i) ?: 0
+                highC = temperatureMaxC[idx],
+                lowC = temperatureMinC[idx],
+                condition = WeatherCodes.condition(weatherCode[idx], isDay = true),
+                precipPct = precipitationProbabilityMaxPct.getOrNull(idx) ?: 0
             )
         }
     }
 
     private fun mapAstronomical(forecast: ForecastResponseDto, fetchedAt: Instant): Astronomical {
         val daily = forecast.daily
+        val size = daily.timeSeries().size
+        val sunrise = daily.mergedStrings("sunrise", size)
+        val sunset = daily.mergedStrings("sunset", size)
+        val daylightDurationSec = daily.mergedDoubles("daylight_duration", size)
         return Astronomical(
-            sunrise = LocalDateTime.parse(daily.sunrise.first()).toLocalTime(),
-            sunset = LocalDateTime.parse(daily.sunset.first()).toLocalTime(),
+            sunrise = LocalDateTime.parse(sunrise.first()).toLocalTime(),
+            sunset = LocalDateTime.parse(sunset.first()).toLocalTime(),
             moonPhase = MoonPhase.at(fetchedAt),
-            daylightDuration = Duration.ofSeconds(daily.daylightDurationSec.first().toLong())
+            daylightDuration = Duration.ofSeconds(daylightDurationSec.first().toLong())
         )
     }
 

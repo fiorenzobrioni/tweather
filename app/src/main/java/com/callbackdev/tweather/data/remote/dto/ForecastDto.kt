@@ -1,54 +1,53 @@
 package com.callbackdev.tweather.data.remote.dto
 
-import kotlinx.serialization.SerialName
+import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * `hourly`/`daily` are kept as raw [JsonObject] rather than a fixed set of properties:
+ * requesting multiple `models` (see [OpenMeteoForecastApi.MODEL_PRIORITY]) makes
+ * Open-Meteo suffix every field per model (`temperature_2m_best_match`,
+ * `temperature_2m_italia_meteo_arpae_icon_2i`, ...) instead of one fixed key set. The
+ * `mergedDoubles`/`mergedInts`/etc. helpers below read across those suffixed fields,
+ * per hour/day, preferring the first model in priority order that has a non-null value.
+ */
 @Serializable
 data class ForecastResponseDto(
     val latitude: Double,
     val longitude: Double,
     val timezone: String,
-    val current: CurrentDto,
-    val hourly: HourlyDto,
-    val daily: DailyDto
+    val hourly: JsonObject,
+    val daily: JsonObject
 )
 
-@Serializable
-data class CurrentDto(
-    val time: String,
-    @SerialName("temperature_2m") val temperatureC: Double,
-    @SerialName("relative_humidity_2m") val humidityPct: Int,
-    @SerialName("apparent_temperature") val apparentTemperatureC: Double,
-    @SerialName("dew_point_2m") val dewPointC: Double,
-    @SerialName("is_day") val isDay: Int,
-    @SerialName("precipitation") val precipitationMm: Double,
-    @SerialName("weather_code") val weatherCode: Int,
-    @SerialName("pressure_msl") val pressureMslHpa: Double,
-    @SerialName("wind_speed_10m") val windSpeedKph: Double,
-    @SerialName("wind_direction_10m") val windDirectionDeg: Int,
-    @SerialName("wind_gusts_10m") val windGustsKph: Double,
-    @SerialName("visibility") val visibilityM: Double,
-    @SerialName("uv_index") val uvIndex: Double
-)
+/** The unsuffixed `time` array shared by every model in a block. */
+fun JsonObject.timeSeries(): List<String> =
+    (this["time"] as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()
 
-@Serializable
-data class HourlyDto(
-    val time: List<String>,
-    @SerialName("temperature_2m") val temperatureC: List<Double>,
-    @SerialName("weather_code") val weatherCode: List<Int>,
-    @SerialName("precipitation_probability") val precipitationProbabilityPct: List<Int?>,
-    @SerialName("is_day") val isDay: List<Int>
-)
+private fun JsonObject.mergedElementAt(variable: String, index: Int): JsonElement? {
+    for (model in OpenMeteoForecastApi.MODEL_PRIORITY) {
+        val value = (this["${variable}_$model"] as? JsonArray)?.getOrNull(index)
+        if (value != null && value != JsonNull) return value
+    }
+    return null
+}
 
-@Serializable
-data class DailyDto(
-    val time: List<String>,
-    @SerialName("weather_code") val weatherCode: List<Int>,
-    @SerialName("temperature_2m_max") val temperatureMaxC: List<Double>,
-    @SerialName("temperature_2m_min") val temperatureMinC: List<Double>,
-    val sunrise: List<String>,
-    val sunset: List<String>,
-    @SerialName("daylight_duration") val daylightDurationSec: List<Double>,
-    @SerialName("precipitation_probability_max") val precipitationProbabilityMaxPct: List<Int?>,
-    @SerialName("uv_index_max") val uvIndexMax: List<Double>
-)
+fun JsonObject.mergedDoubles(variable: String, size: Int): List<Double> =
+    (0 until size).map { mergedElementAt(variable, it)?.jsonPrimitive?.doubleOrNull ?: 0.0 }
+
+fun JsonObject.mergedInts(variable: String, size: Int): List<Int> =
+    (0 until size).map { mergedElementAt(variable, it)?.jsonPrimitive?.intOrNull ?: 0 }
+
+fun JsonObject.mergedNullableInts(variable: String, size: Int): List<Int?> =
+    (0 until size).map { mergedElementAt(variable, it)?.jsonPrimitive?.intOrNull }
+
+fun JsonObject.mergedStrings(variable: String, size: Int): List<String> =
+    (0 until size).map { mergedElementAt(variable, it)?.jsonPrimitive?.contentOrNull ?: "" }

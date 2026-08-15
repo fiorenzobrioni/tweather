@@ -1,10 +1,7 @@
 package com.callbackdev.tweather.data.mapper
 
 import com.callbackdev.tweather.data.remote.dto.AirQualityCurrentDto
-import com.callbackdev.tweather.data.remote.dto.CurrentDto
-import com.callbackdev.tweather.data.remote.dto.DailyDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
-import com.callbackdev.tweather.data.remote.dto.HourlyDto
 import com.callbackdev.tweather.domain.model.CacheStatus
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.Coordinates
@@ -14,6 +11,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -29,53 +31,53 @@ class WeatherReportMapperTest {
         timezone = "America/New_York"
     )
 
+    // 18:23 UTC is 14:23 in America/New_York (EDT, UTC-4) in August.
     private val fetchedAt = Instant.parse("2026-08-13T18:23:00Z")
 
-    /** 48 hourly slots starting at local midnight; current time 14:23 → window starts at 14:00. */
-    private fun forecast(
-        currentTime: String = "2026-08-13T14:23",
-        hourlyCount: Int = 48,
-        dailyCount: Int = 8
-    ): ForecastResponseDto {
+    /** 48 hourly slots starting at local midnight; fetchedAt is 14:23 → window starts at 14:00. */
+    private fun forecast(hourlyCount: Int = 48, dailyCount: Int = 8): ForecastResponseDto {
         val midnight = LocalDateTime.parse("2026-08-13T00:00")
+        val hourlyTimes = List(hourlyCount) { midnight.plusHours(it.toLong()).toString() }
+        val dailyTimes = List(dailyCount) { LocalDate.parse("2026-08-13").plusDays(it.toLong()).toString() }
+
         return ForecastResponseDto(
             latitude = 40.71,
             longitude = -74.01,
             timezone = "America/New_York",
-            current = CurrentDto(
-                time = currentTime,
-                temperatureC = 22.4,
-                humidityPct = 65,
-                apparentTemperatureC = 24.1,
-                dewPointC = 15.6,
-                isDay = 1,
-                precipitationMm = 0.5,
-                weatherCode = 2,
-                pressureMslHpa = 1013.2,
-                windSpeedKph = 12.5,
-                windDirectionDeg = 310,
-                windGustsKph = 18.3,
-                visibilityM = 16090.0,
-                uvIndex = 5.4
-            ),
-            hourly = HourlyDto(
-                time = List(hourlyCount) { midnight.plusHours(it.toLong()).toString() },
-                temperatureC = List(hourlyCount) { 10.0 + it },
-                weatherCode = List(hourlyCount) { if (it == 14) 61 else 0 },
-                precipitationProbabilityPct = List(hourlyCount) { if (it == 14) 40 else null },
-                isDay = List(hourlyCount) { if (it % 24 in 6..19) 1 else 0 }
-            ),
-            daily = DailyDto(
-                time = List(dailyCount) { LocalDate.parse("2026-08-13").plusDays(it.toLong()).toString() },
-                weatherCode = List(dailyCount) { 3 },
-                temperatureMaxC = List(dailyCount) { 28.0 + it },
-                temperatureMinC = List(dailyCount) { 18.0 + it },
-                sunrise = List(dailyCount) { "2026-08-13T06:07" },
-                sunset = List(dailyCount) { "2026-08-13T19:52" },
-                daylightDurationSec = List(dailyCount) { 49_500.0 },
-                precipitationProbabilityMaxPct = List(dailyCount) { if (it == 0) 55 else null },
-                uvIndexMax = List(dailyCount) { 6.0 }
-            )
+            hourly = buildJsonObject {
+                putStrings("time", hourlyTimes)
+                putDoubles("temperature_2m_best_match", List(hourlyCount) { 10.0 + it })
+                putInts("relative_humidity_2m_best_match", List(hourlyCount) { 65 })
+                putDoubles("apparent_temperature_best_match", List(hourlyCount) { 12.0 + it })
+                putDoubles("dew_point_2m_best_match", List(hourlyCount) { 5.0 + it })
+                putInts("is_day_best_match", List(hourlyCount) { if (it % 24 in 6..19) 1 else 0 })
+                putDoubles("precipitation_best_match", List(hourlyCount) { if (it == 14) 0.5 else 0.0 })
+                putInts("weather_code_best_match", List(hourlyCount) { if (it == 14) 61 else 0 })
+                putDoubles("pressure_msl_best_match", List(hourlyCount) { 1013.2 })
+                putDoubles("wind_speed_10m_best_match", List(hourlyCount) { 12.5 })
+                putInts("wind_direction_10m_best_match", List(hourlyCount) { 310 })
+                putDoubles("wind_gusts_10m_best_match", List(hourlyCount) { 18.3 })
+                putDoubles("visibility_best_match", List(hourlyCount) { 16090.0 })
+                putDoubles("uv_index_best_match", List(hourlyCount) { 5.4 })
+                putNullableInts(
+                    "precipitation_probability_best_match",
+                    List(hourlyCount) { if (it == 14) 40 else null }
+                )
+            },
+            daily = buildJsonObject {
+                putStrings("time", dailyTimes)
+                putInts("weather_code_best_match", List(dailyCount) { 3 })
+                putDoubles("temperature_2m_max_best_match", List(dailyCount) { 28.0 + it })
+                putDoubles("temperature_2m_min_best_match", List(dailyCount) { 18.0 + it })
+                putStrings("sunrise_best_match", List(dailyCount) { "2026-08-13T06:07" })
+                putStrings("sunset_best_match", List(dailyCount) { "2026-08-13T19:52" })
+                putDoubles("daylight_duration_best_match", List(dailyCount) { 49_500.0 })
+                putNullableInts(
+                    "precipitation_probability_max_best_match",
+                    List(dailyCount) { if (it == 0) 55 else null }
+                )
+                putDoubles("uv_index_max_best_match", List(dailyCount) { 6.0 })
+            }
         )
     }
 
@@ -105,11 +107,12 @@ class WeatherReportMapperTest {
     }
 
     @Test
-    fun `current conditions convert units and derive labels`() {
+    fun `current conditions read from the hourly slot nearest to fetchedAt`() {
         val current = map().current
-        assertEquals("Partly Cloudy ⛅", current.condition.label)
-        assertEquals(22.4, current.tempC, 0.0)
-        assertEquals(24.1, current.feelsLikeC, 0.0)
+        // fetchedAt 14:23 local → hour 14 → temperature_2m = 10.0 + 14.
+        assertEquals("Light Rain 🌧️", current.condition.label)
+        assertEquals(24.0, current.tempC, 0.0)
+        assertEquals(26.0, current.feelsLikeC, 0.0)
         assertEquals(65, current.humidityPct)
         assertEquals(16.09, current.visibilityKm, 1e-9)      // meters → km
         assertEquals(5, current.uvIndex)                     // 5.4 rounds down
@@ -170,6 +173,25 @@ class WeatherReportMapperTest {
         assertEquals(fetchedAt, info.lastSync)
         assertEquals(CacheStatus.MISS, info.cacheStatus)
         assertEquals(245, info.responseTimeMs)
+    }
+
+    @Test
+    fun `local high-res model temperature wins over best_match when present`() {
+        // Same shape as the default fixture, but the current hour (index 14) also
+        // carries an italia_meteo_arpae_icon_2i reading that disagrees with best_match.
+        val base = forecast()
+        val hourlyWithLocalModel = JsonObject(
+            base.hourly.toMutableMap().apply {
+                val bestMatch = (this["temperature_2m_best_match"] as JsonArray)
+                val local = bestMatch.mapIndexed { idx, _ ->
+                    if (idx == 14) JsonPrimitive(99.9) else JsonNull
+                }
+                put("temperature_2m_italia_meteo_arpae_icon_2i", JsonArray(local))
+            }
+        )
+        val report = map(forecast = base.copy(hourly = hourlyWithLocalModel))
+        assertEquals(99.9, report.current.tempC, 0.0)         // local model wins at index 14
+        assertEquals(25.0, report.hourly[1].tempC, 0.0)       // null local value → best_match (10+15)
     }
 
     @Test
@@ -242,3 +264,17 @@ class WeatherReportMapperTest {
         assertNull(report.pollen)
     }
 }
+
+private fun JsonObject.toMutableMap() = LinkedHashMap(this)
+
+private fun kotlinx.serialization.json.JsonObjectBuilder.putStrings(key: String, values: List<String>) =
+    put(key, JsonArray(values.map { JsonPrimitive(it) }))
+
+private fun kotlinx.serialization.json.JsonObjectBuilder.putDoubles(key: String, values: List<Double>) =
+    put(key, JsonArray(values.map { JsonPrimitive(it) }))
+
+private fun kotlinx.serialization.json.JsonObjectBuilder.putInts(key: String, values: List<Int>) =
+    put(key, JsonArray(values.map { JsonPrimitive(it) }))
+
+private fun kotlinx.serialization.json.JsonObjectBuilder.putNullableInts(key: String, values: List<Int?>) =
+    put(key, JsonArray(values.map { it?.let { v -> JsonPrimitive(v) } ?: JsonNull }))

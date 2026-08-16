@@ -85,29 +85,6 @@ fun stringValueLine(
     onClickLabel = onClickLabel
 )
 
-/** `"instance_id": 42,` — same shape as [stringValueLine] with a number token. */
-fun numberValueLine(
-    key: String,
-    value: Number,
-    comma: Boolean,
-    syntax: SyntaxColors,
-    indent: Int = 2,
-    hint: String? = null,
-    onClickLabel: String? = null,
-    onClick: (() -> Unit)? = null
-): CodeLine = CodeLine(
-    text = buildAnnotatedString {
-        withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
-        withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
-        withStyle(SpanStyle(color = syntax.number)) { append(value.toString()) }
-        if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
-        appendHint(hint, syntax)
-    },
-    indent = indent,
-    onClick = onClick,
-    onClickLabel = onClickLabel
-)
-
 /** Trailing `  // hint`, dimmed like the mockups' inline annotations. */
 private fun AnnotatedString.Builder.appendHint(hint: String?, syntax: SyntaxColors) {
     if (hint == null) return

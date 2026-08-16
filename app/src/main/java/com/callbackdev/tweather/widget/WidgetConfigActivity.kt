@@ -43,7 +43,6 @@ import com.callbackdev.tweather.ui.components.StatusBarText
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.components.keyOpenLine
-import com.callbackdev.tweather.ui.components.numberValueLine
 import com.callbackdev.tweather.ui.components.punctLine
 import com.callbackdev.tweather.ui.components.stringValueLine
 import com.callbackdev.tweather.ui.explorer.fileSlug
@@ -89,7 +88,6 @@ class WidgetConfigActivity : ComponentActivity() {
                 val cities = cityStore.cities.first()
                 val location = cityStore.locationSettings.first()
                 value = WidgetConfigState(
-                    appWidgetId = appWidgetId,
                     cities = cities,
                     gpsAvailable = location.useGps,
                     gpsLabel = location.gpsCity?.name,
@@ -128,8 +126,6 @@ class WidgetConfigActivity : ComponentActivity() {
 }
 
 data class WidgetConfigState(
-    /** The instance being configured; shown as `"instance_id"` in the file. */
-    val appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID,
     val cities: List<City> = emptyList(),
     val gpsAvailable: Boolean = false,
     val gpsLabel: String? = null,
@@ -214,6 +210,11 @@ private fun WidgetConfigState.sourceCount(): Int =
  * The `widget.config` buffer. `"source"` is read-only — tapping a source in
  * `available_sources` pins it and closes the screen, so there is nothing to cycle
  * through; the list is the control, like `available_profiles` in settings.config.
+ *
+ * Only three `//` annotations survive, one per job: the affordance (`tap to pin`),
+ * the state (`selected`) and the one file name that cannot explain itself
+ * (`active_file`). Anything the value, the file name or the color already says is
+ * not repeated in a comment.
  */
 private fun buildWidgetConfigLines(
     state: WidgetConfigState,
@@ -230,21 +231,20 @@ private fun buildWidgetConfigLines(
     val pinnedFile = state.pinnedFile()
 
     add(commentLine("// Tweather Widget Configuration", syntax))
-    add(commentLine("// Pins one home-screen widget to a weather source", syntax))
     add(punctLine("{", 0, syntax))
 
-    add(keyOpenLine("widget", 1, syntax))
-    add(numberValueLine("instance_id", state.appWidgetId, comma = true, syntax = syntax))
+    // No "widget" block around this: the file is already widget.config, so a wrapper
+    // would only cost every line one indent level.
     add(
         stringValueLine(
             key = "source",
             value = pinnedFile ?: FollowAppFile,
             comma = true,
             syntax = syntax,
-            hint = if (pinnedFile == null) "// follows the app" else "// pinned"
+            indent = 1
         )
     )
-    add(keyOpenLine("available_sources", 2, syntax, bracket = "[", hint = "// tap to pin"))
+    add(keyOpenLine("available_sources", 1, syntax, bracket = "[", hint = "// tap to pin"))
 
     // One entry per pinnable source; the last one carries no comma, JSON style.
     val entries = buildList {
@@ -261,7 +261,9 @@ private fun buildWidgetConfigLines(
             add(
                 SourceEntry(
                     file = GpsFile,
-                    hint = if (pinnedFile == GpsFile) "// selected" else "// gps",
+                    // No "// gps" annotation: the file name already says it, and the
+                    // tertiary color is what the design system uses to mark it
+                    hint = "// selected".takeIf { pinnedFile == GpsFile },
                     selected = pinnedFile == GpsFile,
                     gps = true,
                     clickLabel = gpsClickLabel,
@@ -301,15 +303,14 @@ private fun buildWidgetConfigLines(
                         }
                     }
                 },
-                indent = 3,
+                indent = 2,
                 onClick = entry.onClick,
                 onClickLabel = entry.clickLabel
             )
         )
     }
 
-    add(punctLine("]", 2, syntax))
-    add(punctLine("}", 1, syntax))
+    add(punctLine("]", 1, syntax))
     add(punctLine("}", 0, syntax))
 }
 
@@ -329,7 +330,6 @@ private fun WidgetConfigScreenPreview() {
     TweatherTheme {
         WidgetConfigScreen(
             state = WidgetConfigState(
-                appWidgetId = 42,
                 cities = listOf(com.callbackdev.tweather.data.CityStore.DefaultCity),
                 gpsAvailable = true
             ),

@@ -42,7 +42,7 @@ class WidgetConfigScreenTest {
     )
 
     private fun setScreen(
-        state: WidgetConfigState = WidgetConfigState(appWidgetId = 7, cities = listOf(milan)),
+        state: WidgetConfigState = WidgetConfigState(cities = listOf(milan)),
         onFollowApp: () -> Unit = {},
         onSelectCity: (City) -> Unit = {},
         onSelectGps: () -> Unit = {}
@@ -77,16 +77,17 @@ class WidgetConfigScreenTest {
 
         compose.onNodeWithText("// Tweather Widget Configuration").assertExists()
         compose.onNodeWithText("{").assertExists()
-        compose.onNodeWithText("\"widget\": {").assertExists()
-        compose.onNodeWithText("\"instance_id\": 7,").assertExists()
         compose.onNodeWithText("\"available_sources\": [  // tap to pin").assertExists()
+        compose.onNodeWithText("]").assertExists()
+        // No "widget" wrapper block: the file is already widget.config
+        compose.onNodeWithText("\"widget\": {").assertDoesNotExist()
     }
 
     @Test
     fun defaultStateFollowsTheAppAndListsEverySavedCity() {
-        setScreen(state = WidgetConfigState(appWidgetId = 7, cities = listOf(milan, newYork)))
+        setScreen(state = WidgetConfigState(cities = listOf(milan, newYork)))
 
-        compose.onNodeWithText("\"source\": \"active_file\",  // follows the app").assertExists()
+        compose.onNodeWithText("\"source\": \"active_file\",").assertExists()
         onEntry(entry("active_file", hint = "// selected"))
         // Exactly one source can be selected, so the marker must not be duplicated
         compose.onAllNodes(hasText("// selected", substring = true)).assertCountEquals(1)
@@ -101,7 +102,7 @@ class WidgetConfigScreenTest {
     fun tappingACityRowPinsThatCity() {
         var picked: City? = null
         setScreen(
-            state = WidgetConfigState(appWidgetId = 7, cities = listOf(milan, newYork)),
+            state = WidgetConfigState(cities = listOf(milan, newYork)),
             onSelectCity = { picked = it }
         )
 
@@ -115,7 +116,6 @@ class WidgetConfigScreenTest {
         var followed = false
         setScreen(
             state = WidgetConfigState(
-                appWidgetId = 7,
                 cities = listOf(milan),
                 pinnedCityId = milan.id
             ),
@@ -132,7 +132,6 @@ class WidgetConfigScreenTest {
         var gpsPinned = false
         setScreen(
             state = WidgetConfigState(
-                appWidgetId = 7,
                 cities = listOf(milan),
                 gpsAvailable = true,
                 gpsLabel = "Turin"
@@ -140,7 +139,7 @@ class WidgetConfigScreenTest {
             onSelectGps = { gpsPinned = true }
         )
 
-        onEntry(entry("current_location.json", hint = "// gps")).performClick()
+        onEntry(entry("current_location.json")).performClick()
 
         assertTrue(gpsPinned)
     }
@@ -149,13 +148,12 @@ class WidgetConfigScreenTest {
     fun aPinnedCityTakesTheSelectedMarkerFromActiveFileAndBecomesTheSource() {
         setScreen(
             state = WidgetConfigState(
-                appWidgetId = 7,
                 cities = listOf(milan, newYork),
                 pinnedCityId = newYork.id
             )
         )
 
-        compose.onNodeWithText("\"source\": \"new_york.json\",  // pinned").assertExists()
+        compose.onNodeWithText("\"source\": \"new_york.json\",").assertExists()
         onEntry(entry("new_york.json", comma = false, hint = "// selected"))
         compose.onAllNodes(hasText("// selected", substring = true)).assertCountEquals(1)
         // active_file stays tappable but explains what it does instead of claiming the pin
@@ -166,13 +164,12 @@ class WidgetConfigScreenTest {
     fun aPinnedCityThatIsNoLongerSavedFallsBackToFollowingTheApp() {
         setScreen(
             state = WidgetConfigState(
-                appWidgetId = 7,
                 cities = listOf(milan),
                 pinnedCityId = 999_999L
             )
         )
 
-        compose.onNodeWithText("\"source\": \"active_file\",  // follows the app").assertExists()
+        compose.onNodeWithText("\"source\": \"active_file\",").assertExists()
         onEntry(entry("active_file", hint = "// selected"))
     }
 }

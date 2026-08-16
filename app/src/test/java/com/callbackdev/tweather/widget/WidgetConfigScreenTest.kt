@@ -4,7 +4,6 @@ import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.callbackdev.tweather.data.CityStore
@@ -19,9 +18,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The per-widget city picker (`widget.config`). Only the stateless screen is exercised:
- * the activity around it just loads the stores and writes the pin, and the store itself
- * is covered by WidgetCityStoreTest.
+ * The per-widget city picker (`widget.config`), rendered as a config file in the
+ * `settings.config` format. Only the stateless screen is exercised: the activity
+ * around it just loads the stores and writes the pin, and the store itself is
+ * covered by WidgetCityStoreTest.
  */
 @RunWith(RobolectricTestRunner::class)
 class WidgetConfigScreenTest {
@@ -41,11 +41,8 @@ class WidgetConfigScreenTest {
         timezone = "America/New_York"
     )
 
-    /** Hints carry the two leading spaces the row draws before the comment. */
-    private val selected = "  // selected"
-
     private fun setScreen(
-        state: WidgetConfigState = WidgetConfigState(cities = listOf(milan, newYork)),
+        state: WidgetConfigState = WidgetConfigState(appWidgetId = 7, cities = listOf(milan)),
         onFollowApp: () -> Unit = {},
         onSelectCity: (City) -> Unit = {},
         onSelectGps: () -> Unit = {}
@@ -62,31 +59,53 @@ class WidgetConfigScreenTest {
         }
     }
 
-    /** A row merges its dot, file name and comment into the one clickable node, so the
-     * file name alone both finds the row and is the thing to click. */
-    private fun onRow(fileName: String): SemanticsNodeInteraction =
-        compose.onNodeWithText(fileName).assertExists()
+    /**
+     * One `available_sources` entry: the whole JSON line is a single text node (a
+     * [com.callbackdev.tweather.ui.components.CodeLine]), so the exact line is both
+     * the way to find the row and the thing to click. [comma] is false on the last
+     * entry of the array, JSON style.
+     */
+    private fun entry(file: String, comma: Boolean = true, hint: String? = null): String =
+        "\"$file\"" + (if (comma) "," else "") + (hint?.let { "  $it" } ?: "")
+
+    private fun onEntry(text: String): SemanticsNodeInteraction =
+        compose.onNodeWithText(text).assertExists()
+
+    @Test
+    fun theBufferIsAConfigFileNotAFileTree() {
+        setScreen()
+
+        compose.onNodeWithText("// Tweather Widget Configuration").assertExists()
+        compose.onNodeWithText("{").assertExists()
+        compose.onNodeWithText("\"widget\": {").assertExists()
+        compose.onNodeWithText("\"instance_id\": 7,").assertExists()
+        compose.onNodeWithText("\"available_sources\": [  // tap to pin").assertExists()
+    }
 
     @Test
     fun defaultStateFollowsTheAppAndListsEverySavedCity() {
-        setScreen()
+        setScreen(state = WidgetConfigState(appWidgetId = 7, cities = listOf(milan, newYork)))
 
-        compose.onNode(hasText("active_file") and hasText(selected)).assertExists()
+        compose.onNodeWithText("\"source\": \"active_file\",  // follows the app").assertExists()
+        onEntry(entry("active_file", hint = "// selected"))
         // Exactly one source can be selected, so the marker must not be duplicated
-        compose.onAllNodesWithText(selected).assertCountEquals(1)
+        compose.onAllNodes(hasText("// selected", substring = true)).assertCountEquals(1)
 
-        onRow("milan.json")
-        onRow("new_york.json")
+        onEntry(entry("milan.json"))
+        onEntry(entry("new_york.json", comma = false))
         // GPS is off in the default state: there is no pseudo-city to pin
-        compose.onNodeWithText("current_location.json").assertDoesNotExist()
+        compose.onNodeWithText("current_location.json", substring = true).assertDoesNotExist()
     }
 
     @Test
     fun tappingACityRowPinsThatCity() {
         var picked: City? = null
-        setScreen(onSelectCity = { picked = it })
+        setScreen(
+            state = WidgetConfigState(appWidgetId = 7, cities = listOf(milan, newYork)),
+            onSelectCity = { picked = it }
+        )
 
-        onRow("new_york.json").performClick()
+        onEntry(entry("new_york.json", comma = false)).performClick()
 
         assertEquals(newYork, picked)
     }
@@ -95,11 +114,15 @@ class WidgetConfigScreenTest {
     fun tappingActiveFileGoesBackToFollowingTheApp() {
         var followed = false
         setScreen(
-            state = WidgetConfigState(cities = listOf(milan), pinnedCityId = milan.id),
+            state = WidgetConfigState(
+                appWidgetId = 7,
+                cities = listOf(milan),
+                pinnedCityId = milan.id
+            ),
             onFollowApp = { followed = true }
         )
 
-        onRow("active_file").performClick()
+        onEntry(entry("active_file", hint = "// follows the app")).performClick()
 
         assertTrue(followed)
     }
@@ -109,6 +132,7 @@ class WidgetConfigScreenTest {
         var gpsPinned = false
         setScreen(
             state = WidgetConfigState(
+                appWidgetId = 7,
                 cities = listOf(milan),
                 gpsAvailable = true,
                 gpsLabel = "Turin"
@@ -116,24 +140,39 @@ class WidgetConfigScreenTest {
             onSelectGps = { gpsPinned = true }
         )
 
-        compose.onNodeWithText("  // gps").assertExists()
-        onRow("current_location.json").performClick()
+        onEntry(entry("current_location.json", hint = "// gps")).performClick()
 
         assertTrue(gpsPinned)
     }
 
     @Test
-    fun aPinnedCityTakesTheSelectedMarkerFromActiveFile() {
+    fun aPinnedCityTakesTheSelectedMarkerFromActiveFileAndBecomesTheSource() {
         setScreen(
             state = WidgetConfigState(
+                appWidgetId = 7,
                 cities = listOf(milan, newYork),
                 pinnedCityId = newYork.id
             )
         )
 
-        compose.onNode(hasText("new_york.json") and hasText(selected)).assertExists()
-        compose.onAllNodesWithText(selected).assertCountEquals(1)
+        compose.onNodeWithText("\"source\": \"new_york.json\",  // pinned").assertExists()
+        onEntry(entry("new_york.json", comma = false, hint = "// selected"))
+        compose.onAllNodes(hasText("// selected", substring = true)).assertCountEquals(1)
         // active_file stays tappable but explains what it does instead of claiming the pin
-        compose.onNode(hasText("active_file") and hasText("  // follows the app")).assertExists()
+        onEntry(entry("active_file", hint = "// follows the app"))
+    }
+
+    @Test
+    fun aPinnedCityThatIsNoLongerSavedFallsBackToFollowingTheApp() {
+        setScreen(
+            state = WidgetConfigState(
+                appWidgetId = 7,
+                cities = listOf(milan),
+                pinnedCityId = 999_999L
+            )
+        )
+
+        compose.onNodeWithText("\"source\": \"active_file\",  // follows the app").assertExists()
+        onEntry(entry("active_file", hint = "// selected"))
     }
 }

@@ -39,6 +39,81 @@ fun buildJsonLines(root: JsonElement, syntax: SyntaxColors): List<CodeLine> {
 fun commentLine(text: String, syntax: SyntaxColors, indent: Int = 0): CodeLine =
     CodeLine(AnnotatedString(text, SpanStyle(color = syntax.comment)), indent)
 
+/** Punctuation only: `{`, `},`, `]`… — the structural lines of a fake config file. */
+fun punctLine(text: String, indent: Int, syntax: SyntaxColors): CodeLine =
+    CodeLine(AnnotatedString(text, SpanStyle(color = syntax.comment)), indent)
+
+/** `"editor": {` — the line that opens a nested block (or an array with `[`). */
+fun keyOpenLine(
+    key: String,
+    indent: Int,
+    syntax: SyntaxColors,
+    bracket: String = "{",
+    hint: String? = null
+): CodeLine = CodeLine(
+    buildAnnotatedString {
+        withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
+        withStyle(SpanStyle(color = syntax.comment)) { append(": $bracket") }
+        appendHint(hint, syntax)
+    },
+    indent
+)
+
+/**
+ * `"temperature": "celsius",  // hint` — with an [onClick] the whole line is the
+ * control (flip, cycle, open a link); without one it is a read-only line.
+ */
+fun stringValueLine(
+    key: String,
+    value: String,
+    comma: Boolean,
+    syntax: SyntaxColors,
+    indent: Int = 2,
+    hint: String? = null,
+    onClickLabel: String? = null,
+    onClick: (() -> Unit)? = null
+): CodeLine = CodeLine(
+    text = buildAnnotatedString {
+        withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
+        withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+        withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
+        if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
+        appendHint(hint, syntax)
+    },
+    indent = indent,
+    onClick = onClick,
+    onClickLabel = onClickLabel
+)
+
+/** `"instance_id": 42,` — same shape as [stringValueLine] with a number token. */
+fun numberValueLine(
+    key: String,
+    value: Number,
+    comma: Boolean,
+    syntax: SyntaxColors,
+    indent: Int = 2,
+    hint: String? = null,
+    onClickLabel: String? = null,
+    onClick: (() -> Unit)? = null
+): CodeLine = CodeLine(
+    text = buildAnnotatedString {
+        withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
+        withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+        withStyle(SpanStyle(color = syntax.number)) { append(value.toString()) }
+        if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
+        appendHint(hint, syntax)
+    },
+    indent = indent,
+    onClick = onClick,
+    onClickLabel = onClickLabel
+)
+
+/** Trailing `  // hint`, dimmed like the mockups' inline annotations. */
+private fun AnnotatedString.Builder.appendHint(hint: String?, syntax: SyntaxColors) {
+    if (hint == null) return
+    withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) { append("  $hint") }
+}
+
 /** Single monospaced code line outside a [CodeCanvas] (code-block style, no wrap). */
 @Composable
 fun SyntaxText(

@@ -11,15 +11,22 @@ import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.domain.Alert
 import com.callbackdev.tweather.domain.AlertKind
+import com.callbackdev.tweather.ui.weather.WeatherTranslations
 import com.callbackdev.tweather.ui.weather.convert
-import com.callbackdev.tweather.ui.weather.symbol
+import com.callbackdev.tweather.ui.weather.keySuffix
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 /**
- * Renders an [Alert] as a system notification, hybrid style per the l10n rule:
- * localized title (chrome), English terminal body (code). One channel and one
- * fixed notification id per kind — same-kind alerts overwrite, never stack.
+ * Renders an [Alert] as a system notification in the app's own idiom: localized
+ * chrome (title) over a JSON object with English keys and localized data values —
+ * the same rule `weather_data.json` and the home widget follow, so a condition never
+ * reads "Overcast" on an Italian device.
+ *
+ * The object is folded onto one line for the collapsed notification (which only ever
+ * gets one) and pretty-printed under its command line for the expanded one, the way
+ * the editor folds and unfolds a node. One channel and one fixed notification id per
+ * kind — same-kind alerts overwrite, never stack.
  */
 object AlertNotifier {
 
@@ -35,12 +42,15 @@ object AlertNotifier {
         val channel = manager.getNotificationChannelCompat(alert.kind.channelId)
         if (channel?.importance == NotificationManagerCompat.IMPORTANCE_NONE) return false
 
-        val body = terminalBody(alert, temperatureUnit)
+        val translate = WeatherTranslations.translator(context.resources)
         val notification = NotificationCompat.Builder(context, alert.kind.channelId)
             .setSmallIcon(R.drawable.ic_stat_tweather)
             .setContentTitle(title(context, alert))
-            .setContentText(body.lineSequence().last())
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentText(foldedBody(alert, temperatureUnit, translate))
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(expandedBody(alert, temperatureUnit, translate))
+            )
             .setContentIntent(openAppIntent(context, alert.kind))
             .setAutoCancel(true)
             .build()
@@ -58,24 +68,72 @@ object AlertNotifier {
         return context.getString(alert.kind.titleRes, emoji, alert.cityLabel)
     }
 
-    /** English terminal output — "code" per the design's localization rule. */
-    private fun terminalBody(alert: Alert, unit: TemperatureUnit): String {
-        val time = alert.at?.format(ClockTime)
-        fun temp(celsius: Double?) =
-            celsius?.let { "${unit.convert(it).roundToInt()}${unit.symbol}" }
-        return when (alert.kind) {
-            AlertKind.SEVERE ->
-                "$ tweather --alert severe\n" +
-                    "$time  ${alert.condition?.label}  (wmo ${alert.condition?.wmoCode})"
-            AlertKind.PRECIPITATION ->
-                "$ tweather --alert precip\n" +
-                    "$time  precip_chance: ${alert.precipPct}%"
-            AlertKind.DAILY_SUMMARY ->
-                "$ tweather --daily\n" +
-                    "high ${temp(alert.highC)}  low ${temp(alert.lowC)}  " +
-                    "${alert.condition?.label}  precip ${alert.precipPct}%"
+    /**
+     * The collapsed line: `{ "time": "18:00", "status": "Temporale ⛈️", … }`. The
+     * system truncates it, hence [fields] ordering — the headline field comes first.
+     */
+    internal fun foldedBody(
+        alert: Alert,
+        unit: TemperatureUnit,
+        translate: (String) -> String
+    ): String = fields(alert, unit, translate)
+        .joinToString(", ", prefix = "{ ", postfix = " }") { """"${it.key}": ${it.value}""" }
+
+    /** The expanded body: the command that produced it, then one field per line. */
+    internal fun expandedBody(
+        alert: Alert,
+        unit: TemperatureUnit,
+        translate: (String) -> String
+    ): String {
+        val body = fields(alert, unit, translate)
+            .joinToString(",\n") { """  "${it.key}": ${it.value}""" }
+        return "${alert.kind.command}\n{\n$body\n}"
+    }
+
+    /** One JSON field, [value] already rendered: quoted for strings, bare for numbers. */
+    private data class Field(val key: String, val value: String)
+
+    /**
+     * Field order is display order, most useful first, because the collapsed line is
+     * cut off wherever it runs out of width. Keys mirror `weather_data.json`, unit
+     * suffix included (`high_c`/`high_f`), so a notification reads like a fold of the
+     * file it came from.
+     */
+    private fun fields(
+        alert: Alert,
+        unit: TemperatureUnit,
+        translate: (String) -> String
+    ): List<Field> = buildList {
+        val status = alert.condition?.let {
+            Field("status", "${translate(it.description)} ${it.emoji}".quoted())
+        }
+        when (alert.kind) {
+            AlertKind.SEVERE -> {
+                alert.at?.let { add(Field("time", it.format(ClockTime).quoted())) }
+                status?.let(::add)
+                alert.condition?.let { add(Field("wmo_code", it.wmoCode.toString())) }
+                alert.precipPct?.let { add(Field("precip_chance", it.toString())) }
+            }
+            AlertKind.PRECIPITATION -> {
+                alert.at?.let { add(Field("time", it.format(ClockTime).quoted())) }
+                status?.let(::add)
+                alert.precipPct?.let { add(Field("precip_chance", it.toString())) }
+            }
+            AlertKind.DAILY_SUMMARY -> {
+                // no time to anchor it: the condition is the headline of a summary
+                status?.let(::add)
+                alert.highC.temp(unit)?.let { add(Field("high_${unit.keySuffix}", it)) }
+                alert.lowC.temp(unit)?.let { add(Field("low_${unit.keySuffix}", it)) }
+                alert.precipPct?.let { add(Field("precip_pct", it.toString())) }
+            }
         }
     }
+
+    /** Whole degrees in the user's unit — the unit lives in the key, as in the file. */
+    private fun Double?.temp(unit: TemperatureUnit): String? =
+        this?.let { unit.convert(it).roundToInt().toString() }
+
+    private fun String.quoted() = "\"$this\""
 
     private fun ensureChannel(
         context: Context,
@@ -107,6 +165,14 @@ object AlertNotifier {
         )
 
     private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
+
+    /** Terminal shorthand: code, so it stays English like every prompt in the app. */
+    private val AlertKind.command: String
+        get() = when (this) {
+            AlertKind.SEVERE -> "$ tweather --alert severe"
+            AlertKind.PRECIPITATION -> "$ tweather --alert precip"
+            AlertKind.DAILY_SUMMARY -> "$ tweather --daily"
+        }
 
     private val AlertKind.channelId: String
         get() = when (this) {

@@ -48,6 +48,9 @@ import com.callbackdev.tweather.ui.components.EditorTab
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
+import com.callbackdev.tweather.ui.components.keyOpenLine
+import com.callbackdev.tweather.ui.components.punctLine
+import com.callbackdev.tweather.ui.components.stringValueLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.notifications.AlertScheduler
@@ -666,36 +669,6 @@ private fun gpsLine(
     )
 }
 
-/**
- * `"temperature": "celsius",` — the string value flips/cycles (or opens a link)
- * on tap; with no [onClick] it is a plain read-only line (About block).
- */
-private fun stringValueLine(
-    key: String,
-    value: String,
-    comma: Boolean,
-    syntax: SyntaxColors,
-    indent: Int = 2,
-    hint: String? = null,
-    onClickLabel: String? = null,
-    onClick: (() -> Unit)? = null
-): CodeLine = CodeLine(
-    text = buildAnnotatedString {
-        withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
-        withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
-        withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
-        if (comma) withStyle(SpanStyle(color = syntax.comment)) { append(",") }
-        if (hint != null) {
-            withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
-                append("  $hint")
-            }
-        }
-    },
-    indent = indent,
-    onClick = onClick,
-    onClickLabel = onClickLabel
-)
-
 /** Permanently denied permissions can only be granted back from the app's page. */
 private fun android.content.Context.openAppSystemSettings() {
     startActivity(
@@ -705,18 +678,6 @@ private fun android.content.Context.openAppSystemSettings() {
         )
     )
 }
-
-private fun punctLine(text: String, indent: Int, syntax: SyntaxColors) =
-    CodeLine(AnnotatedString(text, SpanStyle(color = syntax.comment)), indent)
-
-private fun keyOpenLine(key: String, indent: Int, syntax: SyntaxColors, bracket: String = "{") =
-    CodeLine(
-        buildAnnotatedString {
-            withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
-            withStyle(SpanStyle(color = syntax.comment)) { append(": $bracket") }
-        },
-        indent
-    )
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A, heightDp = 700)
 @Composable

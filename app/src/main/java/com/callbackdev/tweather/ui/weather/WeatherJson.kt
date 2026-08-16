@@ -162,7 +162,8 @@ fun WeatherReport.toDisplayJson(
     }
 }
 
-private val TemperatureUnit.keySuffix: String
+// internal: AlertNotifier keys its temperatures the same way (`high_c`/`high_f`)
+internal val TemperatureUnit.keySuffix: String
     get() = if (this == TemperatureUnit.CELSIUS) "c" else "f"
 
 // internal: AlertNotifier renders temperatures in the user's unit too

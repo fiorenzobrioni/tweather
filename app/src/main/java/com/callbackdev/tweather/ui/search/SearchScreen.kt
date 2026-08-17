@@ -41,6 +41,8 @@ import com.callbackdev.tweather.ui.components.TerminalInput
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.WidgetLine
 import com.callbackdev.tweather.ui.components.commentLine
+import com.callbackdev.tweather.ui.components.keyOpenLine
+import com.callbackdev.tweather.ui.components.punctLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import kotlinx.coroutines.delay
@@ -150,7 +152,7 @@ private fun buildSearchLines(
 
     val showResults = state.query.trim().length >= 2
     if (showResults) {
-        add(keyOpenLine("results", "[", 1, syntax))
+        add(keyOpenLine("results", 1, syntax, bracket = "["))
         if (state.isSearching) {
             add(commentLine("// GET /v1/search?name=${state.query.trim()}", syntax, indent = 2))
         }
@@ -174,7 +176,7 @@ private fun buildSearchLines(
         add(punctLine("],", 1, syntax))
     }
 
-    add(keyOpenLine("recent_searches", "[", 1, syntax))
+    add(keyOpenLine("recent_searches", 1, syntax, bracket = "["))
     if (recents.isEmpty()) {
         add(commentLine("// empty", syntax, indent = 2))
     }
@@ -277,18 +279,6 @@ private fun cityResultText(
     punct(" }")
     if (trailingComma) punct(",")
 }
-
-private fun punctLine(text: String, indent: Int, syntax: SyntaxColors) =
-    CodeLine(AnnotatedString(text, SpanStyle(color = syntax.comment)), indent)
-
-private fun keyOpenLine(key: String, bracket: String, indent: Int, syntax: SyntaxColors) =
-    CodeLine(
-        buildAnnotatedString {
-            withStyle(SpanStyle(color = syntax.key)) { append("\"$key\"") }
-            withStyle(SpanStyle(color = syntax.comment)) { append(": $bracket") }
-        },
-        indent
-    )
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A, heightDp = 600)
 @Composable

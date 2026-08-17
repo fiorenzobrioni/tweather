@@ -70,7 +70,7 @@
 - **Background (Surface)**: `#10141a`
 - **Surface Container**: `#181c22`
 - **Primary Accent**: `#79c0ff`
-- **Text (On-Surface)**: `#e6edf3`
+- **Text (On-Surface)**: `#dfe2eb`
 - **Brand Identity**: Logo featuring a cloud within curly braces `{ ☁️ }`, using syntax highlighting colors.
 
 ---

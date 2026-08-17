@@ -8,6 +8,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -29,6 +30,7 @@ import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import kotlinx.coroutines.delay
 
 /**
  * Logs screen: the fake file `weather_history.diff`. Every fetch is a git-style
@@ -46,7 +48,17 @@ fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Fact
 @Composable
 fun LogsScreen(commits: List<CommitUi>) {
     val syntax = TweatherTheme.syntax
-    val lines = remember(commits, syntax) { buildLogLines(commits, syntax) }
+    // Relative dates rot while the screen sits open (commits can be hours apart),
+    // so the clock re-ticks every minute — only while this composable is on screen.
+    val nowEpochSeconds by produceState(System.currentTimeMillis() / 1000) {
+        while (true) {
+            delay(60_000)
+            value = System.currentTimeMillis() / 1000
+        }
+    }
+    val lines = remember(commits, syntax, nowEpochSeconds) {
+        buildLogLines(commits, syntax, nowEpochSeconds)
+    }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTab(fileName = "weather_history.diff")
@@ -67,14 +79,17 @@ fun LogsScreen(commits: List<CommitUi>) {
     }
 }
 
-private fun buildLogLines(commits: List<CommitUi>, syntax: SyntaxColors): List<CanvasLine> {
+private fun buildLogLines(
+    commits: List<CommitUi>,
+    syntax: SyntaxColors,
+    now: Long
+): List<CanvasLine> {
     if (commits.isEmpty()) {
         return listOf(
             commentLine("// no commits yet", syntax),
             commentLine("// refresh weather_data.json to record the first one", syntax)
         )
     }
-    val now = System.currentTimeMillis() / 1000
     return buildList {
         commits.forEachIndexed { index, commit ->
             if (index > 0) add(CodeLine(AnnotatedString("")))

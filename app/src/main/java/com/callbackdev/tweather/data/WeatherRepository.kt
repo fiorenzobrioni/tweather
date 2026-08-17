@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.data
 
+import com.callbackdev.tweather.data.local.ReportDiskCache
 import com.callbackdev.tweather.data.local.WeatherHistoryDao
 import com.callbackdev.tweather.data.local.WeatherHistoryEntry
 import com.callbackdev.tweather.data.local.WeatherSnapshots
@@ -26,14 +27,16 @@ import retrofit2.HttpException
 
 /**
  * Single entry point of the data layer. In-memory cache of the last report per city
- * (TTL-based HIT/MISS, surfaced in `system_info`), history persisted to Room as
- * "commits" for the Logs screen, errors normalized to [WeatherException].
+ * (TTL-based HIT/MISS, surfaced in `system_info`) backed by [ReportDiskCache] so a
+ * process death doesn't cost a re-fetch inside the TTL, history persisted to Room
+ * as "commits" for the Logs screen, errors normalized to [WeatherException].
  */
 class WeatherRepository(
     private val forecastApi: OpenMeteoForecastApi,
     private val airQualityApi: OpenMeteoAirQualityApi,
     private val geocodingApi: OpenMeteoGeocodingApi,
     private val historyDao: WeatherHistoryDao,
+    private val diskCache: ReportDiskCache? = null,
     private val json: Json = Json,
     private val clock: Clock = Clock.systemUTC(),
     private val cacheTtl: Duration = Duration.ofMinutes(15),
@@ -75,6 +78,29 @@ class WeatherRepository(
                         systemInfo = it.report.systemInfo.copy(cacheStatus = CacheStatus.HIT)
                     )
                 }
+            // Process death wipes the map above: an unexpired disk entry (last fetch
+            // by any process — app or worker) re-maps as a HIT instead of re-spending
+            // two GETs. No history commit: its fetch already committed one.
+            diskCache?.read(city.cacheKey)
+                ?.takeIf { Duration.between(Instant.ofEpochMilli(it.fetchedAtEpochMs), now) < ttl }
+                ?.let { entry ->
+                    val fetchedAt = Instant.ofEpochMilli(entry.fetchedAtEpochMs)
+                    runCatching {
+                        WeatherReportMapper.map(
+                            city = city,
+                            forecast = entry.forecast,
+                            airQuality = entry.airQuality,
+                            fetchedAt = fetchedAt,
+                            responseTimeMs = entry.responseTimeMs,
+                            cacheStatus = CacheStatus.MISS
+                        )
+                    }.getOrNull()?.let { report ->
+                        cache[city.cacheKey] = CacheEntry(report, fetchedAt)
+                        return report.copy(
+                            systemInfo = report.systemInfo.copy(cacheStatus = CacheStatus.HIT)
+                        )
+                    }
+                }
         }
         return fetch(city, now)
     }
@@ -107,6 +133,15 @@ class WeatherRepository(
             cacheStatus = CacheStatus.MISS
         )
         cache[city.cacheKey] = CacheEntry(report, now)
+        diskCache?.write(
+            city.cacheKey,
+            ReportDiskCache.Entry(
+                fetchedAtEpochMs = now.toEpochMilli(),
+                responseTimeMs = responseTimeMs,
+                forecast = forecast,
+                airQuality = air?.current
+            )
+        )
         recordHistory(city, report)
         report
     }

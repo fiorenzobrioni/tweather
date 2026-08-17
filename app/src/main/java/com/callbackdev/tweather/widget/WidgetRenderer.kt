@@ -3,6 +3,7 @@ package com.callbackdev.tweather.widget
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -48,10 +49,11 @@ object WidgetRenderer {
         context: Context,
         content: (WidgetTier) -> WidgetContent,
         palette: WidgetPalette,
-        opacityPct: Int
+        opacityPct: Int,
+        cityKey: String? = null
     ): RemoteViews = RemoteViews(
         breakpoints().entries.associate { (tier, size) ->
-            size to render(context, content(tier), palette, opacityPct, tier)
+            size to render(context, content(tier), palette, opacityPct, tier, cityKey)
         }
     )
 
@@ -80,7 +82,8 @@ object WidgetRenderer {
         content: WidgetContent,
         palette: WidgetPalette,
         opacityPct: Int,
-        tier: WidgetTier
+        tier: WidgetTier,
+        cityKey: String? = null
     ): RemoteViews {
         val views = RemoteViews(context.packageName, layoutFor(tier))
 
@@ -122,7 +125,7 @@ object WidgetRenderer {
         }
 
         views.setOnClickPendingIntent(R.id.widget_root, openAppIntent(context))
-        views.setOnClickPendingIntent(R.id.widget_refresh, refreshIntent(context))
+        views.setOnClickPendingIntent(R.id.widget_refresh, refreshIntent(context, cityKey))
         return views
     }
 
@@ -168,12 +171,20 @@ object WidgetRenderer {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-    private fun refreshIntent(context: Context): PendingIntent =
+    /**
+     * The ↻ broadcast names the city this render shows, so the manual sync bypasses
+     * the cache for it alone. The key travels in the data URI too, not just the
+     * extra: extras don't count toward PendingIntent identity (filterEquals), and
+     * instances showing different cities hold their PendingIntents concurrently.
+     */
+    private fun refreshIntent(context: Context, cityKey: String?): PendingIntent =
         PendingIntent.getBroadcast(
             context,
             1,
             Intent(context, TweatherWidgetProvider::class.java)
-                .setAction(TweatherWidgetProvider.ACTION_REFRESH),
+                .setAction(TweatherWidgetProvider.ACTION_REFRESH)
+                .setData(Uri.parse("tweather://widget-refresh/${Uri.encode(cityKey ?: "")}"))
+                .putExtra(TweatherWidgetProvider.EXTRA_CITY_KEY, cityKey),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 }

@@ -26,10 +26,17 @@ data class Alert(
     val lowC: Double? = null
 )
 
-/** Last notified fingerprints — what keeps hourly polling from re-notifying. */
+/**
+ * Recently notified fingerprints — what keeps hourly polling from re-notifying.
+ * Severe and precipitation are per-kind sets rather than single slots: their
+ * fingerprints embed the city, so a single slot would be clobbered every time the
+ * evaluated city changes (alternating saved cities), re-notifying events already
+ * notified. The daily summary is one per date across all cities, so a bare date
+ * is enough.
+ */
 data class AlertState(
-    val severeFingerprint: String? = null,
-    val precipFingerprint: String? = null,
+    val severeFingerprints: Set<String> = emptySet(),
+    val precipFingerprints: Set<String> = emptySet(),
     val summaryDate: LocalDate? = null
 )
 
@@ -101,7 +108,7 @@ object AlertEngine {
         } ?: return null
         val bucket = SevereCodes.getValue(hit.condition.wmoCode)
         val fingerprint = "$cityKey:sev:${bucket.name}:${hit.time.toLocalDate()}"
-        if (fingerprint == state.severeFingerprint) return null
+        if (fingerprint in state.severeFingerprints) return null
         return Alert(
             kind = AlertKind.SEVERE,
             fingerprint = fingerprint,
@@ -126,7 +133,7 @@ object AlertEngine {
         // Half-day bucket: at most two rain warnings per day per city
         val halfDay = if (hit.time.hour < 12) "AM" else "PM"
         val fingerprint = "$cityKey:pre:${hit.time.toLocalDate()}:$halfDay"
-        if (fingerprint == state.precipFingerprint) return null
+        if (fingerprint in state.precipFingerprints) return null
         return Alert(
             kind = AlertKind.PRECIPITATION,
             fingerprint = fingerprint,

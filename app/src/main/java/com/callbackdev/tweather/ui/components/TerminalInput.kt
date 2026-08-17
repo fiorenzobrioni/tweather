@@ -49,21 +49,28 @@ fun TerminalInput(
     val syntax = TweatherTheme.syntax
     val textStyle = MaterialTheme.typography.bodySmall
 
-    val blink = rememberInfiniteTransition(label = "cursor-blink")
-    val cursorAlpha by blink.animateFloat(
-        initialValue = 1f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                durationMillis = 1000
-                1f at 0 using LinearEasing
-                1f at 499
-                0f at 500
-                0f at 999
-            }
-        ),
-        label = "cursor-alpha"
-    )
+    // Created only while the idle cursor is actually drawn (empty field): an
+    // InfiniteTransition keeps the frame clock ticking every vsync for as long as
+    // it exists, even though the underscore only changes twice a second.
+    val cursorAlpha = if (value.isEmpty()) {
+        val blink = rememberInfiniteTransition(label = "cursor-blink")
+        blink.animateFloat(
+            initialValue = 1f,
+            targetValue = 0f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes {
+                    durationMillis = 1000
+                    1f at 0 using LinearEasing
+                    1f at 499
+                    0f at 500
+                    0f at 999
+                }
+            ),
+            label = "cursor-alpha"
+        ).value
+    } else {
+        1f
+    }
 
     BasicTextField(
         value = value,

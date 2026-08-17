@@ -1,13 +1,17 @@
 package com.callbackdev.tweather.ui.theme
 
+import android.graphics.BlurMaskFilter
 import androidx.compose.foundation.border
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 
 // "No shadow" rule: depth comes from 1px borders and tonal stacking, never from
@@ -26,23 +30,21 @@ fun Modifier.editorFocusBorder(shape: Shape = MaterialTheme.shapes.small): Modif
     border(1.dp, MaterialTheme.colorScheme.primaryContainer, shape)
 
 /**
- * Circular glow for the FAB — the only shadow-like effect in the app, equivalent to
- * the mockups' `box-shadow: 0 0 15px #79c0ff88`: full [color] at the button edge
- * fading to transparent over a 15dp spread.
+ * Glow for the FAB — the only shadow-like effect in the app, the equivalent of the
+ * design system's `box-shadow: 0 0 15px #79c0ff88` around the button's rectangular
+ * footprint (same 4px radius as every other element).
  */
 @Composable
 fun Modifier.fabGlow(color: Color = TweatherTheme.syntax.glow): Modifier = drawBehind {
-    val buttonRadius = size.minDimension / 2f
-    val glowRadius = buttonRadius + 15.dp.toPx()
-    if (glowRadius <= 0f) return@drawBehind
-    drawCircle(
-        brush = Brush.radialGradient(
-            buttonRadius / glowRadius to color,
-            1f to color.copy(alpha = 0f),
-            center = center,
-            radius = glowRadius
-        ),
-        radius = glowRadius,
-        center = center
-    )
+    val blur = 15.dp.toPx()
+    if (blur <= 0f || size.minDimension <= 0f) return@drawBehind
+    val corner = 4.dp.toPx()
+    val paint = Paint().asFrameworkPaint().apply {
+        isAntiAlias = true
+        this.color = color.toArgb()
+        maskFilter = BlurMaskFilter(blur, BlurMaskFilter.Blur.NORMAL)
+    }
+    drawIntoCanvas { canvas ->
+        canvas.nativeCanvas.drawRoundRect(0f, 0f, size.width, size.height, corner, corner, paint)
+    }
 }

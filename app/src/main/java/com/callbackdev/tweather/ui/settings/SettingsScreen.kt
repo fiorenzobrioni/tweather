@@ -201,6 +201,18 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             }
         }
     }
+    // The system-settings detour has no result callback: this effect is the return
+    // path. A grant applies the toggle the user had flipped; any transition clears
+    // the pending so a stale toggle can never fire on a much later grant.
+    LaunchedEffect(hasNotifPermission) {
+        if (hasNotifPermission) {
+            pendingNotifToggle?.invoke()
+            // Reconcile even with no pending: a bare grant from the system settings
+            // doesn't touch DataStore, so nothing else re-arms the background work.
+            AlertScheduler.reconcile(context.applicationContext)
+        }
+        pendingNotifToggle = null
+    }
     val anyNotifOn = with(settings.notifications) {
         severeWeatherAlerts || dailySummary || precipitationWarning
     }

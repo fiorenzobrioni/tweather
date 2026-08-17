@@ -8,6 +8,7 @@ import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.domain.AlertEngine
 import com.callbackdev.tweather.domain.WeatherException
+import com.callbackdev.tweather.domain.model.GpsCityId
 import com.callbackdev.tweather.widget.TweatherWidgetProvider
 import com.callbackdev.tweather.widget.TweatherWidgetUpdater
 import java.time.Duration
@@ -19,9 +20,11 @@ import kotlinx.coroutines.flow.first
  * The single periodic background job (see [AlertScheduler]): fetch weather for
  * the active source, evaluate alerts, notify. Named "sync", not "alerts" — the
  * fetch is the reusable part: the home widget re-renders off the same run, via
- * the repository's history-commit hook. Battery: at most one HTTP GET per period,
- * and a free cache HIT when the user just used the app (only the widget's ↻ tap
- * forces a refresh, through [KEY_FORCE_REFRESH]).
+ * the repository's history-commit hook. Battery: one fetch (two HTTP GETs —
+ * forecast + air quality) for the active source per period, plus one fetch per
+ * distinct pinned widget city; a cache HIT is free when the user just used the
+ * app. Only the widget's ↻ tap forces a refresh ([KEY_FORCE_REFRESH]), and only
+ * for the city that widget shows ([KEY_FORCE_CITY_KEY]).
  */
 class WeatherSyncWorker(
     appContext: Context,
@@ -47,12 +50,16 @@ class WeatherSyncWorker(
             is ActiveSource.Gps -> source.lastFix ?: return Result.success()
         }
 
-        // Only the widget's ↻ forces a refresh; periodic runs stay cache-friendly
+        // Only the widget's ↻ forces a refresh; periodic runs stay cache-friendly.
+        // The tap names its city so the bypass doesn't fan out to every other one.
         val forceRefresh = inputData.getBoolean(KEY_FORCE_REFRESH, false)
+        val forceCityKey = inputData.getString(KEY_FORCE_CITY_KEY)
+        fun forces(cacheKey: String): Boolean =
+            forceRefresh && (forceCityKey == null || forceCityKey == cacheKey)
         val report = try {
             ServiceLocator.weatherRepository(context).getWeather(
                 city,
-                forceRefresh = forceRefresh,
+                forceRefresh = forces(city.cacheKey),
                 ttl = Duration.ofMinutes(settings.updateFrequencyMin.toLong())
             )
         } catch (e: WeatherException.NoNetwork) {
@@ -80,7 +87,10 @@ class WeatherSyncWorker(
                 settings = settings.notifications,
                 state = stateStore.state.first(),
                 now = now,
-                cityKey = city.cacheKey
+                // Stable identity, not cacheKey: the GPS pseudo-city's cacheKey moves
+                // with the fix (~1.1 km grid) and would re-notify the same storm at
+                // every commute leg; ids never move.
+                cityKey = if (city.id == GpsCityId) "gps" else city.id.toString()
             )
             alerts.forEach { alert ->
                 // Fingerprint burns only on a successful post (muted channel → retry later)
@@ -97,7 +107,7 @@ class WeatherSyncWorker(
             runCatching {
                 ServiceLocator.weatherRepository(context).getWeather(
                     pinnedCity,
-                    forceRefresh = forceRefresh,
+                    forceRefresh = forces(pinnedCity.cacheKey),
                     ttl = Duration.ofMinutes(settings.updateFrequencyMin.toLong())
                 )
             }
@@ -108,5 +118,9 @@ class WeatherSyncWorker(
     companion object {
         /** Input data flag set by the widget's ↻ tap (see TweatherWidgetProvider). */
         const val KEY_FORCE_REFRESH = "force_refresh"
+
+        /** cacheKey of the tapped widget's city; absent = the bypass applies to all
+         * (pre-existing enqueues and any tap whose city couldn't be resolved). */
+        const val KEY_FORCE_CITY_KEY = "force_city_key"
     }
 }

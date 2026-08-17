@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.annotation.VisibleForTesting
 import androidx.room.Room
 import com.callbackdev.tweather.BuildConfig
+import com.callbackdev.tweather.data.local.ReportDiskCache
 import com.callbackdev.tweather.data.local.TweatherDatabase
+import java.io.File
 import com.callbackdev.tweather.data.remote.OpenMeteoAirQualityApi
 import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import com.callbackdev.tweather.data.remote.OpenMeteoGeocodingApi
@@ -138,6 +140,8 @@ object ServiceLocator {
             geocodingApi = retrofit(OpenMeteoGeocodingApi.BASE_URL)
                 .create(OpenMeteoGeocodingApi::class.java),
             historyDao = database.weatherHistoryDao(),
+            // Survives process death so cold starts inside the TTL cost zero GETs
+            diskCache = ReportDiskCache(File(appContext.filesDir, "report_cache"), json),
             json = json,
             // Every fetch that commits new data repaints the home widget, so it
             // needs no polling of its own (no-op when no widget is placed)

@@ -50,7 +50,7 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 Four screens, each presented as a fake "file" behind a bottom navigation bar (Explorer / Search / Settings / Logs):
 
-1. **Main editor** (`weather_data.json`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a circular FAB.
+1. **Main editor** (`weather_data.json`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a glowing FAB.
 2. **Search** (`search_query.json`) — the input field is the `"search_term"` JSON property; recent searches shown as a JSON array.
 3. **Settings** (`settings.config`) — booleans as toggles, theme profiles (Obsidian, Dracula, Monokai).
 4. **Logs** (`weather_history.diff`) — each data fetch is a git-style "commit" with hash and author `sys@tweather.app`; changes shown as `+`/`-` diff lines.
@@ -59,7 +59,7 @@ Four screens, each presented as a fake "file" behind a bottom navigation bar (Ex
 
 - **Typography**: JetBrains Mono everywhere, 4px baseline grid, 20px indent per nesting level. The **home widget is the single exception** (Fase 9d): since CVE-2021-0567 the launcher inflates widget layouts in a restricted context that silently drops `@font/` resources, so its layouts use the system `monospace` family. Glance has the same limitation; the only workaround would be rasterizing text to bitmaps, which costs system font scaling and TalkBack. Decided with the committente.
 - **Syntax highlight colors**: keys `#79c0ff`, string values `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff additions `#2ea043`, deletions `#f85149`.
-- **Core palette**: background `#10141a`, surface container `#181c22`, on-surface `#e6edf3`, borders `#30363d`. Full Material 3 token set is in the `obsidian_syntax/DESIGN.md` frontmatter.
-- **No drop shadows** — depth comes from 1px borders and tonal stacking. The only exceptions: the FAB (circular, with a glow `box-shadow: 0 0 15px #79c0ff88`) is also the only non-rectangular element; everything else uses a 4px corner radius.
-- **Controls rendered as text**: checkboxes as `[x]`/`[ ]`, inputs as terminal prompts (`> Search Location _` with blinking underscore cursor).
+- **Core palette**: background `#10141a`, surface container `#181c22`, on-surface `#dfe2eb`, borders `#30363d`. Full Material 3 token set is in the `obsidian_syntax/DESIGN.md` frontmatter.
+- **No drop shadows** — depth comes from 1px borders and tonal stacking. The only exception is the FAB's glow (`box-shadow: 0 0 15px #79c0ff88`); every element, FAB included, is rectangular with a 4px corner radius (the FAB was circular in early revisions — squared during development, nothing in an editor is round).
+- **Controls rendered as text**: booleans as tappable `true`/`false` values, removal as `[rm]`, destructive actions as `$` commands with a two-tap confirm, inputs as terminal prompts (`> Search Location _` with blinking underscore cursor). No native Material controls anywhere.
 - Weather icons are inline Unicode emoji inside the JSON text (`☀️`, `🌧️`, `🌔`), not image assets.

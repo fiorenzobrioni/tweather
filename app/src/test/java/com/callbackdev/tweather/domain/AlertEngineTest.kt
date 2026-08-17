@@ -67,17 +67,34 @@ class AlertEngineTest {
         val fingerprint = evaluate(storm).single { it.kind == AlertKind.SEVERE }.fingerprint
         // same fingerprint already notified → silent
         assertNull(
-            evaluate(storm, state = AlertState(severeFingerprint = fingerprint))
+            evaluate(storm, state = AlertState(severeFingerprints = setOf(fingerprint)))
                 .find { it.kind == AlertKind.SEVERE }
         )
         // different hazard class → re-fires (75 = SNOW)
         assertTrue(
-            evaluate(listOf(hour(2, 75)), state = AlertState(severeFingerprint = fingerprint))
+            evaluate(listOf(hour(2, 75)), state = AlertState(severeFingerprints = setOf(fingerprint)))
                 .any { it.kind == AlertKind.SEVERE }
         )
         // 96 is still THUNDER on the same date → same storm, still silent
         assertNull(
-            evaluate(listOf(hour(3, 96)), state = AlertState(severeFingerprint = fingerprint))
+            evaluate(listOf(hour(3, 96)), state = AlertState(severeFingerprints = setOf(fingerprint)))
+                .find { it.kind == AlertKind.SEVERE }
+        )
+    }
+
+    @Test
+    fun `another city's fingerprint does not silence this one, and both stay silenced together`() {
+        val storm = listOf(hour(2, 95))
+        val fingerprint = evaluate(storm).single { it.kind == AlertKind.SEVERE }.fingerprint
+        val otherCity = fingerprint.replace(cityKey, "other-city")
+        // the state holding only the OTHER city's storm must not silence this city
+        assertTrue(
+            evaluate(storm, state = AlertState(severeFingerprints = setOf(otherCity)))
+                .any { it.kind == AlertKind.SEVERE }
+        )
+        // with both recorded (the alternating-cities scenario) this city stays silent
+        assertNull(
+            evaluate(storm, state = AlertState(severeFingerprints = setOf(otherCity, fingerprint)))
                 .find { it.kind == AlertKind.SEVERE }
         )
     }
@@ -109,13 +126,13 @@ class AlertEngineTest {
         val fingerprint = evaluate(rain).single { it.kind == AlertKind.PRECIPITATION }.fingerprint
         assertTrue(fingerprint.endsWith(":AM"))
         assertNull(
-            evaluate(rain, state = AlertState(precipFingerprint = fingerprint))
+            evaluate(rain, state = AlertState(precipFingerprints = setOf(fingerprint)))
                 .find { it.kind == AlertKind.PRECIPITATION }
         )
         // afternoon rain is a new half-day bucket → re-fires
         val pmRain = listOf(hour(4, precipPct = 80)) // 13:00 → PM
         assertTrue(
-            evaluate(pmRain, state = AlertState(precipFingerprint = fingerprint))
+            evaluate(pmRain, state = AlertState(precipFingerprints = setOf(fingerprint)))
                 .any { it.kind == AlertKind.PRECIPITATION }
         )
     }

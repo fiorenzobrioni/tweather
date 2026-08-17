@@ -23,6 +23,8 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
 /**
  * Editor-style top bar: terminal prompt glyph + active file name in primary, 48dp
  * tall, flat with a 1px bottom border (mockup TopAppBar). [actions] land on the right.
+ * Border in `syntax.border` like the nav and status bars — DESIGN.md wants one
+ * color for all structural separation, and this bar is the same chrome.
  */
 @Composable
 fun EditorTab(
@@ -30,7 +32,7 @@ fun EditorTab(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
-    val borderColor = MaterialTheme.colorScheme.outlineVariant
+    val borderColor = TweatherTheme.syntax.border
     Row(
         modifier = modifier
             .fillMaxWidth()

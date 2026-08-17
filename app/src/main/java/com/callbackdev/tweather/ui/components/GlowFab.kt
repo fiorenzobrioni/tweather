@@ -5,7 +5,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
@@ -26,8 +25,10 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
 import com.callbackdev.tweather.ui.theme.fabGlow
 
 /**
- * The app's FAB: the only circular element and the only glow in the UI
- * (`box-shadow: 0 0 15px #79c0ff88`). Built flat — no Material elevation/shadow.
+ * The app's refresh FAB: rectangular with the same 4px radius as everything else
+ * (a circle would be the one Material-ism left in the editor) and flat — no
+ * Material elevation/shadow. What sets it apart is its glow, the app's only
+ * shadow-like effect (`box-shadow: 0 0 15px #79c0ff88`).
  */
 @Composable
 fun GlowFab(
@@ -45,7 +46,7 @@ fun GlowFab(
         modifier = modifier
             .size(56.dp)
             .fabGlow(glowColor)
-            .clip(CircleShape)
+            .clip(MaterialTheme.shapes.small)
             .background(containerColor)
             .clickable(role = Role.Button) { onClick() }
             .semantics {

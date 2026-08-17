@@ -161,6 +161,24 @@ class WidgetConfigScreenTest {
     }
 
     @Test
+    fun homonymCitiesRenderDistinctFilesAndOnlyThePinnedOneIsSelected() {
+        val springfieldIl = City(1L, "Springfield", "Illinois", "United States", Coordinates(39.8, -89.6), null)
+        val springfieldMo = City(2L, "Springfield", "Missouri", "United States", Coordinates(37.2, -93.3), null)
+        setScreen(
+            state = WidgetConfigState(
+                cities = listOf(springfieldIl, springfieldMo),
+                pinnedCityId = springfieldMo.id
+            )
+        )
+
+        compose.onNodeWithText("\"source\": \"springfield_missouri.json\",").assertExists()
+        onEntry(entry("springfield_illinois.json"))
+        onEntry(entry("springfield_missouri.json", comma = false, hint = "// selected"))
+        // Selection is by id: the twin slug must not inherit the marker
+        compose.onAllNodes(hasText("// selected", substring = true)).assertCountEquals(1)
+    }
+
+    @Test
     fun aPinnedCityThatIsNoLongerSavedFallsBackToFollowingTheApp() {
         setScreen(
             state = WidgetConfigState(

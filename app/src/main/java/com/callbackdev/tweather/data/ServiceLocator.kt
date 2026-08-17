@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.annotation.VisibleForTesting
 import androidx.room.Room
 import com.callbackdev.tweather.BuildConfig
+import com.callbackdev.tweather.data.local.ReportDiskCache
 import com.callbackdev.tweather.data.local.TweatherDatabase
+import java.io.File
 import com.callbackdev.tweather.data.remote.OpenMeteoAirQualityApi
 import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import com.callbackdev.tweather.data.remote.OpenMeteoGeocodingApi
@@ -107,8 +109,23 @@ object ServiceLocator {
         this.widgetCityStore = widgetCityStore
     }
 
+    /**
+     * Sent on every API call. Open-Meteo doesn't require it, but rate-limits per IP
+     * and reserves the right to block anonymous misbehaving traffic without notice:
+     * a named agent with a contact URL turns "block" into "reach out".
+     */
+    private val userAgent =
+        "tweather/${BuildConfig.VERSION_NAME} (+https://github.com/fiorenzobrioni/tweather)"
+
     private fun build(appContext: Context): WeatherRepository {
         val okHttp = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", userAgent)
+                        .build()
+                )
+            }
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(
@@ -138,6 +155,8 @@ object ServiceLocator {
             geocodingApi = retrofit(OpenMeteoGeocodingApi.BASE_URL)
                 .create(OpenMeteoGeocodingApi::class.java),
             historyDao = database.weatherHistoryDao(),
+            // Survives process death so cold starts inside the TTL cost zero GETs
+            diskCache = ReportDiskCache(File(appContext.filesDir, "report_cache"), json),
             json = json,
             // Every fetch that commits new data repaints the home widget, so it
             // needs no polling of its own (no-op when no widget is placed)

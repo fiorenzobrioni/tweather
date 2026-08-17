@@ -140,7 +140,7 @@ The shape language is primarily **Geometric and Sharp**.
 
 - **Containers:** Code blocks, terminal bars, and list items use a strict 4px (`rounded-sm`) corner radius to maintain a professional, rigid feel.
 - **Interactive Elements:** Buttons follow the same 4px rule to feel integrated into the grid.
-- **FAB:** The Floating Action Button is the only fully circular element, creating a deliberate visual break from the otherwise rectangular environment.
+- **FAB:** The Floating Action Button follows the same 4px rule as everything else — nothing in the editor is circular. What sets it apart is its glow, not its shape. (Earlier revisions made it the single circular element; the shape was squared during development for coherence with the editor metaphor.)
 
 ## Components
 
@@ -156,8 +156,8 @@ For hourly forecasts or detailed metrics, use a tree-view structure.
 Used for system messages. Background should be a slightly lighter charcoal or a solid primary color with black text. Content is always left-aligned with "Git-style" branch icons for location switching.
 
 ### Floating Action Button (FAB)
-- **Shape:** Circular.
-- **Visuals:** Solid primary color background with a matching 10px-20px spread glow effect (`box-shadow: 0 0 15px #79c0ff88`).
+- **Shape:** Rectangular, 4px corner radius — the same shape language as every other element.
+- **Visuals:** Solid primary color background with a matching 10px-20px spread glow effect (`box-shadow: 0 0 15px #79c0ff88`); the glow is the FAB's distinguishing trait.
 - **Icon:** Simple 2pt stroke icons.
 
 ### Input Fields

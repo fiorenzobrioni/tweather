@@ -90,7 +90,7 @@ class TweatherWidgetProvider : AppWidgetProvider() {
         restored = null
         super.onReceive(context, intent)
         if (intent.action == ACTION_REFRESH) {
-            enqueueManualSync(context)
+            enqueueManualSync(context, intent.getStringExtra(EXTRA_CITY_KEY))
             needsRender = true // paint the freshly-tapped state; the fetch lands later
         }
         val render = needsRender
@@ -122,6 +122,9 @@ class TweatherWidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "com.callbackdev.tweather.widget.REFRESH"
 
+        /** cacheKey of the city the tapped instance shows (set by [WidgetRenderer]). */
+        const val EXTRA_CITY_KEY = "com.callbackdev.tweather.widget.EXTRA_CITY_KEY"
+
         /** Distinct from the periodic job so a tap never disturbs its cycle. */
         const val MANUAL_SYNC_NAME = "weather-sync-manual"
 
@@ -131,17 +134,25 @@ class TweatherWidgetProvider : AppWidgetProvider() {
                 .isNotEmpty()
 
         /**
-         * ↻ tap: one fetch, cache bypassed (a manual refresh must actually refresh).
-         * KEEP swallows tap-spam. Expedited is safe without `getForegroundInfo` on
-         * minSdk 33 — the foreground-service fallback is a pre-S requirement.
+         * ↻ tap: one fetch, cache bypassed only for [forceCityKey] — the city the
+         * tapped widget shows; every other city keeps its TTL (null forces all, the
+         * legacy contract). KEEP swallows tap-spam, so a tap on a second widget while
+         * one sync is pending piggybacks on it instead of forcing its own city.
+         * Expedited is safe without `getForegroundInfo` on minSdk 33 — the
+         * foreground-service fallback is a pre-S requirement.
          */
-        fun enqueueManualSync(context: Context) {
+        fun enqueueManualSync(context: Context, forceCityKey: String? = null) {
             val request = OneTimeWorkRequestBuilder<WeatherSyncWorker>()
                 .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                 .setConstraints(
                     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
                 )
-                .setInputData(workDataOf(WeatherSyncWorker.KEY_FORCE_REFRESH to true))
+                .setInputData(
+                    workDataOf(
+                        WeatherSyncWorker.KEY_FORCE_REFRESH to true,
+                        WeatherSyncWorker.KEY_FORCE_CITY_KEY to forceCityKey
+                    )
+                )
                 .build()
             WorkManager.getInstance(context)
                 .enqueueUniqueWork(MANUAL_SYNC_NAME, ExistingWorkPolicy.KEEP, request)

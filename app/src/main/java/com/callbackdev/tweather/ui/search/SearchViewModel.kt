@@ -1,7 +1,9 @@
 package com.callbackdev.tweather.ui.search
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
+import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -37,17 +39,23 @@ data class SearchUiState(
 class SearchViewModel(
     private val repository: WeatherRepository,
     private val cityStore: CityStore,
-    private val historyStore: SearchHistoryStore
+    private val historyStore: SearchHistoryStore,
+    private val savedState: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SearchUiState())
+    // The query survives process death (the one screen state not derivable from a
+    // DataStore); restoring it re-feeds queryFlow, so the results come back too.
+    private val _uiState = MutableStateFlow(SearchUiState(query = savedState[KEY_QUERY] ?: ""))
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     val recentSearches: StateFlow<List<String>> = historyStore.recentSearches
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val queryFlow = MutableStateFlow("")
+    private val queryFlow = MutableStateFlow(_uiState.value.query)
     private var searchJob: Job? = null
+
+    /** Query already launched by [searchNow]; its own debounce echo is skipped once. */
+    private var immediateQuery: String? = null
 
     init {
         @OptIn(FlowPreview::class)
@@ -55,19 +63,29 @@ class SearchViewModel(
             queryFlow
                 .map { it.trim() }
                 .debounce(DEBOUNCE_MS)
-                .collect(::runSearch)
+                .collect { query ->
+                    // searchNow already ran exactly this query: re-running would cancel
+                    // its in-flight request and pay the debounce again. Any other
+                    // emission clears the marker — the query has moved on.
+                    val alreadyRunning = query == immediateQuery
+                    immediateQuery = null
+                    if (!alreadyRunning) runSearch(query)
+                }
         }
     }
 
     fun onQueryChange(query: String) {
+        savedState[KEY_QUERY] = query
         _uiState.update { it.copy(query = query) }
         queryFlow.value = query
     }
 
     /** IME search action / recent-search tap: skips the debounce. */
     fun searchNow(query: String = _uiState.value.query) {
+        savedState[KEY_QUERY] = query
         _uiState.update { it.copy(query = query) }
         queryFlow.value = query
+        immediateQuery = query.trim()
         runSearch(query.trim())
     }
 
@@ -83,6 +101,8 @@ class SearchViewModel(
             historyStore.add(city.label)
         }
         searchJob?.cancel()
+        savedState[KEY_QUERY] = ""
+        immediateQuery = null
         queryFlow.value = ""
         _uiState.value = SearchUiState()
     }
@@ -112,13 +132,16 @@ class SearchViewModel(
     }
 
     companion object {
+        private const val KEY_QUERY = "search_query"
+
         val Factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[AndroidViewModelFactory.APPLICATION_KEY])
                 SearchViewModel(
                     repository = ServiceLocator.weatherRepository(app),
                     cityStore = ServiceLocator.cityStore(app),
-                    historyStore = ServiceLocator.searchHistoryStore(app)
+                    historyStore = ServiceLocator.searchHistoryStore(app),
+                    savedState = createSavedStateHandle()
                 )
             }
         }

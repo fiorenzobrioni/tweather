@@ -66,7 +66,10 @@ object TweatherWidgetUpdater {
                 }
                 manager.updateAppWidget(
                     groupIds.toIntArray(),
-                    WidgetRenderer.sizeMap(context, content, palette, settings.widgetOpacityPct)
+                    WidgetRenderer.sizeMap(
+                        context, content, palette, settings.widgetOpacityPct,
+                        cityKey = city?.cacheKey
+                    )
                 )
             }
     }

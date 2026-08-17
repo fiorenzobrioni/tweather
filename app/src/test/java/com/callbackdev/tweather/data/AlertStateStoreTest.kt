@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -51,8 +53,8 @@ class AlertStateStoreTest {
         store.record(alert(AlertKind.DAILY_SUMMARY, "2023-10-27"))
         assertEquals(
             AlertState(
-                severeFingerprint = "k:sev:THUNDER:2023-10-27",
-                precipFingerprint = "k:pre:2023-10-27:AM",
+                severeFingerprints = setOf("k:sev:THUNDER:2023-10-27"),
+                precipFingerprints = setOf("k:pre:2023-10-27:AM"),
                 summaryDate = LocalDate.of(2023, 10, 27)
             ),
             store.state.first()
@@ -60,10 +62,24 @@ class AlertStateStoreTest {
     }
 
     @Test
-    fun `recording again overwrites the previous fingerprint`() = runBlocking {
+    fun `recording again keeps the previous fingerprints - one per city, not one slot`() =
+        runBlocking {
+            val store = store()
+            store.record(alert(AlertKind.SEVERE, "milan:sev:THUNDER:2023-10-27"))
+            store.record(alert(AlertKind.SEVERE, "rome:sev:THUNDER:2023-10-27"))
+            assertEquals(
+                setOf("milan:sev:THUNDER:2023-10-27", "rome:sev:THUNDER:2023-10-27"),
+                store.state.first().severeFingerprints
+            )
+        }
+
+    @Test
+    fun `the fingerprint history is bounded, oldest out first`() = runBlocking {
         val store = store()
-        store.record(alert(AlertKind.SEVERE, "old"))
-        store.record(alert(AlertKind.SEVERE, "new"))
-        assertEquals("new", store.state.first().severeFingerprint)
+        repeat(20) { store.record(alert(AlertKind.SEVERE, "fp-$it")) }
+        val severe = store.state.first().severeFingerprints
+        assertEquals(16, severe.size)
+        assertTrue("newest must survive", "fp-19" in severe)
+        assertFalse("oldest must fall off", "fp-0" in severe)
     }
 }

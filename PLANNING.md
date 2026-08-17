@@ -22,7 +22,7 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 - [x] Definire la palette Material 3 dal frontmatter di `obsidian_syntax/DESIGN.md` (surface `#10141a`, container `#181c22`, primary `#b5d9ff`, ecc.) in `ui/theme/Color.kt` — oggetto `ObsidianColors` con tutti i token; i ruoli "fixed" restano costanti di riferimento (non esistono nel `ColorScheme` di material3 1.3.x)
 - [x] Definire i colori di syntax highlighting come token dedicati: keys `#79c0ff`, strings `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff add `#2ea043`, diff del `#f85149`, bordi `#30363d` — data class `SyntaxColors` esposta via `TweatherTheme.syntax` (CompositionLocal), un'istanza per profilo tema
 - [x] Creare `Typography` con JetBrains Mono (headline-lg 32/24px, body-md 14px, code-block 13px, label-sm 11px, status-bar 12px) in `ui/theme/Type.kt` — anche gli stili Material senza spec esplicita sono rimappati su JetBrains Mono ("no exceptions")
-- [x] Creare `Shapes`: raggio 4px per tutti i container; FAB circolare come unica eccezione (`ui/theme/Shape.kt`; il FAB userà `CircleShape` esplicito in Fase 2)
+- [x] Creare `Shapes`: raggio 4px per tutti i container; FAB circolare come unica eccezione (`ui/theme/Shape.kt`; il FAB userà `CircleShape` esplicito in Fase 2) — *da ago 2026 il FAB è rettangolare come tutto il resto (review di coerenza pre-Fase 10): nessuna eccezione di forma, a distinguerlo resta solo il glow*
 - [x] Implementare il tema scuro "Obsidian Syntax" come default (`ui/theme/Theme.kt`); predisporre la struttura per profili tema multipli (Obsidian, Dracula, Monokai) — enum `ThemeProfile` + `ThemeSpec` (colorScheme + syntax); Dracula/Monokai risolvono su Obsidian finché le palette non arrivano in Fase 7
 - [x] Regola "no shadow": profondità solo con bordi 1px e tonal stacking; glow solo per il FAB (`0 0 15px #79c0ff88`) — modifier `editorBorder()`/`editorFocusBorder()`/`fabGlow()` in `ui/theme/Depth.kt`
 
@@ -35,8 +35,8 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 - [x] `CodeBlockContainer`: box con bordo 1px `#30363d`, header con filename e icona collapse — header 32dp tappabile con `▾`/`▸`, stato expanded in `rememberSaveable`
 - [x] `TreeViewItem`: elemento con simboli `▸`/`▾` (o `+`/`-`) e guide verticali 1px per i figli annidati — `·` per le foglie, guida a 6px + indent figli 20px come da mockup
 - [x] `TerminalInput`: input a riga singola stile prompt (`> Search Location _`) con cursore underscore lampeggiante — BasicTextField con caret nativo trasparente, underscore blink 500ms, placeholder in comment-gray
-- [x] `CodeCheckbox` / `CodeToggle`: rendering testuale `[x]` / `[ ]` interattivo — `ui/components/CodeControls.kt`, `Modifier.toggleable` con Role.Checkbox/Switch; `CodeToggle` rende `true`/`false` tappabile (stile settings mockup)
-- [x] `GlowFab`: FAB circolare con glow, icona stroke 2pt (refresh/"Run") — 56dp, `Modifier.fabGlow()`, nessuna elevation Material; icona Refresh (material-icons-core)
+- [x] `CodeCheckbox` / `CodeToggle`: rendering testuale `[x]` / `[ ]` interattivo — `ui/components/CodeControls.kt`, `Modifier.toggleable` con Role.Checkbox/Switch; `CodeToggle` rende `true`/`false` tappabile (stile settings mockup) — *da ago 2026 rimosso: nessuna schermata l'ha mai usato (i booleani di settings sono righe `true`/`false` tappabili via `boolLine`)*
+- [x] `GlowFab`: FAB circolare con glow, icona stroke 2pt (refresh/"Run") — 56dp, `Modifier.fabGlow()`, nessuna elevation Material; icona Refresh (material-icons-core) — *da ago 2026 rettangolare, radius 4px come tutto il resto; glow reso con BlurMaskFilter attorno al rounded-rect*
 - [x] Anteprime `@Preview` per ogni componente per validarli contro i mockup PNG — una `@Preview` in ogni file componente
 - Nota: i mockup HTML usano colori token incoerenti tra loro (es. stringhe verdi nel main, numeri rosa); fanno fede i valori non negoziabili di `CLAUDE.md`/`DESIGN.md` già codificati in `SyntaxColors`
 
@@ -61,7 +61,7 @@ Riferimenti: `tweather_comprehensive_project_prd_final.md` (requisiti), `obsidia
 - [x] Top bar con `EditorTab` (`weather_data.json`) + `TerminalStatusBar` in basso (`⎇ città | api: 200 OK … Last Updated: HH:mm:ss`)
 - [x] FAB refresh con glow: al tap ricarica i dati (bypass cache) e aggiorna `last_sync`; l'icona ruota durante il fetch
 - [x] Stato di caricamento in stile terminale — commenti `// fetching weather_data.json …` / `// GET https://api.open-meteo.com/v1/forecast`; errori come `// ERROR: <terminalMessage>` + hint retry
-- [x] Confronto con il mockup `weather_data.json_code_editor/screen.png` (ripristinato dopo un download fallito) — coerente al netto delle deviazioni già decise: colori dai token di CLAUDE.md (non quelli incoerenti del mockup), FAB circolare col glow (nel mockup è un quadrato arrotondato verde), gutter numeri di riga sempre visibile (nel mockup mobile è nascosto ma è requisito core del PRD), struttura JSON dal full sample e non dal JSON semplificato del mockup
+- [x] Confronto con il mockup `weather_data.json_code_editor/screen.png` (ripristinato dopo un download fallito) — coerente al netto delle deviazioni già decise: colori dai token di CLAUDE.md (non quelli incoerenti del mockup), FAB circolare col glow (nel mockup è un quadrato arrotondato verde) — *da ago 2026 il FAB è tornato rettangolare: della deviazione resta solo il glow primary al posto del verde del mockup* —, gutter numeri di riga sempre visibile (nel mockup mobile è nascosto ma è requisito core del PRD), struttura JSON dal full sample e non dal JSON semplificato del mockup
 
 ## Fase 5 — Navigazione e struttura app
 

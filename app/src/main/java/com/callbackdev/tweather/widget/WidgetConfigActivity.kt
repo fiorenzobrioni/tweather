@@ -45,7 +45,7 @@ import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.components.keyOpenLine
 import com.callbackdev.tweather.ui.components.punctLine
 import com.callbackdev.tweather.ui.components.stringValueLine
-import com.callbackdev.tweather.ui.explorer.fileSlug
+import com.callbackdev.tweather.ui.explorer.fileNames
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -133,11 +133,15 @@ data class WidgetConfigState(
     val pinnedCityId: Long? = null
 )
 
-/** The file name of the pinned source, or null while the widget follows the app. */
-private fun WidgetConfigState.pinnedFile(): String? = when {
-    pinnedCityId == null -> null
-    pinnedCityId == GpsCityId -> if (gpsAvailable) GpsFile else null
-    else -> cities.firstOrNull { it.id == pinnedCityId }?.let { "${it.fileSlug()}.json" }
+/**
+ * The pin resolved against what can actually be pinned: a dangling pin (a city the
+ * user has removed, or GPS after `use_gps` went off) renders as follow-the-app,
+ * exactly like the widget itself behaves. Selection is by id, never by file name —
+ * two homonym cities share a slug but never an id.
+ */
+private fun WidgetConfigState.resolvedPinnedId(): Long? = when {
+    pinnedCityId == GpsCityId -> GpsCityId.takeIf { gpsAvailable }
+    else -> pinnedCityId?.takeIf { id -> cities.any { it.id == id } }
 }
 
 private const val FollowAppFile = "active_file"
@@ -228,7 +232,8 @@ private fun buildWidgetConfigLines(
     onSelectGps: () -> Unit,
     onSelectCity: (City) -> Unit
 ): List<CanvasLine> = buildList {
-    val pinnedFile = state.pinnedFile()
+    val pinnedId = state.resolvedPinnedId()
+    val names = fileNames(state.cities)
 
     add(commentLine("// Tweather Widget Configuration", syntax))
     add(punctLine("{", 0, syntax))
@@ -238,7 +243,11 @@ private fun buildWidgetConfigLines(
     add(
         stringValueLine(
             key = "source",
-            value = pinnedFile ?: FollowAppFile,
+            value = when (pinnedId) {
+                null -> FollowAppFile
+                GpsCityId -> GpsFile
+                else -> names.getValue(pinnedId)
+            },
             comma = true,
             syntax = syntax,
             indent = 1
@@ -251,8 +260,8 @@ private fun buildWidgetConfigLines(
         add(
             SourceEntry(
                 file = FollowAppFile,
-                hint = if (pinnedFile == null) "// selected" else "// follows the app",
-                selected = pinnedFile == null,
+                hint = if (pinnedId == null) "// selected" else "// follows the app",
+                selected = pinnedId == null,
                 clickLabel = followAppLabel,
                 onClick = onFollowApp
             )
@@ -263,8 +272,8 @@ private fun buildWidgetConfigLines(
                     file = GpsFile,
                     // No "// gps" annotation: the file name already says it, and the
                     // tertiary color is what the design system uses to mark it
-                    hint = "// selected".takeIf { pinnedFile == GpsFile },
-                    selected = pinnedFile == GpsFile,
+                    hint = "// selected".takeIf { pinnedId == GpsCityId },
+                    selected = pinnedId == GpsCityId,
                     gps = true,
                     clickLabel = gpsClickLabel,
                     onClick = onSelectGps
@@ -272,12 +281,11 @@ private fun buildWidgetConfigLines(
             )
         }
         state.cities.forEach { city ->
-            val file = "${city.fileSlug()}.json"
             add(
                 SourceEntry(
-                    file = file,
-                    hint = "// selected".takeIf { file == pinnedFile },
-                    selected = file == pinnedFile,
+                    file = names.getValue(city.id),
+                    hint = "// selected".takeIf { city.id == pinnedId },
+                    selected = city.id == pinnedId,
                     clickLabel = cityClickLabel(city),
                     onClick = { onSelectCity(city) }
                 )

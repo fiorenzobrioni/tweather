@@ -4,8 +4,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Shapes
 import androidx.compose.ui.unit.dp
 
-// Geometric and sharp: every container uses a strict 4px radius. The FAB is the single
-// non-rectangular element and uses CircleShape explicitly (GlowFab, Fase 2).
+// Geometric and sharp: everything uses a strict 4px radius, the FAB included —
+// nothing in an editor is circular; the FAB is set apart by its glow alone (GlowFab).
 private val EditorCorner = RoundedCornerShape(4.dp)
 
 val TweatherShapes = Shapes(

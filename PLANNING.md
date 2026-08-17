@@ -232,7 +232,7 @@ Decisione del committente (ago 2026), da prova su device della Fase 10: con due 
 - [x] Main: via `$ ls cities/` dalla tab bar (lo slot `actions` di `EditorTabs` resta, generico); `⎇ <città>` nella status bar tappabile → tab Cerca (`cd_open_cities` IT/EN)
 - [x] Navigazione appiattita: via il nested graph `explorer` e `Routes.Cities` — l'editor è la destinazione `explorer` (la route dell'item della nav bar non cambia)
 - [x] Test aggiornati (suite a 244: navigazione su `cities.json`, tab del main senza `ls cities/` + tap sulla status bar, `SearchCitiesSectionTest` porta i casi GPS/active/rm dell'Explorer, filename test spostato); stringhe orfane rimosse (`cd_open_explorer`, `cd_add_city`); lint pulito; `CLAUDE.md` allineato
-- [ ] Verifica manuale su device
+- [x] Verifica manuale su device — completata dal committente sull'APK di CI (ago 2026; fase committata direttamente su main, senza PR)
 
 ## Fase 11 — Release
 

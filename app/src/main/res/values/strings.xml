@@ -26,10 +26,9 @@
     <!-- Accessibility -->
     <string name="cd_refresh">Refresh weather data</string>
     <string name="cd_back_to_top">Back to top</string>
-    <string name="cd_open_explorer">Open city explorer</string>
+    <string name="cd_open_cities">Switch city</string>
     <string name="cd_open_city">Open %1$s</string>
     <string name="cd_remove_city">Remove %1$s</string>
-    <string name="cd_add_city">Add city</string>
     <string name="cd_select_city">Add %1$s</string>
     <string name="cd_search_again">Search %1$s again</string>
     <string name="cd_change_setting">Change %1$s</string>

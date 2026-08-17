@@ -14,7 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** The `$ history -c` command that ends search_query.json. */
+/** The `$ history -c` command that ends cities.json. */
 @RunWith(RobolectricTestRunner::class)
 class SearchClearHistoryTest {
 

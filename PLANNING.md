@@ -222,6 +222,18 @@ Idea del committente (ago 2026): un secondo file accanto a `weather_data.json` n
 - [x] Test (+25, suite a 239): `MarkdownSyntaxTest` (heading/blockquote/tabelle/bold/corsivo/commenti HTML/numeri), `WeatherReadmeTest` (sezioni e ordine EN, documento IT interamente localizzato con `@Config(qualifiers="it")`, Status calmo/severe/pioggia, sezioni assenti, °F, footer nel fuso città), `WeatherTabsTest` (default JSON, switch, `$ ls cities/` su entrambe, commenti `<!--`), `WorkspaceStoreTest` (default, selezione, sopravvivenza al riavvio su nuovo store); lint pulito, release minificata compilata
 - [x] Verifica manuale su device — completata dal committente sull'APK di CI del branch (PR #7, ago 2026)
 
+## Fase 10b — Città e ricerca unificate (`cities.json`)
+
+Decisione del committente (ago 2026), da prova su device della Fase 10: con due tab veri nel main (`weather_data.json` + `README.md`) l'azione `$ ls cities/` fissata a destra ruba larghezza alla strip e tronca `README.md`, e visivamente si mischia ai nomi file. La schermata `cities/` era inoltre quasi vuota (una lista di pochi file) e il flusso era già mezzo unificato: un tap su un risultato di ricerca aggiungeva *e attivava* la città. Decisione: la schermata Search assorbe la lista città e diventa il file **`cities.json`** — la ricerca è il modo per aggiungere voci al file, pattern standard delle app meteo (una schermata: lista salvate + campo di ricerca). Questo **supera la valutazione della Fase 9h** che aveva scartato la status bar come target: ora `⎇ <città>` nella status bar del main è tappabile (il branch switcher di VS Code) e porta a `cities.json` — accettato il target piccolo perché è la scorciatoia secondaria, la via primaria è il tab Cerca.
+
+- [x] `SearchViewModel` assorbe lo stato dell'Explorer: `CitiesUiState` (città, attiva, GPS) da `combine` su `CityStore` + azioni `activate`/`activateGps`/`remove`; `ExplorerViewModel` eliminato
+- [x] `SearchScreen` → `cities.json`: `"search_term"` (input) in cima, `"results"` mentre si digita, poi `"saved_cities"` come array JSON — `current_location.json` pinnata in tertiary (`// gps`/`// active`, mai `[rm]`), città salvate come stringhe-filename (attiva in primary + `// active`, `[rm]` in diff-red solo con >1 città), poi `"recent_searches"` e `$ history -c` invariati; tap su salvata = attiva + torna all'editor (stesso ritorno del tap su risultato); status bar `⎇ <attiva> | N files` + risultati/open-meteo.com
+- [x] Helper dei filename finti (`fileNames`/`fileSlug`, condivisi col widget.config) spostati da `ui/explorer` a `ui/search/CityFileNames.kt`; `ExplorerScreen` eliminata, import del widget aggiornato
+- [x] Main: via `$ ls cities/` dalla tab bar (lo slot `actions` di `EditorTabs` resta, generico); `⎇ <città>` nella status bar tappabile → tab Cerca (`cd_open_cities` IT/EN)
+- [x] Navigazione appiattita: via il nested graph `explorer` e `Routes.Cities` — l'editor è la destinazione `explorer` (la route dell'item della nav bar non cambia)
+- [x] Test aggiornati (suite a 244: navigazione su `cities.json`, tab del main senza `ls cities/` + tap sulla status bar, `SearchCitiesSectionTest` porta i casi GPS/active/rm dell'Explorer, filename test spostato); stringhe orfane rimosse (`cd_open_explorer`, `cd_add_city`); lint pulito; `CLAUDE.md` allineato
+- [ ] Verifica manuale su device
+
 ## Fase 11 — Release
 
 - [ ] Configurare signing config e build release (R8/ProGuard, regole per Retrofit/serialization) — **la firma va sostituita**: oggi la release è non firmata di default e la CI la firma con la chiave di debug committata solo per poterla installare e provare (`-PsignReleaseWithDebugKey`); serve un keystore vero da GitHub Secrets

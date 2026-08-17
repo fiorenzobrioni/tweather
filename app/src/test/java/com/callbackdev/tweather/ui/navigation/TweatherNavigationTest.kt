@@ -39,7 +39,7 @@ class TweatherNavigationTest {
         setApp()
 
         compose.onNodeWithText("Search").performClick()
-        compose.onNodeWithText("search_query.json").assertExists()
+        compose.onNodeWithText("cities.json").assertExists()
 
         compose.onNodeWithText("Settings").performClick()
         compose.onNodeWithText("settings.config").assertExists()

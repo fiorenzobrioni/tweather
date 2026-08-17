@@ -18,7 +18,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.callbackdev.tweather.data.EditorSettings
 import kotlinx.coroutines.flow.map
@@ -27,22 +26,20 @@ import com.callbackdev.tweather.ui.components.EditorNavBar
 import com.callbackdev.tweather.ui.components.EditorNavItems
 import com.callbackdev.tweather.ui.components.EditorOptions
 import com.callbackdev.tweather.ui.components.LocalEditorOptions
-import com.callbackdev.tweather.ui.explorer.ExplorerScreen
 import com.callbackdev.tweather.ui.logs.LogsScreen
 import com.callbackdev.tweather.ui.search.SearchScreen
 import com.callbackdev.tweather.ui.settings.SettingsScreen
 import com.callbackdev.tweather.ui.weather.WeatherScreen
 
 /**
- * App shell: NavHost above the editor-style bottom bar. The Explorer tab is a nested
- * graph — the open "file" (the weather editor) is its start destination, the city
- * browser sits one level deeper, like files behind an open editor in VS Code. Tab
- * switches save and restore each stack (`saveState`/`restoreState`).
+ * App shell: NavHost above the editor-style bottom bar, one destination per tab.
+ * Since Fase 10b the city list lives inside the Cerca tab (`cities.json`), so the
+ * Explorer tab is just the open editor — no nested graph. Tab switches save and
+ * restore each stack (`saveState`/`restoreState`). The editor keeps the route name
+ * "explorer": it is the nav bar item's selection key.
  */
 object Routes {
-    const val ExplorerGraph = "explorer"
-    const val Editor = "explorer/editor"
-    const val Cities = "explorer/cities"
+    const val Editor = "explorer"
     const val Search = "search"
     const val Settings = "settings"
     const val Logs = "logs"
@@ -74,25 +71,17 @@ fun TweatherApp() {
             ) {
                 NavHost(
                     navController = navController,
-                    startDestination = Routes.ExplorerGraph,
+                    startDestination = Routes.Editor,
                     modifier = Modifier.weight(1f)
                 ) {
-                    navigation(startDestination = Routes.Editor, route = Routes.ExplorerGraph) {
-                        composable(Routes.Editor) {
-                            WeatherScreen(
-                                onOpenExplorer = { navController.navigate(Routes.Cities) }
-                            )
-                        }
-                        composable(Routes.Cities) {
-                            ExplorerScreen(
-                                onCitySelected = { navController.popBackStack() },
-                                onAddCity = { navController.navigateToTab(Routes.Search) }
-                            )
-                        }
+                    composable(Routes.Editor) {
+                        WeatherScreen(
+                            onOpenCities = { navController.navigateToTab(Routes.Search) }
+                        )
                     }
                     composable(Routes.Search) {
                         SearchScreen(
-                            onCitySelected = { navController.navigateToTab(Routes.ExplorerGraph) }
+                            onCitySelected = { navController.navigateToTab(Routes.Editor) }
                         )
                     }
                     composable(Routes.Settings) {

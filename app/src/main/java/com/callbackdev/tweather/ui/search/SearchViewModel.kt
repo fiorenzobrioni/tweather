@@ -7,6 +7,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.SearchHistoryStore
 import com.callbackdev.tweather.data.ServiceLocator
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -36,6 +38,18 @@ data class SearchUiState(
     val error: WeatherException? = null
 )
 
+/** The `"saved_cities"` section of cities.json (formerly the Explorer's tree). */
+data class CitiesUiState(
+    val cities: List<City> = emptyList(),
+    /** Active saved city; null while GPS is the source. */
+    val activeCity: City? = null,
+    /** Whether `current_location.json` appears in the array at all. */
+    val useGps: Boolean = false,
+    val gpsActive: Boolean = false,
+    /** Last persisted fix, for the status bar name while GPS is active. */
+    val gpsCity: City? = null
+)
+
 class SearchViewModel(
     private val repository: WeatherRepository,
     private val cityStore: CityStore,
@@ -50,6 +64,22 @@ class SearchViewModel(
 
     val recentSearches: StateFlow<List<String>> = historyStore.recentSearches
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val cities: StateFlow<CitiesUiState> =
+        combine(
+            cityStore.cities,
+            cityStore.activeSource,
+            cityStore.locationSettings
+        ) { cities, source, location ->
+            CitiesUiState(
+                cities = cities,
+                activeCity = (source as? ActiveSource.Saved)?.city,
+                useGps = location.useGps,
+                gpsActive = source is ActiveSource.Gps,
+                gpsCity = location.gpsCity
+            )
+        }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CitiesUiState())
 
     private val queryFlow = MutableStateFlow(_uiState.value.query)
     private var searchJob: Job? = null
@@ -91,9 +121,9 @@ class SearchViewModel(
 
     /**
      * Search result tapped: save + activate the city, remember the search. The query
-     * and its results are cleared because the search is finished — the city is now a
-     * file in the Explorer. Leaving them would mean coming back to a stale query and
-     * stale results that have to be deleted by hand before searching again.
+     * and its results are cleared because the search is finished — the city is now an
+     * entry in `"saved_cities"`. Leaving them would mean coming back to a stale query
+     * and stale results that have to be deleted by hand before searching again.
      */
     fun select(city: City) {
         viewModelScope.launch {
@@ -105,6 +135,19 @@ class SearchViewModel(
         immediateQuery = null
         queryFlow.value = ""
         _uiState.value = SearchUiState()
+    }
+
+    /** Saved city tapped in `"saved_cities"`: just switches the active source. */
+    fun activate(city: City) {
+        viewModelScope.launch { cityStore.setActive(city) }
+    }
+
+    fun activateGps() {
+        viewModelScope.launch { cityStore.setActiveGps() }
+    }
+
+    fun remove(city: City) {
+        viewModelScope.launch { cityStore.remove(city) }
     }
 
     /** `$ history -c` — drops the recent searches only; saved cities are not history. */

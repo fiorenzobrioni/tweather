@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repository is
 
-**tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `search_query.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
+**tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `cities.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-All four screens, the home widget and the per-city `README.md` tab are implemented (see `PLANNING.md`, phases 0 through 10); what remains is Fase 11, release. Design artifacts and specifications:
+All four screens, the home widget and the per-city `README.md` tab are implemented (see `PLANNING.md`, phases 0 through 10b); what remains is Fase 11, release. Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
@@ -42,7 +42,7 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 **Alert engine** (Fase 9c): background notifications via a single WorkManager periodic job (`weather-sync`, interval = `update_frequency_min`, now 15/30/60/120 default 60, CONNECTED-only constraint, no foreground services/exact alarms/FCM/background location). Pure rules in `domain/AlertEngine.kt` (severe WMO buckets 12h, precip ≥70% 6h, daily summary 06–12), dedup fingerprints in DataStore `alerts`, notification body rendered as a JSON object (localized title, English keys and command line, localized data values via `WeatherTranslations` — same l10n rule as the main screen and the widget; folded onto one line when collapsed, pretty-printed when expanded). Background fetches write Logs commits like any fetch.
 
-**GPS current location** (Fase 9b): the device position can be the active weather source — platform `LocationManager`/`Geocoder` only (no play-services), `ACCESS_COARSE_LOCATION` only, GPS pseudo-city with reserved id `-1L` kept out of the saved list, toggle in `settings.config` (`location.use_gps`), pinned `current_location.json` entry in the Explorer (tertiary color).
+**GPS current location** (Fase 9b): the device position can be the active weather source — platform `LocationManager`/`Geocoder` only (no play-services), `ACCESS_COARSE_LOCATION` only, GPS pseudo-city with reserved id `-1L` kept out of the saved list, toggle in `settings.config` (`location.use_gps`), pinned `current_location.json` entry in `cities.json` (tertiary color).
 
 **Decided (overrides the PRD's OpenWeatherMap example): the weather provider is Open-Meteo** — free, no API key. Forecast API for current/hourly/daily + astronomy, Air Quality API for AQI/pollutants/pollen (pollen is Europe-only), Geocoding API for city search. Moon phase is not provided and must be computed locally. See `PLANNING.md` (Fase 3) for details; `PLANNING.md` is the phased implementation plan with checkable steps — keep it updated as work progresses.
 
@@ -50,8 +50,8 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 Four screens, each presented as a fake "file" behind a bottom navigation bar (Explorer / Search / Settings / Logs):
 
-1. **Main editor** (`weather_data.json` + `README.md`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a glowing FAB. A second editor tab (Fase 10) shows the city's `README.md`: the human summary as highlighted markdown *source*, fully localized (headings included — it's prose, the keys-stay-English rule doesn't apply), with `## Status` fed statelessly by the AlertEngine. The active tab persists in the `workspace` DataStore (editor workspace state, deliberately not a `settings.config` key).
-2. **Search** (`search_query.json`) — the input field is the `"search_term"` JSON property; recent searches shown as a JSON array.
+1. **Main editor** (`weather_data.json` + `README.md`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a glowing FAB. A second editor tab (Fase 10) shows the city's `README.md`: the human summary as highlighted markdown *source*, fully localized (headings included — it's prose, the keys-stay-English rule doesn't apply), with `## Status` fed statelessly by the AlertEngine. The active tab persists in the `workspace` DataStore (editor workspace state, deliberately not a `settings.config` key). The `⎇ <city>` in the status bar is tappable (VS Code's branch switcher) and jumps to `cities.json`.
+2. **Search / cities** (`cities.json`, Fase 10b — it absorbed the old `cities/` Explorer screen) — the input field is the `"search_term"` JSON property; geocoding results while typing; `"saved_cities"` is the array of saved cities as fake filenames (GPS entry `current_location.json` pinned in tertiary, active city in primary + `// active`, removal via `[rm]`); recent searches as a JSON array.
 3. **Settings** (`settings.config`) — booleans as toggles, theme profiles (Obsidian, Dracula, Monokai).
 4. **Logs** (`weather_history.diff`) — each data fetch is a git-style "commit" with hash and author `sys@tweather.app`; changes shown as `+`/`-` diff lines.
 

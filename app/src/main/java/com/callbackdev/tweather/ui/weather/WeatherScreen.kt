@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,9 +27,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,7 +60,7 @@ import java.util.Locale
  */
 @Composable
 fun WeatherScreen(
-    onOpenExplorer: () -> Unit = {},
+    onOpenCities: () -> Unit = {},
     viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,7 +70,7 @@ fun WeatherScreen(
         state = state,
         displayOptions = displayOptions,
         onRefresh = viewModel::refresh,
-        onOpenExplorer = onOpenExplorer,
+        onOpenCities = onOpenCities,
         activeFile = activeFile,
         onSelectFile = viewModel::selectFile
     )
@@ -84,7 +80,7 @@ fun WeatherScreen(
 fun WeatherScreen(
     state: WeatherUiState,
     onRefresh: () -> Unit,
-    onOpenExplorer: () -> Unit = {},
+    onOpenCities: () -> Unit = {},
     displayOptions: DisplayOptions = DisplayOptions(),
     activeFile: MainEditorFile = MainEditorFile.JSON,
     onSelectFile: (MainEditorFile) -> Unit = {}
@@ -108,30 +104,16 @@ fun WeatherScreen(
     val readmeScroll = rememberLazyListState()
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
+            // No more actions pinned right (Fase 10b): `$ ls cities/` used to live
+            // there and squeezed the strip until README.md truncated — the city
+            // list is reachable from the status bar's ⎇ and the Cerca tab now.
             EditorTabs(
                 fileNames = listOf("weather_data.json", "README.md"),
                 activeIndex = if (activeFile == MainEditorFile.JSON) 0 else 1,
                 onSelect = {
                     onSelectFile(if (it == 0) MainEditorFile.JSON else MainEditorFile.README)
                 }
-            ) {
-                // Opens the city explorer as the shell command that would list it;
-                // `$ ` in prompt gray like the body commands ($ git restore, $ history -c)
-                Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
-                        append("ls cities/")
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = stringResource(R.string.cd_open_explorer)
-                        ) { onOpenExplorer() }
-                        .padding(8.dp)
-                )
-            }
+            )
             Box(Modifier.weight(1f)) {
                 CodeCanvas(
                     lines = lines,
@@ -147,7 +129,7 @@ fun WeatherScreen(
                     icon = { RefreshIcon(spinning = state.isLoading) }
                 )
             }
-            WeatherStatusBar(state)
+            WeatherStatusBar(state, onOpenCities)
         }
     }
 }
@@ -175,13 +157,23 @@ private fun RefreshIcon(spinning: Boolean) {
 }
 
 @Composable
-private fun WeatherStatusBar(state: WeatherUiState) {
+private fun WeatherStatusBar(state: WeatherUiState, onOpenCities: () -> Unit = {}) {
     val report = state.report
     TerminalStatusBar {
         // The left group yields to "Last Updated:" on the right: a long city name
         // truncates rather than wrapping the whole bar onto three lines.
         StatusBarStart {
-            StatusBarText("⎇ ${report?.location?.city ?: "—"}", shrink = true)
+            // ⎇ works like VS Code's branch switcher (Fase 10b): tapping the
+            // city name opens cities.json. Small target, accepted with the
+            // committente — the Cerca tab is the primary way in.
+            StatusBarText(
+                "⎇ ${report?.location?.city ?: "—"}",
+                shrink = true,
+                modifier = Modifier.clickable(
+                    role = Role.Button,
+                    onClickLabel = stringResource(R.string.cd_open_cities)
+                ) { onOpenCities() }
+            )
             StatusBarDivider()
             StatusBarText(
                 when {

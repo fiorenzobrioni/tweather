@@ -82,8 +82,9 @@ fun EditorTab(
  * one tappable tab per open file, like a real editor. Active tab in primary with a
  * 2px bottom indicator (the nav bar's active treatment); inactive tabs in comment
  * gray. Tabs scroll horizontally when two file names outgrow a narrow screen.
- * [actions] land pinned on the right, outside the scrolling tab strip (Fase 10:
- * the main screen's `$ ls cities/`).
+ * [actions] land pinned on the right, outside the scrolling tab strip. (The main
+ * screen's `$ ls cities/` lived there in Fase 10; gone since 10b — a pinned action
+ * steals fixed width from the strip and truncates the file names.)
  */
 @Composable
 fun EditorTabs(

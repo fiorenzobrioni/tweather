@@ -22,10 +22,9 @@
     <!-- Accessibility -->
     <string name="cd_refresh">Aggiorna i dati meteo</string>
     <string name="cd_back_to_top">Torna in cima</string>
-    <string name="cd_open_explorer">Apri l\'esplora città</string>
+    <string name="cd_open_cities">Cambia città</string>
     <string name="cd_open_city">Apri %1$s</string>
     <string name="cd_remove_city">Rimuovi %1$s</string>
-    <string name="cd_add_city">Aggiungi città</string>
     <string name="cd_select_city">Aggiungi %1$s</string>
     <string name="cd_search_again">Cerca di nuovo %1$s</string>
     <string name="cd_change_setting">Cambia %1$s</string>

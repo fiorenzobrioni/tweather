@@ -1,4 +1,4 @@
-package com.callbackdev.tweather.ui.explorer
+package com.callbackdev.tweather.ui.search
 
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.Coordinates
@@ -6,11 +6,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Unique fake filenames for the Explorer tree and widget.config: an editor can't
- * show two files with the same name in one folder, so homonym cities must not
- * produce identical `.json` entries.
+ * Unique fake filenames for cities.json and widget.config: an editor can't show
+ * two files with the same name in one folder, so homonym cities must not produce
+ * identical `.json` entries.
  */
-class ExplorerFileNamesTest {
+class CityFileNamesTest {
 
     private fun city(id: Long, name: String, region: String? = null, country: String? = null) =
         City(id, name, region, country, Coordinates(0.0, 0.0), null)

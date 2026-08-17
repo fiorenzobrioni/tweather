@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.callbackdev.tweather.data.MainEditorFile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -18,7 +19,8 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * The main screen's two-file tab bar (Fase 10): `weather_data.json` (default) and
- * the city's `README.md`, with the `$ ls cities/` action still pinned right.
+ * the city's `README.md`. Since Fase 10b the way to the city list is the status
+ * bar's ⎇ (the branch-switcher), not a pinned tab bar action.
  */
 @RunWith(RobolectricTestRunner::class)
 class WeatherTabsTest {
@@ -60,11 +62,25 @@ class WeatherTabsTest {
     }
 
     @Test
-    fun `the ls cities action survives on both tabs`() {
+    fun `the ls cities action is gone from the tab bar`() {
         setContent()
-        compose.onNodeWithText("$ ls cities/").assertExists()
-        compose.onNodeWithText("README.md").performClick()
-        compose.onNodeWithText("$ ls cities/").assertExists()
+        compose.onNodeWithText("$ ls cities/").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the status bar branch name opens the city list`() {
+        var opened = false
+        compose.setContent {
+            TweatherTheme {
+                WeatherScreen(
+                    state = WeatherUiState(report = sampleWeatherReport(), isLoading = false),
+                    onRefresh = {},
+                    onOpenCities = { opened = true }
+                )
+            }
+        }
+        compose.onNodeWithText("⎇ New York").performClick()
+        assertTrue(opened)
     }
 
     @Test

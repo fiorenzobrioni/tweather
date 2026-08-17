@@ -45,7 +45,7 @@ import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.components.keyOpenLine
 import com.callbackdev.tweather.ui.components.punctLine
 import com.callbackdev.tweather.ui.components.stringValueLine
-import com.callbackdev.tweather.ui.explorer.fileNames
+import com.callbackdev.tweather.ui.search.fileNames
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.ThemeProfile
 import com.callbackdev.tweather.ui.theme.TweatherTheme

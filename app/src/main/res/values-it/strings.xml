@@ -21,6 +21,7 @@
 
     <!-- Accessibility -->
     <string name="cd_refresh">Aggiorna i dati meteo</string>
+    <string name="cd_back_to_top">Torna in cima</string>
     <string name="cd_open_explorer">Apri l\'esplora città</string>
     <string name="cd_open_city">Apri %1$s</string>
     <string name="cd_remove_city">Rimuovi %1$s</string>

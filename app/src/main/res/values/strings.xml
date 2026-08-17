@@ -25,6 +25,7 @@
 
     <!-- Accessibility -->
     <string name="cd_refresh">Refresh weather data</string>
+    <string name="cd_back_to_top">Back to top</string>
     <string name="cd_open_explorer">Open city explorer</string>
     <string name="cd_open_city">Open %1$s</string>
     <string name="cd_remove_city">Remove %1$s</string>

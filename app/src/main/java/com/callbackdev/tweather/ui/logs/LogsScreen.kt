@@ -1,26 +1,40 @@
 package com.callbackdev.tweather.ui.logs
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,12 +52,14 @@ import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import com.callbackdev.tweather.ui.theme.editorBorder
 import com.callbackdev.tweather.ui.weather.WeatherTranslations
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val HISTORY_FILE = "weather_history.diff"
 private const val FORECAST_FILE = "weather_forecast.diff"
@@ -99,6 +115,11 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
             revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), translate
         )
     }
+    // One scroll position per file: switching tab must not land mid-file because
+    // the OTHER diff was scrolled there.
+    val historyScroll = rememberLazyListState()
+    val forecastScroll = rememberLazyListState()
+    val canvasScroll = if (activeFile == 0) historyScroll else forecastScroll
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTabs(
@@ -106,12 +127,19 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
                 activeIndex = activeFile,
                 onSelect = { activeFile = it }
             )
-            CodeCanvas(
-                lines = lines,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-            )
+            Box(Modifier.weight(1f)) {
+                CodeCanvas(
+                    lines = lines,
+                    state = canvasScroll,
+                    modifier = Modifier.fillMaxSize()
+                )
+                BackToTop(
+                    state = canvasScroll,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 16.dp)
+                )
+            }
             TerminalStatusBar {
                 if (activeFile == 0) {
                     Text("⎇ history")
@@ -126,6 +154,40 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
                 Text("read-only")
             }
         }
+    }
+}
+
+/**
+ * Floating "back to top" for long diffs: appears once the file is scrolled past
+ * roughly a screenful. Rendered as text like every other control (`↑ top`) in a
+ * bordered chip — no glow, that stays exclusive to the refresh FAB.
+ */
+@Composable
+private fun BackToTop(state: LazyListState, modifier: Modifier = Modifier) {
+    val visible by remember(state) { derivedStateOf { state.firstVisibleItemIndex > 4 } }
+    val scope = rememberCoroutineScope()
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier
+    ) {
+        Text(
+            text = "↑ top",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .editorBorder()
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                    MaterialTheme.shapes.small
+                )
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = stringResource(R.string.cd_back_to_top)
+                ) { scope.launch { state.animateScrollToItem(0) } }
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        )
     }
 }
 

@@ -30,6 +30,10 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
  * tall, flat with a 1px bottom border (mockup TopAppBar). [actions] land on the right.
  * Border in `syntax.border` like the nav and status bars — DESIGN.md wants one
  * color for all structural separation, and this bar is the same chrome.
+ *
+ * File name at bodyMedium + bold on every screen (post-9h, decided with the
+ * committente): the tab bar is chrome, not content, and once the Logs grew a real
+ * two-tab bar at 14sp the 24sp single-file titles clashed on every tab switch.
  */
 @Composable
 fun EditorTab(
@@ -64,7 +68,8 @@ fun EditorTab(
         Spacer(Modifier.width(8.dp))
         Text(
             text = fileName,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(Modifier.weight(1f))
@@ -145,6 +150,7 @@ fun EditorTabs(
                     Text(
                         text = fileName,
                         style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
                         color = if (active) indicatorColor else syntax.comment
                     )
                 }

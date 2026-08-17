@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `search_query.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-All four screens plus the home widget are implemented (see `PLANNING.md`, phases 0 through 9h); what remains is Fase 10 (the per-city `README.md` view on the main screen) and Fase 11, release. Design artifacts and specifications:
+All four screens, the home widget and the per-city `README.md` tab are implemented (see `PLANNING.md`, phases 0 through 10); what remains is Fase 11, release. Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
@@ -50,7 +50,7 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 Four screens, each presented as a fake "file" behind a bottom navigation bar (Explorer / Search / Settings / Logs):
 
-1. **Main editor** (`weather_data.json`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a glowing FAB.
+1. **Main editor** (`weather_data.json` + `README.md`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a glowing FAB. A second editor tab (Fase 10) shows the city's `README.md`: the human summary as highlighted markdown *source*, fully localized (headings included — it's prose, the keys-stay-English rule doesn't apply), with `## Status` fed statelessly by the AlertEngine. The active tab persists in the `workspace` DataStore (editor workspace state, deliberately not a `settings.config` key).
 2. **Search** (`search_query.json`) — the input field is the `"search_term"` JSON property; recent searches shown as a JSON array.
 3. **Settings** (`settings.config`) — booleans as toggles, theme profiles (Obsidian, Dracula, Monokai).
 4. **Logs** (`weather_history.diff`) — each data fetch is a git-style "commit" with hash and author `sys@tweather.app`; changes shown as `+`/`-` diff lines.

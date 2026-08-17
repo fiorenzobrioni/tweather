@@ -220,7 +220,7 @@ Idea del committente (ago 2026): un secondo file accanto a `weather_data.json` n
 - [x] `## Status` collegata all'AlertEngine: regole severe/precipitazioni valutate **stateless** (`AlertState()` vuoto, senza fingerprint di dedup — il README mostra ciò che È, le notifiche decidono cosa è nuovo); nessun alert → "Everything looks good.", alert → blockquote `> ⚠️/🌧️ …` in diff-red (il "build badge" del repo)
 - [x] Localizzazione completa IT/EN: heading e prosa da ~30 nuove stringhe risorsa, valori meteo via `WeatherTranslations` come ovunque; unità che seguono le Settings come il JSON (°C/°F, km/h/mph); nome file e sintassi markdown invariati
 - [x] Test (+25, suite a 239): `MarkdownSyntaxTest` (heading/blockquote/tabelle/bold/corsivo/commenti HTML/numeri), `WeatherReadmeTest` (sezioni e ordine EN, documento IT interamente localizzato con `@Config(qualifiers="it")`, Status calmo/severe/pioggia, sezioni assenti, °F, footer nel fuso città), `WeatherTabsTest` (default JSON, switch, `$ ls cities/` su entrambe, commenti `<!--`), `WorkspaceStoreTest` (default, selezione, sopravvivenza al riavvio su nuovo store); lint pulito, release minificata compilata
-- [ ] Verifica manuale su device — committente
+- [x] Verifica manuale su device — completata dal committente sull'APK di CI del branch (PR #7, ago 2026)
 
 ## Fase 11 — Release
 

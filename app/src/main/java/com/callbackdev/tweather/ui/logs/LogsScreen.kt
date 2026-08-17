@@ -8,8 +8,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -23,34 +26,50 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.callbackdev.tweather.R
+import com.callbackdev.tweather.data.local.ForecastDiff
 import com.callbackdev.tweather.data.local.SnapshotDiff
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
-import com.callbackdev.tweather.ui.components.EditorTab
+import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.coroutines.delay
 
+private const val HISTORY_FILE = "weather_history.diff"
+private const val FORECAST_FILE = "weather_forecast.diff"
+
 /**
- * Logs screen: the fake file `weather_history.diff`. Every fetch is a git-style
- * commit (short hash, author `sys@tweather.app`, relative date) followed by the
- * diff against the previous fetch of the same city — old values as `-` lines in
- * red, new values as `+` in green, untouched keys as context. Git output is code:
- * it stays English by design.
+ * Logs screen: two fake files behind a real editor tab bar (Fase 9h).
+ *
+ * - `weather_history.diff` (Fase 8): every fetch is a git-style commit (short
+ *   hash, author `sys@tweather.app`, relative date) diffing observations — what
+ *   actually changed since the previous fetch of the same city.
+ * - `weather_forecast.diff` (Fase 9h): same commits, different question — how did
+ *   the *prediction* for the same target date change between fetches. Per-date
+ *   `---`/`+++` headers and `@@ tomorrow @@` hunks; sub-threshold model wiggle is
+ *   filtered out by [ForecastDiff], so the file only contains real revisions.
+ *
+ * Git output is code: it stays English by design.
  */
 @Composable
 fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Factory)) {
     val commits by viewModel.commits.collectAsStateWithLifecycle()
-    LogsScreen(commits = commits)
+    val revisions by viewModel.revisions.collectAsStateWithLifecycle()
+    LogsScreen(commits = commits, revisions = revisions)
 }
 
 @Composable
-fun LogsScreen(commits: List<CommitUi>) {
+fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
     val syntax = TweatherTheme.syntax
+    var activeFile by rememberSaveable { mutableIntStateOf(0) }
     // Relative dates rot while the screen sits open (commits can be hours apart),
     // so the clock re-ticks every minute — only while this composable is on screen
     // AND the app is foregrounded: repeatOnLifecycle parks the loop past ON_STOP
@@ -65,12 +84,17 @@ fun LogsScreen(commits: List<CommitUi>) {
             }
         }
     }
-    val lines = remember(commits, syntax, nowEpochSeconds) {
-        buildLogLines(commits, syntax, nowEpochSeconds)
+    val lines = remember(commits, revisions, syntax, nowEpochSeconds, activeFile) {
+        if (activeFile == 0) buildLogLines(commits, syntax, nowEpochSeconds)
+        else buildForecastLines(revisions, syntax, nowEpochSeconds, ZoneId.systemDefault())
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
-            EditorTab(fileName = "weather_history.diff")
+            EditorTabs(
+                fileNames = listOf(HISTORY_FILE, FORECAST_FILE),
+                activeIndex = activeFile,
+                onSelect = { activeFile = it }
+            )
             CodeCanvas(
                 lines = lines,
                 modifier = Modifier
@@ -78,9 +102,15 @@ fun LogsScreen(commits: List<CommitUi>) {
                     .fillMaxSize()
             )
             TerminalStatusBar {
-                Text("⎇ history")
-                StatusBarDivider()
-                Text(stringResource(R.string.status_commits, commits.size))
+                if (activeFile == 0) {
+                    Text("⎇ history")
+                    StatusBarDivider()
+                    Text(stringResource(R.string.status_commits, commits.size))
+                } else {
+                    Text("⎇ forecast")
+                    StatusBarDivider()
+                    Text(stringResource(R.string.status_revisions, revisions.size))
+                }
                 Spacer(Modifier.weight(1f))
                 Text("read-only")
             }
@@ -102,7 +132,7 @@ private fun buildLogLines(
     return buildList {
         commits.forEachIndexed { index, commit ->
             if (index > 0) add(CodeLine(AnnotatedString("")))
-            add(commitHeaderLine(commit, syntax))
+            add(commitHeaderLine(commit.hash, commit.cityLabel, syntax))
             add(commentLine("Author: System <${commit.author}>", syntax))
             add(commentLine("Date:   ${relativeTime(commit.timestampEpochSeconds, now)}", syntax))
             add(commentLine("diff --git a/weather_data.json b/weather_data.json", syntax))
@@ -114,10 +144,69 @@ private fun buildLogLines(
     }
 }
 
-private fun commitHeaderLine(commit: CommitUi, syntax: SyntaxColors) = CodeLine(
+private fun buildForecastLines(
+    revisions: List<ForecastRevisionUi>,
+    syntax: SyntaxColors,
+    now: Long,
+    zone: ZoneId
+): List<CanvasLine> {
+    if (revisions.isEmpty()) {
+        return listOf(
+            commentLine("// no forecast revisions yet", syntax),
+            commentLine("// significant changes to upcoming forecasts land here", syntax)
+        )
+    }
+    return buildList {
+        revisions.forEachIndexed { index, revision ->
+            if (index > 0) add(CodeLine(AnnotatedString("")))
+            add(commitHeaderLine(revision.hash, revision.cityLabel, syntax))
+            add(commentLine("Author: System <${revision.author}>", syntax))
+            add(commentLine("Date:   ${relativeTime(revision.timestampEpochSeconds, now)}", syntax))
+            revision.hunks.forEach { hunk ->
+                val file = "forecast_${hunk.date}.json"
+                val fetchTime = fetchTimeLabel(
+                    revision.timestampEpochSeconds, revision.timestampEpochSeconds, zone
+                )
+                if (hunk.baselineEpochSeconds == null) {
+                    add(commentLine("--- /dev/null", syntax))
+                } else {
+                    val baseTime = fetchTimeLabel(
+                        hunk.baselineEpochSeconds, revision.timestampEpochSeconds, zone
+                    )
+                    add(commentLine("--- a/$file ($baseTime)", syntax))
+                }
+                add(commentLine("+++ b/$file ($fetchTime)", syntax))
+                add(hunkHeaderLine(hunk.dayLabel, syntax))
+                hunk.lines.forEach { line -> add(diffLine(line, syntax)) }
+            }
+        }
+    }
+}
+
+/** Git colors hunk headers apart from the body; key-blue is our cyan. */
+private fun hunkHeaderLine(dayLabel: String, syntax: SyntaxColors) = CodeLine(
+    AnnotatedString("@@ $dayLabel @@", SpanStyle(color = syntax.key))
+)
+
+private val SameDayTime = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
+private val OtherDayTime = DateTimeFormatter.ofPattern("MMM d HH:mm", Locale.ENGLISH)
+
+/**
+ * `(12:04)` when the compared prediction is from the same local day as the fetch,
+ * `(Aug 16 23:40)` when it is older — two forecasts hours apart read differently
+ * from two a day apart, and a bare clock time would hide that.
+ */
+internal fun fetchTimeLabel(epochSeconds: Long, fetchEpochSeconds: Long, zone: ZoneId): String {
+    val time = Instant.ofEpochSecond(epochSeconds).atZone(zone)
+    val fetchDay = Instant.ofEpochSecond(fetchEpochSeconds).atZone(zone).toLocalDate()
+    return if (time.toLocalDate() == fetchDay) time.format(SameDayTime)
+    else time.format(OtherDayTime)
+}
+
+private fun commitHeaderLine(hash: String, cityLabel: String, syntax: SyntaxColors) = CodeLine(
     buildAnnotatedString {
-        withStyle(SpanStyle(color = syntax.key)) { append("commit ${commit.hash}") }
-        withStyle(SpanStyle(color = syntax.comment)) { append(" [${commit.cityLabel}]") }
+        withStyle(SpanStyle(color = syntax.key)) { append("commit $hash") }
+        withStyle(SpanStyle(color = syntax.comment)) { append(" [$cityLabel]") }
     }
 )
 
@@ -203,6 +292,28 @@ private fun LogsScreenPreview() {
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "location", "Milan, Lombardy"),
                         SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "current.temp_c", "18.2")
+                    )
+                )
+            ),
+            revisions = listOf(
+                ForecastRevisionUi(
+                    hash = "a1b2c3d",
+                    cityLabel = "Milan, Lombardy",
+                    author = "sys@tweather.app",
+                    timestampEpochSeconds = System.currentTimeMillis() / 1000 - 600,
+                    hunks = listOf(
+                        ForecastDiff.Hunk(
+                            date = "2026-08-18",
+                            dayLabel = "tomorrow",
+                            baselineEpochSeconds = System.currentTimeMillis() / 1000 - 15_000,
+                            lines = listOf(
+                                SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "precip_pct", "20"),
+                                SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "precip_pct", "70"),
+                                SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "high_c", "31.0"),
+                                SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "high_c", "27.4"),
+                                SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "status", "Rain 🌧️")
+                            )
+                        )
                     )
                 )
             )

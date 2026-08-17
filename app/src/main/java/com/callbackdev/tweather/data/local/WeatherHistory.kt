@@ -8,12 +8,17 @@ import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /**
  * One weather fetch persisted as a git-style "commit" for the Logs screen
  * (`weather_history.diff`): short hash, fixed author, timestamp and a flattened
  * key→value snapshot (JSON) that Fase 8 diffs against the previous entry.
+ * [forecastJson] (Fase 9h) is the same-shaped flatten of the daily forecast for
+ * the next two target dates, diffed per-date in `weather_forecast.diff`; null on
+ * rows written before the column existed.
  */
 @Entity(tableName = "weather_history")
 data class WeatherHistoryEntry(
@@ -23,7 +28,8 @@ data class WeatherHistoryEntry(
     val hash: String,
     val author: String,
     @ColumnInfo(name = "timestamp_epoch_s") val timestampEpochSeconds: Long,
-    @ColumnInfo(name = "snapshot_json") val snapshotJson: String
+    @ColumnInfo(name = "snapshot_json") val snapshotJson: String,
+    @ColumnInfo(name = "forecast_json") val forecastJson: String? = null
 )
 
 @Dao
@@ -48,7 +54,16 @@ interface WeatherHistoryDao {
     suspend fun prune(keep: Int)
 }
 
-@Database(entities = [WeatherHistoryEntry::class], version = 1, exportSchema = false)
+@Database(entities = [WeatherHistoryEntry::class], version = 2, exportSchema = false)
 abstract class TweatherDatabase : RoomDatabase() {
     abstract fun weatherHistoryDao(): WeatherHistoryDao
+
+    companion object {
+        /** v2 (Fase 9h): forecast snapshot alongside the current-conditions one. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE weather_history ADD COLUMN forecast_json TEXT")
+            }
+        }
+    }
 }

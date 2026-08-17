@@ -19,6 +19,7 @@
     <string name="status_querying">querying…</string>
     <string name="status_files">%1$d files</string>
     <string name="status_commits">%1$d commits</string>
+    <string name="status_revisions">%1$d revisions</string>
     <string name="status_sources">%1$d sources</string>
     <string name="search_placeholder">Search Location</string>
 

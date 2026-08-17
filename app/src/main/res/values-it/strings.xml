@@ -15,6 +15,7 @@
     <string name="status_querying">interrogo…</string>
     <string name="status_files">%1$d file</string>
     <string name="status_commits">%1$d commit</string>
+    <string name="status_revisions">%1$d revisioni</string>
     <string name="status_sources">%1$d sorgenti</string>
     <string name="search_placeholder">Cerca località</string>
 

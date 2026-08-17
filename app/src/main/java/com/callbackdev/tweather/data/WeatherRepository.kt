@@ -156,7 +156,8 @@ class WeatherRepository(
                 hash = WeatherSnapshots.commitHash(city.cacheKey, timestamp.toString(), snapshot),
                 author = HISTORY_AUTHOR,
                 timestampEpochSeconds = timestamp,
-                snapshotJson = snapshot
+                snapshotJson = snapshot,
+                forecastJson = json.encodeToString(WeatherSnapshots.flattenForecast(report))
             )
         )
         historyDao.prune(HISTORY_RETENTION)

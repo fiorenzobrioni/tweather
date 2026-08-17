@@ -28,6 +28,25 @@ object WeatherSnapshots {
         put("astronomical.moon_phase", report.astronomical.moonPhase.text)
     }
 
+    /**
+     * Flattens the daily forecast for the next two target dates (tomorrow and the
+     * day after, in the city's local time) into `<ISO date>.<field>` keys, e.g.
+     * `2026-08-18.high_c`. Absolute dates keep consecutive snapshots aligned on the
+     * same target day, so `weather_forecast.diff` compares two predictions of the
+     * same future moment. Values stay English and metric like [flatten].
+     */
+    fun flattenForecast(report: WeatherReport): Map<String, String> = buildMap {
+        val today = report.location.localTime.toLocalDate()
+        val horizon = setOf(today.plusDays(1), today.plusDays(2))
+        report.daily.filter { it.date in horizon }.forEach { day ->
+            val prefix = day.date.toString()
+            put("$prefix.status", day.condition.label)
+            put("$prefix.high_c", day.highC.toString())
+            put("$prefix.low_c", day.lowC.toString())
+            put("$prefix.precip_pct", day.precipPct.toString())
+        }
+    }
+
     /** Short pseudo-git hash identifying a history entry. */
     fun commitHash(vararg parts: String): String =
         MessageDigest.getInstance("SHA-1")

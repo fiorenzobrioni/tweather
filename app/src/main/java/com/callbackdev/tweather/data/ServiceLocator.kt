@@ -51,6 +51,12 @@ object ServiceLocator {
     @Volatile
     private var workspaceStore: WorkspaceStore? = null
 
+    @Volatile
+    private var ruleStore: RuleStore? = null
+
+    @Volatile
+    private var ruleStateStore: RuleStateStore? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -98,6 +104,18 @@ object ServiceLocator {
                 .also { workspaceStore = it }
         }
 
+    fun ruleStore(context: Context): RuleStore =
+        ruleStore ?: synchronized(this) {
+            ruleStore ?: RuleStore.create(context.applicationContext, json)
+                .also { ruleStore = it }
+        }
+
+    fun ruleStateStore(context: Context): RuleStateStore =
+        ruleStateStore ?: synchronized(this) {
+            ruleStateStore ?: RuleStateStore.create(context.applicationContext)
+                .also { ruleStateStore = it }
+        }
+
     /**
      * Test-only: workers resolve dependencies from here, so worker tests swap in
      * temp-file stores/fake repositories. Calling with no arguments resets to
@@ -109,13 +127,17 @@ object ServiceLocator {
         cityStore: CityStore? = null,
         settingsStore: SettingsStore? = null,
         alertStateStore: AlertStateStore? = null,
-        widgetCityStore: WidgetCityStore? = null
+        widgetCityStore: WidgetCityStore? = null,
+        ruleStore: RuleStore? = null,
+        ruleStateStore: RuleStateStore? = null
     ) {
         this.repository = repository
         this.cityStore = cityStore
         this.settingsStore = settingsStore
         this.alertStateStore = alertStateStore
         this.widgetCityStore = widgetCityStore
+        this.ruleStore = ruleStore
+        this.ruleStateStore = ruleStateStore
     }
 
     /**
@@ -155,7 +177,7 @@ object ServiceLocator {
             TweatherDatabase::class.java,
             "tweather.db"
         )
-            .addMigrations(TweatherDatabase.MIGRATION_1_2)
+            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
             .build()
 
         return WeatherRepository(

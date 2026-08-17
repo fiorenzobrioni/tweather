@@ -53,6 +53,33 @@ class AlertSchedulerTest {
     }
 
     @Test
+    fun `user rules arm the job only with the master toggle on and rules defined`() {
+        // rules exist and user_rules on (default) → wanted even with builtins off
+        assertTrue(
+            AlertScheduler.alertsWanted(allOff, notificationsEnabled = true, hasEnabledRules = true)
+        )
+        // an empty alerts.rules must not keep the phone polling
+        assertFalse(
+            AlertScheduler.alertsWanted(allOff, notificationsEnabled = true, hasEnabledRules = false)
+        )
+        // master toggle off silences the rules
+        assertFalse(
+            AlertScheduler.alertsWanted(
+                allOff.copy(userRules = false), notificationsEnabled = true, hasEnabledRules = true
+            )
+        )
+        // no permission silences everything
+        assertFalse(
+            AlertScheduler.alertsWanted(allOff, notificationsEnabled = false, hasEnabledRules = true)
+        )
+        assertTrue(
+            AlertScheduler.shouldRun(
+                allOff, notificationsEnabled = true, hasWidgets = false, hasEnabledRules = true
+            )
+        )
+    }
+
+    @Test
     fun `nothing to sync for - no alerts and no widget`() {
         assertFalse(
             AlertScheduler.shouldRun(allOff, notificationsEnabled = true, hasWidgets = false)

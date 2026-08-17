@@ -34,11 +34,14 @@ data class UnitSettings(
     val windSpeed: WindSpeedUnit = WindSpeedUnit.KMH
 )
 
-/** Read by the alert engine (Fase 9c): each toggle gates one rule in AlertEngine. */
+/** Read by the alert engine (Fase 9c): each toggle gates one rule in AlertEngine.
+ * [userRules] (Fase 11) is the master switch of `alerts.rules`; default true so
+ * writing a rule is enough — it only matters once rules exist. */
 data class NotificationSettings(
     val severeWeatherAlerts: Boolean = true,
     val dailySummary: Boolean = false,
-    val precipitationWarning: Boolean = true
+    val precipitationWarning: Boolean = true,
+    val userRules: Boolean = true
 )
 
 /**
@@ -88,7 +91,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
                 notifications = NotificationSettings(
                     severeWeatherAlerts = prefs[SevereAlerts] ?: true,
                     dailySummary = prefs[DailySummary] ?: false,
-                    precipitationWarning = prefs[PrecipWarning] ?: true
+                    precipitationWarning = prefs[PrecipWarning] ?: true,
+                    userRules = prefs[UserRules] ?: true
                 ),
                 themeProfileName = prefs[ThemeProfileName] ?: "Obsidian",
                 updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: DefaultUpdateFrequencyMin)
@@ -108,6 +112,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun setSevereWeatherAlerts(enabled: Boolean) = set(SevereAlerts, enabled)
     suspend fun setDailySummary(enabled: Boolean) = set(DailySummary, enabled)
     suspend fun setPrecipitationWarning(enabled: Boolean) = set(PrecipWarning, enabled)
+    suspend fun setUserRules(enabled: Boolean) = set(UserRules, enabled)
     suspend fun setThemeProfile(name: String) = set(ThemeProfileName, name)
     suspend fun setUpdateFrequency(minutes: Int) = set(UpdateFrequencyMin, minutes)
     suspend fun setWidgetOpacity(pct: Int) = set(WidgetOpacity, pct)
@@ -140,6 +145,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         private val SevereAlerts = booleanPreferencesKey("notif_severe_alerts")
         private val DailySummary = booleanPreferencesKey("notif_daily_summary")
         private val PrecipWarning = booleanPreferencesKey("notif_precip_warning")
+        private val UserRules = booleanPreferencesKey("notif_user_rules")
         private val ThemeProfileName = stringPreferencesKey("theme_profile")
         private val UpdateFrequencyMin = intPreferencesKey("sync_update_frequency_min")
         private val WidgetOpacity = intPreferencesKey("widget_bg_opacity_pct")

@@ -37,12 +37,17 @@ class MainActivity : ComponentActivity() {
         )
         val settingsStore = ServiceLocator.settingsStore(this)
         // Single owner of background-work reconciliation: covers app start, every
-        // notification toggle flip, frequency changes and `git restore` resets.
-        // (The permission-grant path in Settings reconciles explicitly — a grant
-        // doesn't mutate DataStore, so this flow wouldn't fire.)
+        // notification toggle flip, frequency changes, `git restore` resets and
+        // (Fase 11) alerts.rules edits — the first enabled rule arms the job, the
+        // last one removed lets it self-cancel. (The permission-grant path in
+        // Settings reconciles explicitly — a grant doesn't mutate DataStore, so
+        // this flow wouldn't fire.)
         lifecycleScope.launch {
-            settingsStore.settings
-                .map { it.notifications to it.updateFrequencyMin }
+            combine(
+                settingsStore.settings.map { it.notifications to it.updateFrequencyMin },
+                ServiceLocator.ruleStore(this@MainActivity).rules
+                    .map { rules -> rules.any { it.enabled } }
+            ) { settings, hasEnabledRules -> settings to hasEnabledRules }
                 .distinctUntilChanged()
                 .collect { AlertScheduler.reconcile(this@MainActivity) }
         }

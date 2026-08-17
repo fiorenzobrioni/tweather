@@ -21,6 +21,7 @@
     <string name="status_commits">%1$d commits</string>
     <string name="status_revisions">%1$d revisions</string>
     <string name="status_sources">%1$d sources</string>
+    <string name="status_rules">%1$d rules</string>
     <string name="search_placeholder">Search Location</string>
 
     <!-- Accessibility -->
@@ -43,6 +44,23 @@
     <string name="cd_grant_location">Grant location permission in system settings</string>
     <string name="cd_select_gps">Use current location</string>
 
+    <!-- alerts.rules (Fase 11): token-editing controls of the rules file. Rule
+         names and messages are user content and never localize; the file's
+         keywords (rule, if, and, notify) are code and stay English. -->
+    <string name="cd_add_rule">Add a rule</string>
+    <string name="cd_remove_rule">Remove rule %1$s</string>
+    <string name="cd_toggle_rule">Enable or disable rule %1$s</string>
+    <string name="cd_edit_rule_name">Rename rule %1$s</string>
+    <string name="cd_edit_variable">Change the variable</string>
+    <string name="cd_cycle_operator">Change the operator</string>
+    <string name="cd_edit_threshold">Change the threshold</string>
+    <string name="cd_edit_message">Edit the notification message</string>
+    <string name="cd_pick_variable">Use %1$s</string>
+    <string name="cd_add_condition">Add an and condition</string>
+    <string name="cd_remove_condition">Remove the and condition</string>
+    <string name="cd_run_rules">Run all rules against current data</string>
+    <string name="cd_confirm_run_rules">Confirm running all rules</string>
+
     <!-- Notifications: titles/channel names are chrome (localized); bodies are
          terminal output built in code (English by design) -->
     <string name="notif_channel_severe">Severe weather alerts</string>
@@ -51,6 +69,9 @@
     <string name="notif_title_severe">%1$s Weather alert — %2$s</string>
     <string name="notif_title_precip">%1$s Rain incoming — %2$s</string>
     <string name="notif_title_summary">%1$s Today\'s weather — %2$s</string>
+    <string name="notif_channel_rules">Weather CI rules</string>
+    <!-- Rule name + city: no words to translate, the name is the user's own -->
+    <string name="notif_title_rule" translatable="false">🔔 %1$s — %2$s</string>
 
     <!-- Home widget: label/glyphs are terminal code (untranslated); the picker
          description and accessibility text are chrome (localized) -->

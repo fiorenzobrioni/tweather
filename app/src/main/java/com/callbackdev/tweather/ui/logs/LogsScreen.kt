@@ -209,6 +209,15 @@ private fun buildLogLines(
             add(commitHeaderLine(commit.hash, commit.cityLabel, syntax))
             add(commentLine("Author: System <${commit.author}>", syntax))
             add(commentLine("Date:   ${relativeTime(commit.timestampEpochSeconds, now)}", syntax))
+            // Weather CI (Fase 11): user rules that fired on this data — only the
+            // fired ones, a ✓ per silent rule would be pure noise
+            commit.firedRules.forEach { name ->
+                add(
+                    CodeLine(
+                        AnnotatedString("✓ rule \"$name\" fired", SpanStyle(color = syntax.diffAdd))
+                    )
+                )
+            }
             add(commentLine("diff --git a/weather_data.json b/weather_data.json", syntax))
             if (commit.isInitial) {
                 add(commentLine("new file mode 100644", syntax))

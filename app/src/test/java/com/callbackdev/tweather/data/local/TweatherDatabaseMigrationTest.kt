@@ -52,7 +52,7 @@ class TweatherDatabaseMigrationTest {
         }
 
         val db = Room.databaseBuilder(context, TweatherDatabase::class.java, dbName)
-            .addMigrations(TweatherDatabase.MIGRATION_1_2)
+            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
             .build()
             .also { database = it }
 
@@ -78,5 +78,54 @@ class TweatherDatabaseMigrationTest {
         }
         val newest = runBlocking { db.weatherHistoryDao().historyFor("milan", 10) }.first()
         assertEquals("{\"2026-08-18.high_c\":\"27.0\"}", newest.forecastJson)
+    }
+
+    @Test
+    fun `v2 rows survive the migration with null fired rules`() {
+        val file = context.getDatabasePath(dbName).also { it.parentFile?.mkdirs() }
+        SQLiteDatabase.openOrCreateDatabase(file, null).use { v2 ->
+            // The exact v2 schema (v1 + Fase 9h's forecast_json), pinned like above
+            v2.execSQL(
+                "CREATE TABLE IF NOT EXISTS `weather_history` (" +
+                    "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "`city_key` TEXT NOT NULL, `city_label` TEXT NOT NULL, " +
+                    "`hash` TEXT NOT NULL, `author` TEXT NOT NULL, " +
+                    "`timestamp_epoch_s` INTEGER NOT NULL, `snapshot_json` TEXT NOT NULL, " +
+                    "`forecast_json` TEXT)"
+            )
+            v2.execSQL(
+                "INSERT INTO weather_history " +
+                    "(city_key, city_label, hash, author, timestamp_epoch_s, snapshot_json) " +
+                    "VALUES ('milan', 'Milan, Lombardy', 'a1b2c3d', 'sys@tweather.app', " +
+                    "1755000000, '{}')"
+            )
+            v2.version = 2
+        }
+
+        val db = Room.databaseBuilder(context, TweatherDatabase::class.java, dbName)
+            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
+            .build()
+            .also { database = it }
+
+        val migrated = runBlocking { db.weatherHistoryDao().historyFor("milan", 10) }.single()
+        assertNull(migrated.firedRulesJson)
+
+        // And the fired-rules UPDATE lands on the city's NEWEST commit only
+        runBlocking {
+            db.weatherHistoryDao().insert(
+                WeatherHistoryEntry(
+                    cityKey = "milan",
+                    cityLabel = "Milan, Lombardy",
+                    hash = "9f8e7d6",
+                    author = "sys@tweather.app",
+                    timestampEpochSeconds = 1755003600,
+                    snapshotJson = "{}"
+                )
+            )
+            db.weatherHistoryDao().setFiredRulesOnLatest("milan", "[\"umbrella\"]")
+        }
+        val entries = runBlocking { db.weatherHistoryDao().historyFor("milan", 10) }
+        assertEquals("[\"umbrella\"]", entries.first().firedRulesJson)
+        assertNull(entries.last().firedRulesJson)
     }
 }

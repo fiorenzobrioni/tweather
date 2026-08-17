@@ -33,6 +33,7 @@ class SettingsWidgetLineTest {
         onSevereAlerts = {},
         onDailySummary = {},
         onPrecipWarning = {},
+        onUserRules = {},
         onCycleFrequency = {},
         onCycleWidgetOpacity = onCycleWidgetOpacity,
         onOpenUrl = {},

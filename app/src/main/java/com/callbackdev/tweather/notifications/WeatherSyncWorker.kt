@@ -9,6 +9,7 @@ import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.domain.AlertEngine
 import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.domain.model.GpsCityId
+import com.callbackdev.tweather.domain.rules.RuleEngine
 import com.callbackdev.tweather.widget.TweatherWidgetProvider
 import com.callbackdev.tweather.widget.TweatherWidgetUpdater
 import java.time.Duration
@@ -35,7 +36,10 @@ class WeatherSyncWorker(
         val context = applicationContext
         val settings = ServiceLocator.settingsStore(context).settings.first()
         val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
-        val alertsWanted = AlertScheduler.alertsWanted(settings.notifications, notificationsEnabled)
+        val enabledRules = ServiceLocator.ruleStore(context).rules.first().filter { it.enabled }
+        val alertsWanted = AlertScheduler.alertsWanted(
+            settings.notifications, notificationsEnabled, enabledRules.isNotEmpty()
+        )
         // Self-heal: nothing left to sync for (no alerts wanted AND no widget placed) —
         // cancel instead of waking up for nothing forever (MainActivity or the widget
         // receiver re-enqueue if conditions return).
@@ -80,6 +84,10 @@ class WeatherSyncWorker(
             val zone = runCatching { ZoneId.of(report.location.timezone) }
                 .getOrDefault(ZoneId.systemDefault())
             val now = ZonedDateTime.now(zone).toLocalDateTime()
+            // Stable identity, not cacheKey: the GPS pseudo-city's cacheKey moves
+            // with the fix (~1.1 km grid) and would re-notify the same storm at
+            // every commute leg; ids never move.
+            val cityKey = if (city.id == GpsCityId) "gps" else city.id.toString()
 
             val stateStore = ServiceLocator.alertStateStore(context)
             val alerts = AlertEngine.evaluate(
@@ -87,15 +95,40 @@ class WeatherSyncWorker(
                 settings = settings.notifications,
                 state = stateStore.state.first(),
                 now = now,
-                // Stable identity, not cacheKey: the GPS pseudo-city's cacheKey moves
-                // with the fix (~1.1 km grid) and would re-notify the same storm at
-                // every commute leg; ids never move.
-                cityKey = if (city.id == GpsCityId) "gps" else city.id.toString()
+                cityKey = cityKey
             )
             alerts.forEach { alert ->
                 // Fingerprint burns only on a successful post (muted channel → retry later)
                 if (AlertNotifier.notify(context, alert, settings.units.temperature)) {
                     stateStore.record(alert)
+                }
+            }
+
+            // User rules (Fase 11): same fetch, same clock, zero extra battery.
+            if (settings.notifications.userRules && enabledRules.isNotEmpty()) {
+                val ruleStateStore = ServiceLocator.ruleStateStore(context)
+                val evaluation = RuleEngine.evaluate(
+                    rules = enabledRules,
+                    report = report,
+                    state = ruleStateStore.state.first(),
+                    now = now,
+                    cityKey = cityKey
+                )
+                // Re-arm regardless of what posts: false is false
+                ruleStateStore.unlatch(evaluation.unlatch)
+                val fired = mutableListOf<String>()
+                evaluation.triggers.forEach { trigger ->
+                    val posted = RuleNotifier.notify(
+                        context, trigger, report.location.city, report, now, settings.units
+                    )
+                    if (posted) {
+                        ruleStateStore.record(trigger)
+                        fired += trigger.rule.name
+                    }
+                }
+                // The Logs' check lines: this fetch's commit lists what fired
+                if (fired.isNotEmpty()) {
+                    ServiceLocator.weatherRepository(context).recordFiredRules(city, fired)
                 }
             }
         }

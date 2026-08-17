@@ -7,6 +7,7 @@ import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.LocationProvider
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.WeatherRepository
+import com.callbackdev.tweather.data.WorkspaceStore
 import com.callbackdev.tweather.data.local.TweatherDatabase
 import com.callbackdev.tweather.data.remote.OpenMeteoAirQualityApi
 import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
@@ -69,6 +70,7 @@ class WeatherViewModelTest {
     private val json = Json { ignoreUnknownKeys = true }
     private lateinit var cityStore: CityStore
     private lateinit var settingsStore: SettingsStore
+    private lateinit var workspaceStore: WorkspaceStore
     private lateinit var repository: WeatherRepository
     private lateinit var database: TweatherDatabase
 
@@ -86,6 +88,11 @@ class WeatherViewModelTest {
         settingsStore = SettingsStore(
             PreferenceDataStoreFactory.create(scope = storeScope) {
                 tmp.newFile("settings-${System.nanoTime()}.preferences_pb")
+            }
+        )
+        workspaceStore = WorkspaceStore(
+            PreferenceDataStoreFactory.create(scope = storeScope) {
+                tmp.newFile("workspace-${System.nanoTime()}.preferences_pb")
             }
         )
         database = Room.inMemoryDatabaseBuilder(
@@ -113,7 +120,7 @@ class WeatherViewModelTest {
     }
 
     private fun viewModel(provider: LocationProvider) =
-        WeatherViewModel(repository, cityStore, settingsStore, provider)
+        WeatherViewModel(repository, cityStore, settingsStore, provider, workspaceStore)
 
     private fun awaitState(
         viewModel: WeatherViewModel,

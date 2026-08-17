@@ -56,6 +56,40 @@
     <string name="cd_widget_follow_app">Segui la località attiva dell\'app</string>
     <string name="cd_widget_pin">Fissa %1$s a questo widget</string>
 
+    <!-- README.md (Fase 10): il riassunto umano della città. Un README è prosa,
+         non codice: interamente localizzato, heading compresi. La punteggiatura
+         markdown (#, |, >, *) è aggiunta nel codice, non qui. -->
+    <string name="readme_h_current">Attuale</string>
+    <string name="readme_h_today">Oggi</string>
+    <string name="readme_h_conditions">Condizioni</string>
+    <string name="readme_h_air">Qualità dell\'aria</string>
+    <string name="readme_h_astronomy">Astronomia</string>
+    <string name="readme_h_forecast">Previsioni</string>
+    <string name="readme_h_status">Stato</string>
+    <string name="readme_feels_like">Percepita</string>
+    <string name="readme_high">Max</string>
+    <string name="readme_low">Min</string>
+    <string name="readme_precipitation">Precipitazioni</string>
+    <string name="readme_uv">Indice UV</string>
+    <string name="readme_wind">Vento</string>
+    <string name="readme_humidity">Umidità</string>
+    <string name="readme_pressure">Pressione</string>
+    <string name="readme_visibility">Visibilità</string>
+    <string name="readme_pollen">Pollini: graminacee %1$s · alberi %2$s · erbacee %3$s</string>
+    <string name="readme_sunrise">Alba</string>
+    <string name="readme_sunset">Tramonto</string>
+    <string name="readme_daylight">Luce diurna</string>
+    <string name="readme_moon">Luna</string>
+    <string name="readme_t_day">Giorno</string>
+    <string name="readme_t_high">Max</string>
+    <string name="readme_t_low">Min</string>
+    <string name="readme_t_status">Stato</string>
+    <string name="readme_t_rain">Pioggia</string>
+    <string name="readme_status_ok">Tutto regolare.</string>
+    <string name="readme_status_severe">⚠️ %1$s in arrivo verso le %2$s</string>
+    <string name="readme_status_precip">🌧️ Probabile pioggia verso le %1$s (%2$d%%)</string>
+    <string name="readme_footer">Aggiornato alle %1$s · dati Open-Meteo</string>
+
     <!-- Condizioni meteo (codici WMO) -->
     <string name="cond_clear">Sereno</string>
     <string name="cond_mainly_clear">Prevalentemente sereno</string>

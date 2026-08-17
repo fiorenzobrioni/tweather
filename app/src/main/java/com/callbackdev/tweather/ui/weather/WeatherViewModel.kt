@@ -8,9 +8,11 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.LocationProvider
+import com.callbackdev.tweather.data.MainEditorFile
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.WeatherRepository
+import com.callbackdev.tweather.data.WorkspaceStore
 import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.WeatherReport
@@ -42,7 +44,8 @@ class WeatherViewModel(
     private val repository: WeatherRepository,
     private val cityStore: CityStore,
     settingsStore: SettingsStore,
-    private val locationProvider: LocationProvider
+    private val locationProvider: LocationProvider,
+    private val workspaceStore: WorkspaceStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeatherUiState())
@@ -58,6 +61,18 @@ class WeatherViewModel(
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DisplayOptions())
+
+    /**
+     * The main tab bar's active file, persisted as editor workspace state (Fase
+     * 10): like a real editor, the app reopens on the file you left it on.
+     * Eagerly so a persisted README selection lands before the first frame.
+     */
+    val activeFile: StateFlow<MainEditorFile> = workspaceStore.mainActiveFile
+        .stateIn(viewModelScope, SharingStarted.Eagerly, MainEditorFile.JSON)
+
+    fun selectFile(file: MainEditorFile) {
+        viewModelScope.launch { workspaceStore.setMainActiveFile(file) }
+    }
 
     private var city: City? = null
     private var loadJob: Job? = null
@@ -206,7 +221,8 @@ class WeatherViewModel(
                     repository = ServiceLocator.weatherRepository(app),
                     cityStore = ServiceLocator.cityStore(app),
                     settingsStore = ServiceLocator.settingsStore(app),
-                    locationProvider = ServiceLocator.locationProvider(app)
+                    locationProvider = ServiceLocator.locationProvider(app),
+                    workspaceStore = ServiceLocator.workspaceStore(app)
                 )
             }
         }

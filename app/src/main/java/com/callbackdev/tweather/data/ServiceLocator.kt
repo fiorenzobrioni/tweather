@@ -48,6 +48,9 @@ object ServiceLocator {
     @Volatile
     private var widgetCityStore: WidgetCityStore? = null
 
+    @Volatile
+    private var workspaceStore: WorkspaceStore? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -87,6 +90,12 @@ object ServiceLocator {
         widgetCityStore ?: synchronized(this) {
             widgetCityStore ?: WidgetCityStore.create(context.applicationContext)
                 .also { widgetCityStore = it }
+        }
+
+    fun workspaceStore(context: Context): WorkspaceStore =
+        workspaceStore ?: synchronized(this) {
+            workspaceStore ?: WorkspaceStore.create(context.applicationContext)
+                .also { workspaceStore = it }
         }
 
     /**

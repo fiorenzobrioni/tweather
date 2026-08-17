@@ -101,8 +101,8 @@ class WeatherSyncWorker(
         }
 
         // Widgets pinned to another city have no other producer of history commits:
-        // without this their data would only age. One extra GET per distinct pinned
-        // city per period, and only while such a widget is actually placed.
+        // without this their data would only age. One extra fetch (two GETs) per
+        // distinct pinned city per period, and only while such a widget is placed.
         TweatherWidgetUpdater.pinnedCities(context).forEach { pinnedCity ->
             runCatching {
                 ServiceLocator.weatherRepository(context).getWeather(

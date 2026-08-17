@@ -17,7 +17,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.local.SnapshotDiff
@@ -49,11 +52,17 @@ fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Fact
 fun LogsScreen(commits: List<CommitUi>) {
     val syntax = TweatherTheme.syntax
     // Relative dates rot while the screen sits open (commits can be hours apart),
-    // so the clock re-ticks every minute — only while this composable is on screen.
-    val nowEpochSeconds by produceState(System.currentTimeMillis() / 1000) {
-        while (true) {
-            delay(60_000)
-            value = System.currentTimeMillis() / 1000
+    // so the clock re-ticks every minute — only while this composable is on screen
+    // AND the app is foregrounded: repeatOnLifecycle parks the loop past ON_STOP
+    // (leaving the app on this tab would otherwise keep ticking in the cached
+    // process) and its restart re-clocks immediately on the way back.
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val nowEpochSeconds by produceState(System.currentTimeMillis() / 1000, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                value = System.currentTimeMillis() / 1000
+                delay(60_000)
+            }
         }
     }
     val lines = remember(commits, syntax, nowEpochSeconds) {

@@ -201,14 +201,16 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             }
         }
     }
-    // The system-settings detour has no result callback: this effect is the return
-    // path. A grant applies the toggle the user had flipped; any transition clears
-    // the pending so a stale toggle can never fire on a much later grant.
-    LaunchedEffect(hasNotifPermission) {
+    // The system-settings detour has no result callback: every resume (the epoch,
+    // not the boolean — a return WITHOUT the grant must run this too) is the return
+    // path. A grant applies the toggle the user had flipped and re-arms the
+    // background work (a bare grant doesn't touch DataStore, so nothing else
+    // reconciles — and reconcile is idempotent, UPDATE preserves the cycle); any
+    // other return clears the pending, so a stale toggle can never fire on a much
+    // later grant.
+    LaunchedEffect(permissionEpoch) {
         if (hasNotifPermission) {
             pendingNotifToggle?.invoke()
-            // Reconcile even with no pending: a bare grant from the system settings
-            // doesn't touch DataStore, so nothing else re-arms the background work.
             AlertScheduler.reconcile(context.applicationContext)
         }
         pendingNotifToggle = null

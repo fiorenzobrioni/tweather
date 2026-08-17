@@ -39,10 +39,28 @@ class ReportDiskCache(private val dir: File, private val json: Json) {
             runCatching {
                 dir.mkdirs()
                 File(dir, fileName(cacheKey)).writeText(json.encodeToString(entry))
+                prune()
             }
+        }
+    }
+
+    /**
+     * An entry older than the largest configurable TTL can never be read back as a
+     * hit, so it's dead weight. Without this the GPS pseudo-city (one cacheKey per
+     * ~1.1 km cell) would leave a file behind for every place the user ever was.
+     */
+    private fun prune() {
+        val cutoff = System.currentTimeMillis() - MAX_AGE_MS
+        dir.listFiles()?.forEach { file ->
+            if (file.lastModified() < cutoff) file.delete()
         }
     }
 
     /** cacheKey is `lat:lon` in hundredths — ':' is not filesystem-safe everywhere. */
     private fun fileName(cacheKey: String) = cacheKey.replace(':', '_') + ".json"
+
+    companion object {
+        /** 2× the largest `update_frequency_min` (120), with slack. */
+        private const val MAX_AGE_MS = 4 * 60 * 60 * 1000L
+    }
 }

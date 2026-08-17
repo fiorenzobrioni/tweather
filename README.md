@@ -10,9 +10,9 @@
 
 Every screen is a file. The forecast is syntax-highlighted JSON with a line-number
 gutter, settings are a `.config` you edit by tapping values, and the update history is
-a git diff, complete with hash, author and `+`/`-` lines. Checkboxes are `[x]`, the
-search box is a shell prompt, and the weather icons are the emoji sitting inside the
-JSON.
+a git diff, complete with hash, author and `+`/`-` lines. Booleans flip when you tap
+their `true` or `false`, the search box is a shell prompt, and the weather icons are
+the emoji sitting inside the JSON.
 
 It is a real weather app underneath: live data, background alerts, a home-screen
 widget. The editor is the interface, not a skin over a list of cards.

@@ -61,5 +61,5 @@ Four screens, each presented as a fake "file" behind a bottom navigation bar (Ex
 - **Syntax highlight colors**: keys `#79c0ff`, string values `#a5d6ff`, numbers/booleans `#ffa657`, comments/braces `#8b949e`, diff additions `#2ea043`, deletions `#f85149`.
 - **Core palette**: background `#10141a`, surface container `#181c22`, on-surface `#dfe2eb`, borders `#30363d`. Full Material 3 token set is in the `obsidian_syntax/DESIGN.md` frontmatter.
 - **No drop shadows** — depth comes from 1px borders and tonal stacking. The only exception is the FAB's glow (`box-shadow: 0 0 15px #79c0ff88`); every element, FAB included, is rectangular with a 4px corner radius (the FAB was circular in early revisions — squared during development, nothing in an editor is round).
-- **Controls rendered as text**: checkboxes as `[x]`/`[ ]`, inputs as terminal prompts (`> Search Location _` with blinking underscore cursor).
+- **Controls rendered as text**: booleans as tappable `true`/`false` values, removal as `[rm]`, destructive actions as `$` commands with a two-tap confirm, inputs as terminal prompts (`> Search Location _` with blinking underscore cursor). No native Material controls anywhere.
 - Weather icons are inline Unicode emoji inside the JSON text (`☀️`, `🌧️`, `🌔`), not image assets.

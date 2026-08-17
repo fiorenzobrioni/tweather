@@ -277,7 +277,11 @@ private fun ruleBlock(
     actions: RulesActions
 ): List<CanvasLine> = buildList {
     add(
-        WidgetLine(indent = 0) {
+        WidgetLine(
+            indent = 0,
+            // Slack after [rm] for its touch padding
+            measureText = """rule "${rule.name}" { [rm]  """
+        ) {
             RuleHeaderLine(
                 rule = rule,
                 editingName = editing == RuleEdit.Name(rule.id),
@@ -306,8 +310,20 @@ private fun ruleBlock(
 
     rule.conditions.forEachIndexed { index, condition ->
         val pickerOpen = editing == RuleEdit.Variable(rule.id, index)
+        val variable = RuleVariables.byId(condition.variable)
+        val conditionText = buildString {
+            append(if (index == 0) "if" else "and").append(": ")
+            append(variable?.let { RuleVariables.displayId(it, units) } ?: condition.variable)
+            append("  ").append(condition.op.symbol).append("  ") // op token padding
+            append(
+                RuleVariables.formatValue(
+                    variable?.kind ?: RuleVariableKind.NUMBER, condition.threshold, units
+                )
+            )
+            if (index > 0) append(" [rm]  ") // slack for [rm]'s touch padding
+        }
         add(
-            WidgetLine(indent = 1) {
+            WidgetLine(indent = 1, measureText = conditionText) {
                 ConditionLine(
                     keyword = if (index == 0) "if" else "and",
                     condition = condition,
@@ -377,7 +393,10 @@ private fun ruleBlock(
     }
 
     add(
-        WidgetLine(indent = 1) {
+        WidgetLine(
+            indent = 1,
+            measureText = """notify: "${rule.message}""""
+        ) {
             MessageLine(
                 rule = rule,
                 editing = editing == RuleEdit.Message(rule.id),

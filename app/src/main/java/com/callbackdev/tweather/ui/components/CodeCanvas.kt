@@ -61,6 +61,14 @@ data class CodeLine(
 @Immutable
 class WidgetLine(
     override val indent: Int = 0,
+    /**
+     * Monospace text equivalent of the row, used only for the shared-width
+     * measurement. Without it a widget row wider than every [CodeLine] gets
+     * squeezed to the text lines' width and silently truncated (`[rm]` → `[r`) —
+     * a TextMeasurer can't measure arbitrary composables, so the row declares
+     * what it will render. Include some slack for non-text width (paddings).
+     */
+    val measureText: String = "",
     val content: @Composable () -> Unit
 ) : CanvasLine
 
@@ -113,7 +121,9 @@ fun CodeCanvas(
     // width so the shared horizontal ScrollState has one consistent range. Only the
     // best candidates by character count are actually measured (monospace: width
     // tracks length; the margin of candidates absorbs emoji and indent variance)
-    // instead of running the TextMeasurer over the whole document.
+    // instead of running the TextMeasurer over the whole document. Widget rows take
+    // part through their declared [WidgetLine.measureText] — leaving them out let a
+    // row wider than every text line get squeezed and truncated.
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val contentWidth: Dp = remember(lines, codeStyle, options.wordWrap, density) {
@@ -121,13 +131,19 @@ fun CodeCanvas(
             Dp.Unspecified
         } else {
             with(density) {
-                lines.filterIsInstance<CodeLine>()
+                lines.mapNotNull { line ->
+                    when (line) {
+                        is CodeLine -> line.text.text to line.indent
+                        is WidgetLine ->
+                            line.measureText.takeIf { it.isNotEmpty() }?.let { it to line.indent }
+                    }
+                }
                     // one indent level (20dp) ≈ 3 monospace columns at 13sp
-                    .sortedByDescending { it.text.text.length + it.indent * 3 }
+                    .sortedByDescending { (text, indent) -> text.length + indent * 3 }
                     .take(WidthCandidates)
-                    .maxOfOrNull { line ->
-                        textMeasurer.measure(line.text, style = codeStyle).size.width +
-                            (IndentWidth * line.indent).toPx()
+                    .maxOfOrNull { (text, indent) ->
+                        textMeasurer.measure(AnnotatedString(text), style = codeStyle).size.width +
+                            (IndentWidth * indent).toPx()
                     }?.toDp()?.plus(startGap + EdgeMargin) ?: Dp.Unspecified
             }
         }

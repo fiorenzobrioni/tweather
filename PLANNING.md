@@ -234,7 +234,39 @@ Decisione del committente (ago 2026), da prova su device della Fase 10: con due 
 - [x] Test aggiornati (suite a 244: navigazione su `cities.json`, tab del main senza `ls cities/` + tap sulla status bar, `SearchCitiesSectionTest` porta i casi GPS/active/rm dell'Explorer, filename test spostato); stringhe orfane rimosse (`cd_open_explorer`, `cd_add_city`); lint pulito; `CLAUDE.md` allineato
 - [x] Verifica manuale su device — completata dal committente sull'APK di CI (ago 2026; fase committata direttamente su main, senza PR)
 
-## Fase 11 — Release
+## Fase 11 — Weather CI (`alerts.rules`)
+
+Idea del committente (ago 2026): notifiche definite dall'utente come regole scritte in stile configurazione — "Weather CI", un mini sistema di automazione meteo per developer. La metafora è già tutta in casa: ogni fetch è già un commit in `weather_history.diff`, le regole sono la pipeline che gira su ogni commit, una notifica scattata è un check fallito. Decisioni di progettazione (ago 2026, col committente):
+
+- **Niente DSL testuale libero in v1.** Una regola *sembra* codice ma *è* una struttura: 1–2 condizioni (variabile, operatore, soglia) + un messaggio. Editing **per token** sul pattern "controls rendered as text": tap sulla variabile → picker stile autocomplete IDE (lista finita), tap sull'operatore → cicla (`> >= < <= == !=`), soglia → input numerico, messaggio → input testo. Un errore di sintassi non è fisicamente scrivibile: niente parser, niente diagnostica, niente gestione errori.
+- **Variabili curate con namespace temporale esplicito**, stessi nomi di `weather_data.json` (la reference è la schermata principale stessa): `current.*` specchio di current_conditions + air_quality (`current.temp_c`, `current.uv_index`, `current.wind.gust_kph`, `current.aqi_index`, …); `next_6h.*` / `next_12h.*` aggregati **precalcolati** sull'hourly (`precip_chance_max`, `temp_c_min`, `temp_c_max`, `wmo_severe` boolean) — niente funzioni nel linguaggio, l'utente sceglie la finestra scegliendo il nome; `today.*` da daily[0] (`high`, `low`, `precip_pct`). `rain_probability` nudo sarebbe ambiguo (adesso? stasera?), e l'ambiguità in un sistema di notifiche produce o rumore o silenzi inspiegabili: la scelta "attuale o previsione" sta nel nome, non in sintassi extra.
+- **Massimo un `and` per regola** (due condizioni), niente `or` né parentesi. Le regole vere sono quasi sempre congiunzioni (`uv >= 7 and today.high > 25`): senza `and` la feature si rivela un giocattolo alla seconda regola. Col token editing il costo è una seconda riga-condizione opzionale (`+ and` / `[rm]`), senza parser né precedenze; `or` = due regole, forma già disponibile.
+- **Zero costo batteria**: valutazione in-process nel worker `weather-sync` esistente, sul report appena fetchato, dopo `AlertEngine.evaluate`. Nessun job nuovo, nessuna rete extra, nessun risveglio extra.
+- **Collocazione**: secondo file della schermata Settings via `EditorTabs` (il pattern a due file di main e Logs): `settings.config` + `alerts.rules`. Il messaggio della notifica è contenuto dell'utente, nella sua lingua per definizione — nessuna l10n; localizzato solo il chrome, come in 9c.
+- **Fuori dal v1, dichiaratamente**: editing testuale libero, funzioni, `or`/parentesi, regole per-città (si valuta la città attiva, come gli alert builtin), finestre temporali custom. → Fase 12.
+
+- [ ] Modello `NotificationRule` (id stabile, enabled, 1–2 condizioni, messaggio) + registry delle variabili: risolutore puro `WeatherReport` → valore (Double/Boolean), testabile a tabella; soglie **memorizzate in unità metriche canoniche** come il dominio, nomi e valori resi nell'unità delle Settings a render time (`current.temp_c` ↔ `current.temp_f` — "un file non mente sulle unità", Fase 7)
+- [ ] `RuleEngine` puro sul modello di `AlertEngine` (niente clock/Android/I-O): confronti + `and` singolo; anti-rumore a due semantiche — variabili `current.*` **edge-triggered** (notifica al passaggio falso→vero, riarmo quando torna falso), aggregati forecast con **fingerprint a bucket temporale** (`cityKey:rule_id:data:AM|PM`, come il precip della 9c); stato in DataStore accanto ad `alerts`, fingerprint registrato solo dopo notify riuscito
+- [ ] Interpolazione `{…}` nel messaggio: stesse variabili + namespace `trigger.*` (valore e ora che hanno fatto scattare la regola — è ciò che rende il messaggio utile invece che generico); placeholder ignoto reso letterale, mai un crash
+- [ ] Persistenza regole: DataStore `rules` (JSON array, pattern di `cities_json`), tetto basso (~10 regole)
+- [ ] UI `alerts.rules`: `EditorTabs` in Settings con scroll separato per tab (pattern Logs), rendering come sorgente con i token esistenti (zero nuovi colori), editing a token, `+ add rule` in stile diff, `[rm]` per regola e per condizione `and`, enabled per regola come boolean tappabile (`boolLine`)
+- [ ] Notifica: canale dedicato (importanza DEFAULT), id derivato dall'id regola (stessa regola sovrascrive, regole diverse coesistono), corpo sul pattern 9c — riga di comando `$ tweather run <rule_id>` + messaggio utente interpolato
+- [ ] **Dry run**: comando `$ tweather run rules` in fondo al file (conferma a due tap come `$ git restore settings.config`): valuta tutte le regole sui dati correnti e mostra l'esito inline per regola (`✓ pass` / `✗ notify: "<messaggio interpolato>"`), senza toccare fingerprint né inviare notifiche vere — senza feedback immediato un sistema di automazione non viene adottato
+- [ ] Integrazione worker e scheduler: valutazione dopo il blocco AlertEngine nello stesso fetch; regole utente attive contano in `alertsWanted` (`AlertScheduler`); le regole scattate compaiono nel commit dei Logs come righe di check (`✓ rule "umbrella" fired`) — **solo quelle scattate**, i pass sarebbero rumore
+- [ ] Toggle master `user_rules` nella sezione `notifications` di `settings.config`, dietro il flusso `POST_NOTIFICATIONS` esistente
+- [ ] Test (registry variabili, engine table-driven con edge/fingerprint, interpolazione, UI Compose del token editing e del dry run, worker) + lint pulito + release minificata
+- [ ] Verifica manuale su device
+
+## Fase 12 — Weather CI v2 (regole di sistema ed estensioni)
+
+Estensioni rimandate dal v1 della Fase 11, da riprioritizzare col committente dopo l'uso reale.
+
+- [ ] **Unificazione degli alert builtin**: severe/precipitazioni/daily summary presentati come regole di sistema preinstallate in `alerts.rules` (marcate `// system rule`, disattivabili ma non rimovibili); i tre toggle di `settings.config` diventano l'enable/disable di quelle righe — un solo modello mentale per tutte le notifiche. Prima la presentazione; ri-implementarli *sopra* il RuleEngine solo se non perde espressività (i builtin usano bucket WMO, lookahead 12h e finestra oraria 06–12 che il modello v1 non esprime)
+- [ ] **Regole per città**: scoping opzionale di una regola su una città salvata o sul GPS (v1 valuta solo la città attiva); attenzione al costo — una regola su una città non attiva richiede il suo fetch nel worker, come le città fissate dei widget (9d)
+- [ ] **Finestre temporali custom** (`next_Nh`) e nuovi aggregati, guidati dai casi reali emersi — non speculativi
+- [ ] Valutare, e solo se emergono richieste concrete: `or` / seconda congiunzione, editing testuale libero con parser e diagnostica in stile IDE — esplicitamente fuori finché il token editing basta
+
+## Fase 13 — Release
 
 - [ ] Configurare signing config e build release (R8/ProGuard, regole per Retrofit/serialization) — **la firma va sostituita**: oggi la release è non firmata di default e la CI la firma con la chiave di debug committata solo per poterla installare e provare (`-PsignReleaseWithDebugKey`); serve un keystore vero da GitHub Secrets
 - [ ] Screenshot e testi per lo store

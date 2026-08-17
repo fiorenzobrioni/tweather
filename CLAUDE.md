@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `cities.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-All four screens, the home widget and the per-city `README.md` tab are implemented (see `PLANNING.md`, phases 0 through 10b); what remains is Fase 11, release. Design artifacts and specifications:
+All four screens, the home widget and the per-city `README.md` tab are implemented (see `PLANNING.md`, phases 0 through 10b); what remains is Fase 11 ("Weather CI": user-defined notification rules in `alerts.rules`), its Fase 12 extensions, and Fase 13, release. Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
@@ -38,7 +38,7 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 **CI**: `.github/workflows/android-ci.yml` runs on every push — unit tests, lint, then both APKs. Artifacts: `tweather-debug-apk`, `tweather-release-apk-testing-only`, `tweather-release-mapping` (the R8 map, needed to read a release stack trace), plus `app/build/reports/` on failure. Tests run *before* the builds so a red suite never produces an installable artifact.
 
-**Release signing**: the release build is unsigned by default (`app-release-unsigned.apk`). Passing `-PsignReleaseWithDebugKey` signs it with the committed debug key so the minified build is installable for testing — R8 breakage shows up nowhere else. It is opt-in precisely so a store artifact can never be signed with a committed key by accident; Fase 11 replaces it with a real keystore.
+**Release signing**: the release build is unsigned by default (`app-release-unsigned.apk`). Passing `-PsignReleaseWithDebugKey` signs it with the committed debug key so the minified build is installable for testing — R8 breakage shows up nowhere else. It is opt-in precisely so a store artifact can never be signed with a committed key by accident; Fase 13 replaces it with a real keystore.
 
 **Alert engine** (Fase 9c): background notifications via a single WorkManager periodic job (`weather-sync`, interval = `update_frequency_min`, now 15/30/60/120 default 60, CONNECTED-only constraint, no foreground services/exact alarms/FCM/background location). Pure rules in `domain/AlertEngine.kt` (severe WMO buckets 12h, precip ≥70% 6h, daily summary 06–12), dedup fingerprints in DataStore `alerts`, notification body rendered as a JSON object (localized title, English keys and command line, localized data values via `WeatherTranslations` — same l10n rule as the main screen and the widget; folded onto one line when collapsed, pretty-printed when expanded). Background fetches write Logs commits like any fetch.
 

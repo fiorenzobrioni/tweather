@@ -107,6 +107,16 @@ class WeatherRepository(
 
     fun observeHistory(limit: Int = HISTORY_RETENTION) = historyDao.observeLatest(limit)
 
+    /**
+     * Fase 11: marks the user rules that fired on [city]'s newest commit — the data
+     * the worker just evaluated (that commit even on a cache HIT: a hit means the
+     * latest commit is still the current data). Rendered as check lines in the Logs.
+     */
+    suspend fun recordFiredRules(city: City, ruleNames: List<String>) {
+        if (ruleNames.isEmpty()) return
+        historyDao.setFiredRulesOnLatest(city.cacheKey, json.encodeToString(ruleNames))
+    }
+
     suspend fun historyFor(city: City, limit: Int = HISTORY_RETENTION) =
         historyDao.historyFor(city.cacheKey, limit)
 

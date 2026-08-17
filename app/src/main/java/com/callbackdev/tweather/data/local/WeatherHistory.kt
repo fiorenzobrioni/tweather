@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.Flow
  * key→value snapshot (JSON) that Fase 8 diffs against the previous entry.
  * [forecastJson] (Fase 9h) is the same-shaped flatten of the daily forecast for
  * the next two target dates, diffed per-date in `weather_forecast.diff`; null on
- * rows written before the column existed.
+ * rows written before the column existed. [firedRulesJson] (Fase 11) is the JSON
+ * array of user-rule names that fired on this data — the commit's check lines;
+ * null when nothing fired (the overwhelmingly common case).
  */
 @Entity(tableName = "weather_history")
 data class WeatherHistoryEntry(
@@ -29,7 +31,8 @@ data class WeatherHistoryEntry(
     val author: String,
     @ColumnInfo(name = "timestamp_epoch_s") val timestampEpochSeconds: Long,
     @ColumnInfo(name = "snapshot_json") val snapshotJson: String,
-    @ColumnInfo(name = "forecast_json") val forecastJson: String? = null
+    @ColumnInfo(name = "forecast_json") val forecastJson: String? = null,
+    @ColumnInfo(name = "fired_rules") val firedRulesJson: String? = null
 )
 
 @Dao
@@ -52,9 +55,22 @@ interface WeatherHistoryDao {
             "(SELECT id FROM weather_history ORDER BY timestamp_epoch_s DESC LIMIT :keep)"
     )
     suspend fun prune(keep: Int)
+
+    /**
+     * Attaches fired user rules to the city's newest commit (Fase 11). An UPDATE
+     * after the fact, not an insert-time field: the worker evaluates rules after
+     * the fetch has committed — and on a cache HIT the data the rules ran on IS
+     * that latest commit.
+     */
+    @Query(
+        "UPDATE weather_history SET fired_rules = :firedRulesJson WHERE id = " +
+            "(SELECT id FROM weather_history WHERE city_key = :cityKey " +
+            "ORDER BY timestamp_epoch_s DESC LIMIT 1)"
+    )
+    suspend fun setFiredRulesOnLatest(cityKey: String, firedRulesJson: String)
 }
 
-@Database(entities = [WeatherHistoryEntry::class], version = 2, exportSchema = false)
+@Database(entities = [WeatherHistoryEntry::class], version = 3, exportSchema = false)
 abstract class TweatherDatabase : RoomDatabase() {
     abstract fun weatherHistoryDao(): WeatherHistoryDao
 
@@ -63,6 +79,13 @@ abstract class TweatherDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE weather_history ADD COLUMN forecast_json TEXT")
+            }
+        }
+
+        /** v3 (Fase 11): user rules fired on this commit's data. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE weather_history ADD COLUMN fired_rules TEXT")
             }
         }
     }

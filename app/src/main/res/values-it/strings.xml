@@ -17,6 +17,7 @@
     <string name="status_commits">%1$d commit</string>
     <string name="status_revisions">%1$d revisioni</string>
     <string name="status_sources">%1$d sorgenti</string>
+    <string name="status_rules">%1$d regole</string>
     <string name="search_placeholder">Cerca località</string>
 
     <!-- Accessibility -->
@@ -39,6 +40,23 @@
     <string name="cd_grant_location">Concedi il permesso di posizione nelle impostazioni di sistema</string>
     <string name="cd_select_gps">Usa la posizione attuale</string>
 
+    <!-- alerts.rules (Fase 11): controlli del token editing del file delle regole.
+         Nomi delle regole e messaggi sono contenuto dell'utente e non si traducono;
+         le keyword del file (rule, if, and, notify) sono codice e restano inglesi. -->
+    <string name="cd_add_rule">Aggiungi una regola</string>
+    <string name="cd_remove_rule">Rimuovi la regola %1$s</string>
+    <string name="cd_toggle_rule">Attiva o disattiva la regola %1$s</string>
+    <string name="cd_edit_rule_name">Rinomina la regola %1$s</string>
+    <string name="cd_edit_variable">Cambia la variabile</string>
+    <string name="cd_cycle_operator">Cambia l\'operatore</string>
+    <string name="cd_edit_threshold">Cambia la soglia</string>
+    <string name="cd_edit_message">Modifica il messaggio di notifica</string>
+    <string name="cd_pick_variable">Usa %1$s</string>
+    <string name="cd_add_condition">Aggiungi una condizione and</string>
+    <string name="cd_remove_condition">Rimuovi la condizione and</string>
+    <string name="cd_run_rules">Esegui tutte le regole sui dati attuali</string>
+    <string name="cd_confirm_run_rules">Conferma l\'esecuzione delle regole</string>
+
     <!-- Notifiche: titoli/nomi canale sono chrome (localizzati); i corpi sono
          output terminale costruito in codice (inglese by design) -->
     <string name="notif_channel_severe">Allerte meteo severe</string>
@@ -47,6 +65,7 @@
     <string name="notif_title_severe">%1$s Allerta meteo — %2$s</string>
     <string name="notif_title_precip">%1$s Pioggia in arrivo — %2$s</string>
     <string name="notif_title_summary">%1$s Meteo di oggi — %2$s</string>
+    <string name="notif_channel_rules">Regole Weather CI</string>
 
     <!-- Widget home: label/glifi sono codice terminale (non tradotti); descrizione
          del picker e accessibilità sono chrome (localizzati) -->

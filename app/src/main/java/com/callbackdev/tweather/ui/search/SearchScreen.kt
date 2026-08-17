@@ -182,9 +182,15 @@ private fun buildSearchLines(
     add(commentLine("// Tweather Cities", syntax))
     add(punctLine("{", 0, syntax))
 
-    add(WidgetLine(indent = 1) {
-        SearchTermLine(state.query, onQueryChange, onSearchNow)
-    })
+    val termText = state.query.ifEmpty { resources.getString(R.string.search_placeholder) }
+    add(
+        WidgetLine(
+            indent = 1,
+            measureText = """"search_term": "${termText}_","""
+        ) {
+            SearchTermLine(state.query, onQueryChange, onSearchNow)
+        }
+    )
 
     val showResults = state.query.trim().length >= 2
     if (showResults) {
@@ -214,26 +220,37 @@ private fun buildSearchLines(
     add(keyOpenLine("saved_cities", 1, syntax, bracket = "["))
     val names = fileNames(cities.cities)
     if (cities.useGps) {
-        add(WidgetLine(indent = 2) {
-            GpsCityLine(
-                isActive = cities.gpsActive,
-                trailingComma = cities.cities.isNotEmpty(),
-                onSelect = onActivateGps
-            )
-        })
+        add(
+            WidgetLine(
+                indent = 2,
+                measureText = """"current_location.json",  // active"""
+            ) {
+                GpsCityLine(
+                    isActive = cities.gpsActive,
+                    trailingComma = cities.cities.isNotEmpty(),
+                    onSelect = onActivateGps
+                )
+            }
+        )
     }
     cities.cities.forEachIndexed { i, city ->
-        add(WidgetLine(indent = 2) {
-            SavedCityLine(
-                city = city,
-                fileName = names.getValue(city.id),
-                isActive = city.id == cities.activeCity?.id,
-                removable = cities.cities.size > 1,
-                trailingComma = i != cities.cities.lastIndex,
-                onSelect = { onActivate(city) },
-                onRemove = { onRemove(city) }
-            )
-        })
+        add(
+            WidgetLine(
+                indent = 2,
+                // Superset of every variant, plus slack for [rm]'s touch padding
+                measureText = """"${names.getValue(city.id)}",  // active  [rm]  """
+            ) {
+                SavedCityLine(
+                    city = city,
+                    fileName = names.getValue(city.id),
+                    isActive = city.id == cities.activeCity?.id,
+                    removable = cities.cities.size > 1,
+                    trailingComma = i != cities.cities.lastIndex,
+                    onSelect = { onActivate(city) },
+                    onRemove = { onRemove(city) }
+                )
+            }
+        )
     }
     add(punctLine("],", 1, syntax))
 

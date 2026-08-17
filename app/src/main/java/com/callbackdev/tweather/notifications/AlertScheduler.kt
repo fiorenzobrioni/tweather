@@ -26,10 +26,19 @@ object AlertScheduler {
 
     const val UNIQUE_NAME = "weather-sync"
 
-    /** Whether the job would post anything: gates the alert evaluation in the worker. */
-    fun alertsWanted(settings: NotificationSettings, notificationsEnabled: Boolean): Boolean =
+    /** Whether the job would post anything: gates the alert evaluation in the worker.
+     * User rules (Fase 11) count only while some exist and their master toggle is
+     * on — an empty alerts.rules must not keep the phone polling. */
+    fun alertsWanted(
+        settings: NotificationSettings,
+        notificationsEnabled: Boolean,
+        hasEnabledRules: Boolean = false
+    ): Boolean =
         notificationsEnabled &&
-            (settings.severeWeatherAlerts || settings.dailySummary || settings.precipitationWarning)
+            (
+                settings.severeWeatherAlerts || settings.dailySummary ||
+                    settings.precipitationWarning || (settings.userRules && hasEnabledRules)
+                )
 
     /**
      * Split out pure so the enqueue-vs-cancel decision is unit-testable. A placed
@@ -39,15 +48,19 @@ object AlertScheduler {
     fun shouldRun(
         settings: NotificationSettings,
         notificationsEnabled: Boolean,
-        hasWidgets: Boolean
-    ): Boolean = alertsWanted(settings, notificationsEnabled) || hasWidgets
+        hasWidgets: Boolean,
+        hasEnabledRules: Boolean = false
+    ): Boolean = alertsWanted(settings, notificationsEnabled, hasEnabledRules) || hasWidgets
 
     suspend fun reconcile(context: Context) {
         val settings = ServiceLocator.settingsStore(context).settings.first()
+        val hasEnabledRules =
+            ServiceLocator.ruleStore(context).rules.first().any { it.enabled }
         if (shouldRun(
                 settings.notifications,
                 NotificationManagerCompat.from(context).areNotificationsEnabled(),
-                TweatherWidgetProvider.hasWidgets(context)
+                TweatherWidgetProvider.hasWidgets(context),
+                hasEnabledRules
             )
         ) {
             val request = PeriodicWorkRequestBuilder<WeatherSyncWorker>(

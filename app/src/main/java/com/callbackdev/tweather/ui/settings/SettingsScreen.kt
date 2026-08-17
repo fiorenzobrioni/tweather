@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -44,7 +47,7 @@ import com.callbackdev.tweather.data.WindSpeedUnit
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
-import com.callbackdev.tweather.ui.components.EditorTab
+import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
@@ -60,6 +63,9 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
+/** The two files open in the Settings tab bar (Fase 11). */
+internal val SettingsFiles = listOf("settings.config", "alerts.rules")
+
 /** Everything the settings file can change, bundled for [buildSettingsLines]. */
 class SettingsActions(
     val onLineNumbers: (Boolean) -> Unit,
@@ -71,6 +77,7 @@ class SettingsActions(
     val onSevereAlerts: (Boolean) -> Unit,
     val onDailySummary: (Boolean) -> Unit,
     val onPrecipWarning: (Boolean) -> Unit,
+    val onUserRules: (Boolean) -> Unit,
     val onCycleFrequency: () -> Unit,
     val onCycleWidgetOpacity: () -> Unit,
     val onOpenUrl: (String) -> Unit,
@@ -115,12 +122,21 @@ enum class GpsLineState {
  * persists via DataStore and applies to the app immediately.
  */
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
+    rulesViewModel: RulesViewModel = viewModel(factory = RulesViewModel.Factory)
+) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val useGps by viewModel.useGps.collectAsStateWithLifecycle()
+    val rules by rulesViewModel.rules.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val activity = LocalActivity.current
+
+    // Two files behind one tab bar (Fase 11), scroll kept per file like the Logs.
+    var activeFile by rememberSaveable { mutableIntStateOf(0) }
+    val settingsScroll = rememberLazyListState()
+    val rulesScroll = rememberLazyListState()
 
     // The app's only runtime permission. Re-check on every resume so a grant or a
     // revocation made in the system settings is reflected as soon as we're back.
@@ -216,7 +232,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
         pendingNotifToggle = null
     }
     val anyNotifOn = with(settings.notifications) {
-        severeWeatherAlerts || dailySummary || precipitationWarning
+        severeWeatherAlerts || dailySummary || precipitationWarning ||
+            (userRules && rules.any { it.enabled })
     }
     val notifState = when {
         !anyNotifOn -> NotifLineState.Disabled
@@ -239,9 +256,19 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
         }
     }
 
+    if (activeFile == 1) {
+        RulesScreen(
+            onSelectFile = { activeFile = it },
+            canvasState = rulesScroll,
+            viewModel = rulesViewModel
+        )
+        return
+    }
     SettingsScreen(
         settings = settings,
         notifState = notifState,
+        onSelectFile = { activeFile = it },
+        canvasState = settingsScroll,
         onNotifLine = {
             when (notifState) {
                 NotifLineState.MissingPermission ->
@@ -280,6 +307,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel(factory = SettingsVi
             onSevereAlerts = gated(viewModel::setSevereWeatherAlerts),
             onDailySummary = gated(viewModel::setDailySummary),
             onPrecipWarning = gated(viewModel::setPrecipitationWarning),
+            onUserRules = gated(viewModel::setUserRules),
             onCycleFrequency = viewModel::cycleUpdateFrequency,
             onCycleWidgetOpacity = viewModel::cycleWidgetOpacity,
             onOpenUrl = uriHandler::openUri,
@@ -296,7 +324,9 @@ fun SettingsScreen(
     gpsDeniedFlash: Boolean = false,
     onGpsLine: () -> Unit = {},
     notifState: NotifLineState = NotifLineState.Armed,
-    onNotifLine: () -> Unit = {}
+    onNotifLine: () -> Unit = {},
+    onSelectFile: (Int) -> Unit = {},
+    canvasState: LazyListState = rememberLazyListState()
 ) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
@@ -340,9 +370,14 @@ fun SettingsScreen(
     )
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
-            EditorTab(fileName = "settings.config")
+            EditorTabs(
+                fileNames = SettingsFiles,
+                activeIndex = 0,
+                onSelect = onSelectFile
+            )
             CodeCanvas(
                 lines = lines,
+                state = canvasState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxSize()
@@ -474,9 +509,14 @@ private fun buildSettingsLines(
         actions.onDailySummary(!settings.notifications.dailySummary)
     })
     add(boolLine("precipitation_warning", settings.notifications.precipitationWarning,
-        comma = false, syntax = syntax,
+        comma = true, syntax = syntax,
         onClickLabel = changeLabel("precipitation_warning")) {
         actions.onPrecipWarning(!settings.notifications.precipitationWarning)
+    })
+    add(boolLine("user_rules", settings.notifications.userRules,
+        comma = false, hint = "// alerts.rules", syntax = syntax,
+        onClickLabel = changeLabel("user_rules")) {
+        actions.onUserRules(!settings.notifications.userRules)
     })
     add(punctLine("},", 1, syntax))
 
@@ -699,7 +739,7 @@ private fun SettingsScreenPreview() {
     TweatherTheme {
         SettingsScreen(
             settings = AppSettings(),
-            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         )
     }
 }

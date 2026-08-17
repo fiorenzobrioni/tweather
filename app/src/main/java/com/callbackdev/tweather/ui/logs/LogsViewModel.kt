@@ -16,14 +16,16 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.json.Json
 
-/** One history entry ready to render: header data plus its diff lines. */
+/** One history entry ready to render: header data plus its diff lines.
+ * [firedRules] (Fase 11): user rules that fired on this commit's data. */
 data class CommitUi(
     val hash: String,
     val cityLabel: String,
     val author: String,
     val timestampEpochSeconds: Long,
     val isInitial: Boolean,
-    val lines: List<SnapshotDiff.Line>
+    val lines: List<SnapshotDiff.Line>,
+    val firedRules: List<String> = emptyList()
 )
 
 /**
@@ -61,7 +63,10 @@ class LogsViewModel(repository: WeatherRepository, private val json: Json) : Vie
                 author = entry.author,
                 timestampEpochSeconds = entry.timestampEpochSeconds,
                 isInitial = old == null,
-                lines = SnapshotDiff.compute(old, current)
+                lines = SnapshotDiff.compute(old, current),
+                firedRules = entry.firedRulesJson
+                    ?.let { runCatching { json.decodeFromString<List<String>>(it) }.getOrNull() }
+                    ?: emptyList()
             )
         }
 

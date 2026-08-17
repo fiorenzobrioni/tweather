@@ -15,6 +15,8 @@ import androidx.work.workDataOf
 import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.AlertStateStore
 import com.callbackdev.tweather.data.CityStore
+import com.callbackdev.tweather.data.RuleStateStore
+import com.callbackdev.tweather.data.RuleStore
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.WeatherRepository
@@ -53,6 +55,7 @@ class WeatherSyncWorkerTest {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val context: Context = ApplicationProvider.getApplicationContext()
     private lateinit var settingsStore: SettingsStore
+    private lateinit var ruleStore: RuleStore
     private lateinit var database: TweatherDatabase
 
     @Before
@@ -90,6 +93,17 @@ class WeatherSyncWorkerTest {
             alertStateStore = AlertStateStore(
                 PreferenceDataStoreFactory.create(scope = scope) {
                     tmp.newFile("alerts-${System.nanoTime()}.preferences_pb")
+                }
+            ),
+            ruleStore = RuleStore(
+                PreferenceDataStoreFactory.create(scope = scope) {
+                    tmp.newFile("rules-${System.nanoTime()}.preferences_pb")
+                },
+                json
+            ).also { ruleStore = it },
+            ruleStateStore = RuleStateStore(
+                PreferenceDataStoreFactory.create(scope = scope) {
+                    tmp.newFile("rule-state-${System.nanoTime()}.preferences_pb")
                 }
             )
         )
@@ -156,6 +170,26 @@ class WeatherSyncWorkerTest {
             assertFalse(
                 "worker cancelled itself with a widget placed",
                 states.contains(WorkInfo.State.CANCELLED)
+            )
+        }
+
+    @Test
+    fun `all toggles off but a user rule exists - the job survives and still fetches`() =
+        runBlocking {
+            settingsStore.setSevereWeatherAlerts(false)
+            settingsStore.setDailySummary(false)
+            settingsStore.setPrecipitationWarning(false)
+            ruleStore.add() // one enabled rule in alerts.rules
+            AlertScheduler.reconcile(context) // rules alone → enqueue, not cancel
+
+            // retry = it walked past the self-heal branch and reached the fetch
+            assertEquals(ListenableWorker.Result.retry(), runWorker())
+
+            val states = WorkManager.getInstance(context)
+                .getWorkInfosForUniqueWork(AlertScheduler.UNIQUE_NAME).get().map { it.state }
+            assertTrue(
+                "periodic work should still be alive, was $states",
+                states.contains(WorkInfo.State.ENQUEUED)
             )
         }
 

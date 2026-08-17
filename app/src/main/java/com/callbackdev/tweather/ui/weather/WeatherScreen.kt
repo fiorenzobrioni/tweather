@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -34,16 +35,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.content.res.Resources
 import com.callbackdev.tweather.R
+import com.callbackdev.tweather.data.MainEditorFile
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
-import com.callbackdev.tweather.ui.components.EditorTab
+import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.GlowFab
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.StatusBarStart
 import com.callbackdev.tweather.ui.components.StatusBarText
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.buildJsonLines
+import com.callbackdev.tweather.ui.components.buildMarkdownLines
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -52,9 +56,11 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Main screen: the live weather report rendered as the fake source file
- * `weather_data.json` — editor tab on top, code canvas with gutter and syntax
- * highlighting, glowing refresh FAB, terminal status bar at the bottom.
+ * Main screen: the live weather report as two open editor tabs (Fase 10) — the
+ * fake source file `weather_data.json` (syntax-highlighted JSON, the full data)
+ * and the city's `README.md` (markdown source, the human summary). Code canvas
+ * with gutter, glowing refresh FAB (one fetch feeds both renders), terminal
+ * status bar at the bottom. The active tab persists as workspace state.
  */
 @Composable
 fun WeatherScreen(
@@ -63,11 +69,14 @@ fun WeatherScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val displayOptions by viewModel.displayOptions.collectAsStateWithLifecycle()
+    val activeFile by viewModel.activeFile.collectAsStateWithLifecycle()
     WeatherScreen(
         state = state,
         displayOptions = displayOptions,
         onRefresh = viewModel::refresh,
-        onOpenExplorer = onOpenExplorer
+        onOpenExplorer = onOpenExplorer,
+        activeFile = activeFile,
+        onSelectFile = viewModel::selectFile
     )
 }
 
@@ -76,17 +85,36 @@ fun WeatherScreen(
     state: WeatherUiState,
     onRefresh: () -> Unit,
     onOpenExplorer: () -> Unit = {},
-    displayOptions: DisplayOptions = DisplayOptions()
+    displayOptions: DisplayOptions = DisplayOptions(),
+    activeFile: MainEditorFile = MainEditorFile.JSON,
+    onSelectFile: (MainEditorFile) -> Unit = {}
 ) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
     val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
-    val lines = remember(state, syntax, locale, displayOptions) {
-        buildScreenLines(state, syntax, WeatherTranslations.translator(resources), locale, displayOptions)
+    val lines = remember(state, syntax, locale, displayOptions, activeFile) {
+        when (activeFile) {
+            MainEditorFile.JSON -> buildScreenLines(
+                state, syntax, WeatherTranslations.translator(resources), locale, displayOptions
+            )
+            MainEditorFile.README -> buildReadmeLines(
+                state, syntax, resources, locale, displayOptions
+            )
+        }
     }
+    // One scroll position per file, like the Logs: switching tab must not land
+    // mid-document because the OTHER file was scrolled there.
+    val jsonScroll = rememberLazyListState()
+    val readmeScroll = rememberLazyListState()
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
-            EditorTab(fileName = "weather_data.json") {
+            EditorTabs(
+                fileNames = listOf("weather_data.json", "README.md"),
+                activeIndex = if (activeFile == MainEditorFile.JSON) 0 else 1,
+                onSelect = {
+                    onSelectFile(if (it == 0) MainEditorFile.JSON else MainEditorFile.README)
+                }
+            ) {
                 // Opens the city explorer as the shell command that would list it;
                 // `$ ` in prompt gray like the body commands ($ git restore, $ history -c)
                 Text(
@@ -105,7 +133,11 @@ fun WeatherScreen(
                 )
             }
             Box(Modifier.weight(1f)) {
-                CodeCanvas(lines = lines, modifier = Modifier.fillMaxSize())
+                CodeCanvas(
+                    lines = lines,
+                    state = if (activeFile == MainEditorFile.JSON) jsonScroll else readmeScroll,
+                    modifier = Modifier.fillMaxSize()
+                )
                 GlowFab(
                     onClick = onRefresh,
                     modifier = Modifier
@@ -210,6 +242,44 @@ private fun buildScreenLines(
     }
 }
 
+/**
+ * The README.md tab: same loading/error surface as the JSON, but a markdown file
+ * comments in HTML (`<!-- -->`), not `//`. Errors stay English (they're terminal
+ * output); the document below is fully localized prose.
+ */
+private fun buildReadmeLines(
+    state: WeatherUiState,
+    syntax: SyntaxColors,
+    resources: Resources,
+    locale: Locale,
+    displayOptions: DisplayOptions
+): List<CodeLine> = buildList {
+    if (state.acquiringFix) {
+        add(commentLine("<!-- gps: acquiring position … -->", syntax))
+    } else if (state.isLoading) {
+        add(commentLine("<!-- fetching README.md … -->", syntax))
+        add(commentLine("<!-- GET https://api.open-meteo.com/v1/forecast -->", syntax))
+    }
+    state.error?.let {
+        add(commentLine("<!-- ERROR: ${it.terminalMessage} -->", syntax))
+        add(commentLine("<!-- hint: tap ( ↻ ) to retry -->", syntax))
+    }
+    state.report?.let {
+        if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
+        addAll(
+            buildMarkdownLines(
+                it.toReadmeMarkdown(
+                    resources = resources,
+                    translate = WeatherTranslations.translator(resources),
+                    locale = locale,
+                    options = displayOptions
+                ),
+                syntax
+            )
+        )
+    }
+}
+
 @Preview(showBackground = true, backgroundColor = 0xFF10141A, heightDp = 800)
 @Composable
 private fun WeatherScreenPreview() {
@@ -226,5 +296,17 @@ private fun WeatherScreenPreview() {
 private fun WeatherScreenLoadingPreview() {
     TweatherTheme {
         WeatherScreen(state = WeatherUiState(isLoading = true), onRefresh = {})
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF10141A, heightDp = 800)
+@Composable
+private fun WeatherScreenReadmePreview() {
+    TweatherTheme {
+        WeatherScreen(
+            state = WeatherUiState(report = sampleWeatherReport(), isLoading = false),
+            onRefresh = {},
+            activeFile = MainEditorFile.README
+        )
     }
 }

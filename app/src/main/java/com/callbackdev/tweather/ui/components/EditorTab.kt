@@ -82,13 +82,16 @@ fun EditorTab(
  * one tappable tab per open file, like a real editor. Active tab in primary with a
  * 2px bottom indicator (the nav bar's active treatment); inactive tabs in comment
  * gray. Tabs scroll horizontally when two file names outgrow a narrow screen.
+ * [actions] land pinned on the right, outside the scrolling tab strip (Fase 10:
+ * the main screen's `$ ls cities/`).
  */
 @Composable
 fun EditorTabs(
     fileNames: List<String>,
     activeIndex: Int,
     onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {}
 ) {
     val syntax = TweatherTheme.syntax
     val borderColor = syntax.border
@@ -156,6 +159,7 @@ fun EditorTabs(
                 }
             }
         }
+        actions()
     }
 }
 

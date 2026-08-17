@@ -186,11 +186,12 @@ internal val WindSpeedUnit.symbol: String
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 
-/** Sample formats durations as `"10h 52m"`. */
-private fun Duration.hhMm(): String = "${toHours()}h ${toMinutesPart()}m"
+/** Sample formats durations as `"10h 52m"`. internal: README.md's Astronomy too. */
+internal fun Duration.hhMm(): String = "${toHours()}h ${toMinutesPart()}m"
 
-/** Capitalized short day name (`Mon`, `Lun`) — Italian locales give lowercase. */
-private fun DayOfWeek.shortName(locale: Locale): String =
+/** Capitalized short day name (`Mon`, `Lun`) — Italian locales give lowercase.
+ * internal: README.md's forecast table uses the same day names. */
+internal fun DayOfWeek.shortName(locale: Locale): String =
     getDisplayName(TextStyle.SHORT, locale)
         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 

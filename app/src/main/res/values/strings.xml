@@ -62,6 +62,40 @@
     <string name="cd_widget_follow_app">Follow the app\'s active location</string>
     <string name="cd_widget_pin">Pin %1$s to this widget</string>
 
+    <!-- README.md (Fase 10): the city's human summary. A README is prose, not
+         code, so unlike JSON keys it is FULLY localized, headings included.
+         Markdown punctuation (#, |, >, *) is added in code, not here. -->
+    <string name="readme_h_current">Current</string>
+    <string name="readme_h_today">Today</string>
+    <string name="readme_h_conditions">Conditions</string>
+    <string name="readme_h_air">Air quality</string>
+    <string name="readme_h_astronomy">Astronomy</string>
+    <string name="readme_h_forecast">Forecast</string>
+    <string name="readme_h_status">Status</string>
+    <string name="readme_feels_like">Feels like</string>
+    <string name="readme_high">High</string>
+    <string name="readme_low">Low</string>
+    <string name="readme_precipitation">Precipitation</string>
+    <string name="readme_uv">UV index</string>
+    <string name="readme_wind">Wind</string>
+    <string name="readme_humidity">Humidity</string>
+    <string name="readme_pressure">Pressure</string>
+    <string name="readme_visibility">Visibility</string>
+    <string name="readme_pollen">Pollen: grass %1$s · tree %2$s · weed %3$s</string>
+    <string name="readme_sunrise">Sunrise</string>
+    <string name="readme_sunset">Sunset</string>
+    <string name="readme_daylight">Daylight</string>
+    <string name="readme_moon">Moon</string>
+    <string name="readme_t_day">Day</string>
+    <string name="readme_t_high">High</string>
+    <string name="readme_t_low">Low</string>
+    <string name="readme_t_status">Status</string>
+    <string name="readme_t_rain">Rain</string>
+    <string name="readme_status_ok">Everything looks good.</string>
+    <string name="readme_status_severe">⚠️ %1$s expected around %2$s</string>
+    <string name="readme_status_precip">🌧️ Rain likely around %1$s (%2$d%%)</string>
+    <string name="readme_footer">Last updated %1$s · data by Open-Meteo</string>
+
     <!-- Weather conditions (WMO codes) -->
     <string name="cond_clear">Clear</string>
     <string name="cond_mainly_clear">Mainly Clear</string>

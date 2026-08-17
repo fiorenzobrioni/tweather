@@ -27,6 +27,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -84,8 +87,13 @@ fun WeatherScreen(
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTab(fileName = "weather_data.json") {
+                // Opens the city explorer as the shell command that would list it;
+                // `$ ` in prompt gray like the body commands ($ git restore, $ history -c)
                 Text(
-                    text = "[ files ]",
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
+                        append("ls cities/")
+                    },
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier

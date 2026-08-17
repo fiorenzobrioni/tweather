@@ -145,7 +145,9 @@ object ServiceLocator {
             appContext,
             TweatherDatabase::class.java,
             "tweather.db"
-        ).build()
+        )
+            .addMigrations(TweatherDatabase.MIGRATION_1_2)
+            .build()
 
         return WeatherRepository(
             forecastApi = retrofit(OpenMeteoForecastApi.BASE_URL)

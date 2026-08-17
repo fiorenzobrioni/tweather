@@ -19,11 +19,13 @@
     <string name="status_querying">querying…</string>
     <string name="status_files">%1$d files</string>
     <string name="status_commits">%1$d commits</string>
+    <string name="status_revisions">%1$d revisions</string>
     <string name="status_sources">%1$d sources</string>
     <string name="search_placeholder">Search Location</string>
 
     <!-- Accessibility -->
     <string name="cd_refresh">Refresh weather data</string>
+    <string name="cd_back_to_top">Back to top</string>
     <string name="cd_open_explorer">Open city explorer</string>
     <string name="cd_open_city">Open %1$s</string>
     <string name="cd_remove_city">Remove %1$s</string>

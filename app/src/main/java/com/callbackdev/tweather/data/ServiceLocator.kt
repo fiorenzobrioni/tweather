@@ -109,8 +109,23 @@ object ServiceLocator {
         this.widgetCityStore = widgetCityStore
     }
 
+    /**
+     * Sent on every API call. Open-Meteo doesn't require it, but rate-limits per IP
+     * and reserves the right to block anonymous misbehaving traffic without notice:
+     * a named agent with a contact URL turns "block" into "reach out".
+     */
+    private val userAgent =
+        "tweather/${BuildConfig.VERSION_NAME} (+https://github.com/fiorenzobrioni/tweather)"
+
     private fun build(appContext: Context): WeatherRepository {
         val okHttp = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", userAgent)
+                        .build()
+                )
+            }
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(

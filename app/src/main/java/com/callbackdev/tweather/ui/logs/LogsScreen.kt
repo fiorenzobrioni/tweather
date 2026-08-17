@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -37,6 +38,7 @@ import com.callbackdev.tweather.ui.components.TerminalStatusBar
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import com.callbackdev.tweather.ui.weather.WeatherTranslations
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -57,7 +59,12 @@ private const val FORECAST_FILE = "weather_forecast.diff"
  *   `---`/`+++` headers and `@@ tomorrow @@` hunks; sub-threshold model wiggle is
  *   filtered out by [ForecastDiff], so the file only contains real revisions.
  *
- * Git output is code: it stays English by design.
+ * L10n follows the app-wide rule (decided with the committente, post-9h): the git
+ * format is code and stays English — hashes, `Author:`/`Date:`, `diff`/`---`/`@@`
+ * headers, JSON keys — while the weather DATA values inside `±`/context lines
+ * (conditions, moon phases) localize at render time via [WeatherTranslations],
+ * exactly like the main screen, the widget and the notifications. The Room
+ * snapshots stay English so diffs never churn on a language change.
  */
 @Composable
 fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Factory)) {
@@ -69,6 +76,8 @@ fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Fact
 @Composable
 fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
     val syntax = TweatherTheme.syntax
+    val resources = LocalContext.current.resources
+    val translate = remember(resources) { WeatherTranslations.valueTranslator(resources) }
     var activeFile by rememberSaveable { mutableIntStateOf(0) }
     // Relative dates rot while the screen sits open (commits can be hours apart),
     // so the clock re-ticks every minute — only while this composable is on screen
@@ -84,9 +93,11 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
             }
         }
     }
-    val lines = remember(commits, revisions, syntax, nowEpochSeconds, activeFile) {
-        if (activeFile == 0) buildLogLines(commits, syntax, nowEpochSeconds)
-        else buildForecastLines(revisions, syntax, nowEpochSeconds, ZoneId.systemDefault())
+    val lines = remember(commits, revisions, syntax, nowEpochSeconds, activeFile, translate) {
+        if (activeFile == 0) buildLogLines(commits, syntax, nowEpochSeconds, translate)
+        else buildForecastLines(
+            revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), translate
+        )
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -121,7 +132,8 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
 private fun buildLogLines(
     commits: List<CommitUi>,
     syntax: SyntaxColors,
-    now: Long
+    now: Long,
+    translate: (String) -> String = { it }
 ): List<CanvasLine> {
     if (commits.isEmpty()) {
         return listOf(
@@ -139,7 +151,7 @@ private fun buildLogLines(
             if (commit.isInitial) {
                 add(commentLine("new file mode 100644", syntax))
             }
-            commit.lines.forEach { line -> add(diffLine(line, syntax)) }
+            commit.lines.forEach { line -> add(diffLine(line.localized(translate), syntax)) }
         }
     }
 }
@@ -148,7 +160,8 @@ private fun buildForecastLines(
     revisions: List<ForecastRevisionUi>,
     syntax: SyntaxColors,
     now: Long,
-    zone: ZoneId
+    zone: ZoneId,
+    translate: (String) -> String = { it }
 ): List<CanvasLine> {
     if (revisions.isEmpty()) {
         return listOf(
@@ -177,7 +190,7 @@ private fun buildForecastLines(
                 }
                 add(commentLine("+++ b/$file ($fetchTime)", syntax))
                 add(hunkHeaderLine(hunk.dayLabel, syntax))
-                hunk.lines.forEach { line -> add(diffLine(line, syntax)) }
+                hunk.lines.forEach { line -> add(diffLine(line.localized(translate), syntax)) }
             }
         }
     }
@@ -209,6 +222,19 @@ private fun commitHeaderLine(hash: String, cityLabel: String, syntax: SyntaxColo
         withStyle(SpanStyle(color = syntax.comment)) { append(" [$cityLabel]") }
     }
 )
+
+/**
+ * Weather DATA values localize at render time (app-wide l10n rule); everything
+ * else in a diff line — keys, city names, compass points, clock times — is code
+ * or proper nouns and passes through. Gated by key so a future snapshot value
+ * that happens to collide with a translated word cannot be mistranslated.
+ */
+private fun SnapshotDiff.Line.localized(translate: (String) -> String): SnapshotDiff.Line =
+    if (key == "status" || key.endsWith(".status") || key.endsWith(".moon_phase")) {
+        copy(value = translate(value))
+    } else {
+        this
+    }
 
 private fun diffLine(line: SnapshotDiff.Line, syntax: SyntaxColors): CodeLine = when (line.type) {
     SnapshotDiff.Type.CONTEXT -> CodeLine(

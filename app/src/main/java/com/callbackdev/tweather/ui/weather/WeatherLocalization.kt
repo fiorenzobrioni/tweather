@@ -68,4 +68,25 @@ object WeatherTranslations {
     fun translator(resources: Resources): (String) -> String = { english ->
         byEnglish[english]?.let(resources::getString) ?: english
     }
+
+    /**
+     * Like [translator], but tolerant of the rendered `"<description> <emoji>"` form
+     * the history snapshots store (`"Overcast ☁️"`, `"Waxing Gibbous 🌔"`): a string
+     * with no direct mapping is retried without its trailing emoji token, which is
+     * re-appended untouched. Same defensive last-token test as the widget: if it
+     * reads as a word (ASCII letters), there is no emoji to split off.
+     */
+    fun valueTranslator(resources: Resources): (String) -> String {
+        val translate = translator(resources)
+        return { value ->
+            val direct = translate(value)
+            if (direct != value) {
+                direct
+            } else {
+                val last = value.substringAfterLast(' ')
+                if (last == value || last.any { it in 'A'..'Z' || it in 'a'..'z' }) value
+                else "${translate(value.substringBeforeLast(' '))} $last"
+            }
+        }
+    }
 }

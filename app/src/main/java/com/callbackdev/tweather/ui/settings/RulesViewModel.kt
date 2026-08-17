@@ -26,6 +26,7 @@ import com.callbackdev.tweather.domain.rules.RuleVariables
 import java.time.Duration
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -218,8 +219,16 @@ class RulesViewModel(
                     }
                 }
                 _dryRun.value = DryRunUi.Done(results)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: WeatherException) {
                 _dryRun.value = DryRunUi.Error(e.terminalMessage)
+            } catch (e: Throwable) {
+                // A dry run must never crash the app: whatever blew up becomes an
+                // error line in the file, naming the exception — the terminal way
+                // to turn "it crashed" into a diagnosis. Throwable, not Exception:
+                // a class-initialization failure surfaces as an Error.
+                _dryRun.value = DryRunUi.Error("panic: ${e.javaClass.simpleName}: ${e.message}")
             }
         }
     }

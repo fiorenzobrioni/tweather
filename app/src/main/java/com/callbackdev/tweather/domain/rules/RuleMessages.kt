@@ -18,7 +18,10 @@ import java.time.format.DateTimeFormatter
  */
 object RuleMessages {
 
-    private val Placeholder = Regex("""\{([A-Za-z0-9_.]+)}""")
+    // Both braces escaped: Android's regex engine is ICU, stricter than the JVM's
+    // about brace metacharacters — a pattern must compile on BOTH, and this object
+    // initializes lazily exactly (and only) when a rule fires.
+    private val Placeholder = Regex("""\{([A-Za-z0-9_.]+)\}""")
     private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 
     fun interpolate(

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -118,7 +119,8 @@ fun WeatherScreen(
                 CodeCanvas(
                     lines = lines,
                     state = if (activeFile == MainEditorFile.JSON) jsonScroll else readmeScroll,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = FabClearance)
                 )
                 GlowFab(
                     onClick = onRefresh,
@@ -205,6 +207,15 @@ private fun WeatherStatusBar(state: WeatherUiState, onOpenCities: () -> Unit = {
 }
 
 private val LastUpdated = DateTimeFormatter.ofPattern("HH:mm:ss")
+
+/**
+ * Bottom room the canvas leaves for the floating FAB: 56dp of button + its 24dp
+ * margin + a line of slack. Without it the tail of the document stops *underneath*
+ * the FAB with no way to scroll it clear — the JSON's `system_info` and closing
+ * brace, the README's last-sync footer. The FAB is the only screen element that
+ * overlaps the canvas, so this padding lives here and not in [CodeCanvas].
+ */
+private val FabClearance = 96.dp
 
 /**
  * The document shown in the canvas. Loading and errors are part of the fake file,

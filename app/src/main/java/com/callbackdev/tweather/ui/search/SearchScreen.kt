@@ -37,7 +37,7 @@ import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
-import com.callbackdev.tweather.ui.components.EditorTab
+import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.StatusBarStart
 import com.callbackdev.tweather.ui.components.StatusBarText
@@ -126,7 +126,9 @@ fun SearchScreen(
     }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
-            EditorTab(fileName = "cities.json")
+            // One open file, rendered by the same tab strip as everywhere else so it
+            // carries the active indicator: no-op onSelect, the only tab is selected.
+            EditorTabs(fileNames = listOf("cities.json"), activeIndex = 0, onSelect = {})
             CodeCanvas(
                 lines = lines,
                 modifier = Modifier

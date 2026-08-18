@@ -47,7 +47,7 @@ class TweatherNavigationTest {
         compose.onNodeWithText("Logs").performClick()
         compose.onNodeWithText("weather_history.diff").assertExists()
 
-        compose.onNodeWithText("Explorer").performClick()
+        compose.onNodeWithText("Editor").performClick()
         compose.onNodeWithText("weather_data.json").assertExists()
     }
 }

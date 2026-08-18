@@ -80,6 +80,7 @@
          markdown (#, |, >, *) è aggiunta nel codice, non qui. -->
     <string name="readme_h_current">Attuale</string>
     <string name="readme_h_today">Oggi</string>
+    <string name="readme_h_hourly">Prossime ore</string>
     <string name="readme_h_conditions">Condizioni</string>
     <string name="readme_h_air">Qualità dell\'aria</string>
     <string name="readme_h_astronomy">Astronomia</string>
@@ -99,6 +100,8 @@
     <string name="readme_sunset">Tramonto</string>
     <string name="readme_daylight">Luce diurna</string>
     <string name="readme_moon">Luna</string>
+    <string name="readme_t_hour">Ora</string>
+    <string name="readme_t_temp">Temp</string>
     <string name="readme_t_day">Giorno</string>
     <string name="readme_t_high">Max</string>
     <string name="readme_t_low">Min</string>

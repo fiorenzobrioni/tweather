@@ -18,8 +18,10 @@ import org.robolectric.annotation.Config
 
 /**
  * The README.md document (Fase 10): the human summary of weather_data.json,
- * FULLY localized (headings included — it's prose, not code), curated sections
- * (no hourly detail), `## Status` as the repo's build badge via AlertEngine.
+ * FULLY localized (headings included — it's prose, not code), curated sections,
+ * `## Status` as the repo's build badge via AlertEngine. Since Fase 11c both
+ * tables are formatted (columns padded, emoji on the right edge) and the next
+ * twelve hours are here too, compressed to hour, temperature, emoji and rain.
  */
 @RunWith(RobolectricTestRunner::class)
 class WeatherReadmeTest {
@@ -38,14 +40,19 @@ class WeatherReadmeTest {
         options = options
     )
 
+    /** The lines under one `##` heading, so a table can be counted in isolation. */
+    private fun List<String>.section(heading: String): List<String> =
+        dropWhile { it != heading }.drop(1).takeWhile { !it.startsWith("## ") }
+
     @Test
     fun `english document has every curated section in order`() {
         val lines = readme()
         val headings = lines.filter { it.startsWith("#") }
         assertEquals(
             listOf(
-                "# New York", "## Current", "## Today", "## Conditions",
-                "## Air quality", "## Astronomy", "## Forecast", "## Status"
+                "# New York", "## Current", "## Today", "## Next hours",
+                "## Forecast", "## Conditions", "## Air quality", "## Astronomy",
+                "## Status"
             ),
             headings
         )
@@ -61,18 +68,65 @@ class WeatherReadmeTest {
         assertTrue("Sunrise: 07:12 · Sunset: 18:04" in lines)
         assertTrue("Daylight: 10h 52m" in lines)
         assertTrue("Moon: Waxing Gibbous 🌔" in lines)
-        // No hourly detail: that stays the JSON's identity
-        assertTrue(lines.none { "15:00" in it })
     }
 
     @Test
     fun `forecast is a markdown table with one row per day`() {
+        val forecast = readme().section("## Forecast")
+        assertEquals(
+            listOf(
+                "| Day | High | Low | Status           | Rain |",
+                "| --- | ---: | --: | ---------------- | ---: |",
+                "| Mon |  20° | 12° | Sunny         ☀️ |   0% |",
+                "| Tue |  18° | 11° | Rainy         🌧️ |  85% |",
+                "| Wed |  16° | 10° | Cloudy        ☁️ |  20% |",
+                "| Thu |  19° | 13° | Partly Cloudy ⛅ |  10% |"
+            ),
+            forecast.filter { it.startsWith("|") }
+        )
+    }
+
+    @Test
+    fun `the next hours are their own table, emoji only, right after today`() {
         val lines = readme()
-        assertTrue("| Day | High | Low | Status | Rain |" in lines)
-        assertTrue(lines.any { it.startsWith("| ---") })
-        assertTrue("| Mon | 20° | 12° | Sunny ☀️ | 0% |" in lines)
-        // header + separator + 4 daily rows
-        assertEquals(6, lines.count { it.startsWith("|") })
+        assertEquals("## Next hours", lines[lines.indexOf("## Today") + 5])
+        assertEquals(
+            listOf(
+                "| Hour  | Temp | Status | Rain |",
+                "| ----- | ---: | -----: | ---: |",
+                "| 15:00 |  19° |     ☀️ |   0% |",
+                "| 16:00 |  18° |     ☀️ |   0% |",
+                "| 17:00 |  17° |     ⛅ |   5% |",
+                "| 18:00 |  15° |     ⛅ |  10% |",
+                "| 19:00 |  14° |     🌙 |   0% |"
+            ),
+            lines.section("## Next hours").filter { it.startsWith("|") }
+        )
+    }
+
+    @Test
+    fun `the hourly table stops at twelve hours, the daily one takes over`() {
+        val start = LocalDate.of(2023, 10, 27).atTime(15, 0)
+        val report = sampleWeatherReport().copy(
+            hourly = (0 until 24).map {
+                HourlyForecast(
+                    start.plusHours(it.toLong()),
+                    19.0,
+                    WeatherCondition(0, "Sunny", "☀️"),
+                    0
+                )
+            }
+        )
+        val rows = readme(report).section("## Next hours").filter { it.startsWith("|") }
+        assertEquals(14, rows.size) // header + separator + 12 hours
+        assertTrue(rows.last().startsWith("| 02:00 |"))
+    }
+
+    @Test
+    fun `a city without hourly data simply has no next hours section`() {
+        val lines = readme(sampleWeatherReport().copy(hourly = emptyList()))
+        assertTrue(lines.none { "Next hours" in it })
+        assertTrue("## Forecast" in lines)
     }
 
     @Test
@@ -122,7 +176,8 @@ class WeatherReadmeTest {
     fun `units follow the display options like the JSON`() {
         val lines = readme(options = DisplayOptions(temperature = TemperatureUnit.FAHRENHEIT))
         assertTrue("**65.3°F** · Partly Cloudy ⛅" in lines)
-        assertTrue("| Mon | 68° | 54° | Sunny ☀️ | 0% |" in lines)
+        assertTrue("| Mon |  68° | 54° | Sunny         ☀️ |   0% |" in lines)
+        assertTrue("| 15:00 |  66° |     ☀️ |   0% |" in lines)
         assertTrue(lines.none { "°C" in it })
     }
 
@@ -140,8 +195,11 @@ class WeatherReadmeTest {
         assertTrue("**18.5°C** · Parzialmente nuvoloso ⛅" in lines)
         assertTrue("Percepita: 17.2°C" in lines)
         assertTrue("Max: 20°C · Min: 12°C" in lines)
-        assertTrue("| Giorno | Max | Min | Stato | Pioggia |" in lines)
-        assertTrue(lines.any { it.startsWith("| Lun |") })
+        assertTrue("## Prossime ore" in lines)
+        assertTrue("| Ora   | Temp | Stato | Pioggia |" in lines)
+        assertTrue("| 15:00 |  19° |    ☀️ |      0% |" in lines)
+        assertTrue("| Gg  | Max | Min | Stato                    | Pioggia |" in lines)
+        assertTrue("| Mar | 18° | 11° | Pioggia               🌧️ |     85% |" in lines)
         assertTrue("Tutto regolare." in lines)
         assertTrue(lines.any { it.startsWith("*Aggiornato alle 09:30") })
     }

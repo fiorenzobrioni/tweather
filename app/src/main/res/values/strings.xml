@@ -87,6 +87,7 @@
          Markdown punctuation (#, |, >, *) is added in code, not here. -->
     <string name="readme_h_current">Current</string>
     <string name="readme_h_today">Today</string>
+    <string name="readme_h_hourly">Next hours</string>
     <string name="readme_h_conditions">Conditions</string>
     <string name="readme_h_air">Air quality</string>
     <string name="readme_h_astronomy">Astronomy</string>
@@ -106,6 +107,8 @@
     <string name="readme_sunset">Sunset</string>
     <string name="readme_daylight">Daylight</string>
     <string name="readme_moon">Moon</string>
+    <string name="readme_t_hour">Hour</string>
+    <string name="readme_t_temp">Temp</string>
     <string name="readme_t_day">Day</string>
     <string name="readme_t_high">High</string>
     <string name="readme_t_low">Low</string>

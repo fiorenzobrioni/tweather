@@ -16,9 +16,15 @@ import kotlin.math.roundToInt
  * [WeatherReport] → the `README.md` document of the active city (Fase 10): the
  * repo metaphor at its deepest — a real repo's README is the HUMAN summary of the
  * machine content, so here it is the at-a-glance view while `weather_data.json`
- * stays the full data source. Curated summary by design: every data group except
- * the hourly detail (that stays the JSON's identity), and independent of the
- * `show_details` toggle, which governs the JSON's technical fields.
+ * stays the full data source. Curated summary by design, and independent of the
+ * `show_details` toggle, which governs the JSON's technical fields: the hourly
+ * forecast is here too (Fase 11c — it is the most consulted forecast there is, and
+ * what the JSON was found to get wrong was its POSITION, not its presence), but
+ * compressed to the next [HourlyRows] hours with the sky reduced to its emoji. The
+ * full 24-hour run, descriptions and technical fields included, stays the JSON's.
+ *
+ * Both tables are [markdownTable]s: columns padded to their widest cell, numbers
+ * right-aligned, exactly one emoji per cell against the cell's right edge.
  *
  * FULLY localized, headings included — a README is prose, not code, so the
  * keys-stay-English rule doesn't apply (decided with the committente). Weather
@@ -59,6 +65,60 @@ fun WeatherReport.toReadmeMarkdown(
     }
     add("${s(R.string.readme_uv)}: ${current.uvIndex} (${translate(current.uvDescription)})")
 
+    // Both forecasts sit straight after Today, before every detail section: they are
+    // what a weather app is opened for, and the hours read into the days without a
+    // page of conditions and pollen in between. The hourly table carries no
+    // description column — at hourly resolution it repeats itself, and the emoji
+    // alone keeps the table narrow enough to read without panning in either language.
+    val nextHours = hourly.take(HourlyRows)
+    if (nextHours.isNotEmpty()) {
+        add("")
+        add("## ${s(R.string.readme_h_hourly)}")
+        addAll(
+            markdownTable(
+                columns = listOf(
+                    TableColumn(s(R.string.readme_t_hour)),
+                    TableColumn(s(R.string.readme_t_temp), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_status), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT)
+                ),
+                rows = nextHours.map { hour ->
+                    listOf(
+                        TableCell(hour.time.format(ClockTime)),
+                        TableCell(tempInt(hour.tempC)),
+                        TableCell.icon(hour.condition.emoji),
+                        TableCell("${hour.precipChancePct}%")
+                    )
+                }
+            )
+        )
+    }
+
+    if (daily.isNotEmpty()) {
+        add("")
+        add("## ${s(R.string.readme_h_forecast)}")
+        addAll(
+            markdownTable(
+                columns = listOf(
+                    TableColumn(s(R.string.readme_t_day)),
+                    TableColumn(s(R.string.readme_t_high), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_low), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_status)),
+                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT)
+                ),
+                rows = daily.map { day ->
+                    listOf(
+                        TableCell(day.date.dayOfWeek.shortName(locale)),
+                        TableCell(tempInt(day.highC)),
+                        TableCell(tempInt(day.lowC)),
+                        TableCell(translate(day.condition.description), day.condition.emoji),
+                        TableCell("${day.precipPct}%")
+                    )
+                }
+            )
+        )
+    }
+
     add("")
     add("## ${s(R.string.readme_h_conditions)}")
     add(
@@ -96,28 +156,6 @@ fun WeatherReport.toReadmeMarkdown(
     )
     add("${s(R.string.readme_daylight)}: ${astronomical.daylightDuration.hhMm()}")
     add("${s(R.string.readme_moon)}: ${status(astronomical.moonPhase.label, astronomical.moonPhase.emoji)}")
-
-    if (daily.isNotEmpty()) {
-        add("")
-        add("## ${s(R.string.readme_h_forecast)}")
-        val header = listOf(
-            s(R.string.readme_t_day), s(R.string.readme_t_high), s(R.string.readme_t_low),
-            s(R.string.readme_t_status), s(R.string.readme_t_rain)
-        )
-        add(header.joinToString(" | ", "| ", " |"))
-        add(header.joinToString(" | ", "| ", " |") { "-".repeat(it.length.coerceAtLeast(3)) })
-        daily.forEach { day ->
-            add(
-                listOf(
-                    day.date.dayOfWeek.shortName(locale),
-                    tempInt(day.highC),
-                    tempInt(day.lowC),
-                    status(day.condition.description, day.condition.emoji),
-                    "${day.precipPct}%"
-                ).joinToString(" | ", "| ", " |")
-            )
-        }
-    }
 
     add("")
     add("## ${s(R.string.readme_h_status)}")
@@ -161,6 +199,15 @@ fun WeatherReport.toReadmeMarkdown(
         .format(ClockTime)
     add("*${s(R.string.readme_footer, lastSync)}*")
 }
+
+/**
+ * Hours in `## Next hours`. Twelve is the app's own horizon — the AlertEngine looks
+ * 12h ahead for severe weather and the rules language namespaces its aggregates as
+ * `next_12h.*` — so the table and the `## Status` badge underneath describe the same
+ * window. Past it the daily table takes over: no sampling, no overlap, no lying
+ * about which hour it rains.
+ */
+private const val HourlyRows = 12
 
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 

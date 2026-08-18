@@ -22,6 +22,7 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
  * - blockquotes: diff-deletion red — README.md only uses them for `## Status`
  *   warnings, the repo's "failing badge"
  * - tables: pipes and separator rows in comment gray, cell text as body text
+ *   (the rows arrive already padded to their column widths — see `MarkdownTable`)
  * - `**bold**` keeps its asterisks (source view) with the inner text bold
  * - full-line `*italics*` (the footer) in comment gray, italic
  * - `<!-- -->` HTML comments in comment gray, markdown's `//`
@@ -115,9 +116,9 @@ private fun MarkdownSyntaxPreview() {
             "## Current",
             "**34.2°C** · Clear ☀️",
             "",
-            "| Day | High | Low |",
-            "| --- | ---- | --- |",
-            "| Mon | 34° | 24° |",
+            "| Day | High | Low | Status   |",
+            "| --- | ---: | --: | -------- |",
+            "| Mon |  34° | 24° | Clear ☀️ |",
             "",
             "## Status",
             "> ⚠️ Thunderstorm ⛈️ expected around 18:00",

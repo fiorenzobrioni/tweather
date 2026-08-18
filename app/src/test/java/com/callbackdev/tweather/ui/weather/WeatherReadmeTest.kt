@@ -51,7 +51,7 @@ class WeatherReadmeTest {
         assertEquals(
             listOf(
                 "# New York", "## Current", "## Today", "## Next hours",
-                "## Conditions", "## Air quality", "## Astronomy", "## Forecast",
+                "## Forecast", "## Conditions", "## Air quality", "## Astronomy",
                 "## Status"
             ),
             headings
@@ -198,8 +198,8 @@ class WeatherReadmeTest {
         assertTrue("## Prossime ore" in lines)
         assertTrue("| Ora   | Temp | Stato | Pioggia |" in lines)
         assertTrue("| 15:00 |  19° |    ☀️ |      0% |" in lines)
-        assertTrue("| Giorno | Max | Min | Stato                    | Pioggia |" in lines)
-        assertTrue("| Mar    | 18° | 11° | Pioggia               🌧️ |     85% |" in lines)
+        assertTrue("| Gg  | Max | Min | Stato                    | Pioggia |" in lines)
+        assertTrue("| Mar | 18° | 11° | Pioggia               🌧️ |     85% |" in lines)
         assertTrue("Tutto regolare." in lines)
         assertTrue(lines.any { it.startsWith("*Aggiornato alle 09:30") })
     }

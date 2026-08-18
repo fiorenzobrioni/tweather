@@ -65,10 +65,11 @@ fun WeatherReport.toReadmeMarkdown(
     }
     add("${s(R.string.readme_uv)}: ${current.uvIndex} (${translate(current.uvDescription)})")
 
-    // Straight after Today, before every detail section: the hourly forecast is the
-    // first thing a weather app is opened for. No description column — at hourly
-    // resolution it repeats itself, and the emoji alone keeps the table narrow
-    // enough to read without panning in either language.
+    // Both forecasts sit straight after Today, before every detail section: they are
+    // what a weather app is opened for, and the hours read into the days without a
+    // page of conditions and pollen in between. The hourly table carries no
+    // description column — at hourly resolution it repeats itself, and the emoji
+    // alone keeps the table narrow enough to read without panning in either language.
     val nextHours = hourly.take(HourlyRows)
     if (nextHours.isNotEmpty()) {
         add("")
@@ -87,6 +88,31 @@ fun WeatherReport.toReadmeMarkdown(
                         TableCell(tempInt(hour.tempC)),
                         TableCell.icon(hour.condition.emoji),
                         TableCell("${hour.precipChancePct}%")
+                    )
+                }
+            )
+        )
+    }
+
+    if (daily.isNotEmpty()) {
+        add("")
+        add("## ${s(R.string.readme_h_forecast)}")
+        addAll(
+            markdownTable(
+                columns = listOf(
+                    TableColumn(s(R.string.readme_t_day)),
+                    TableColumn(s(R.string.readme_t_high), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_low), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_status)),
+                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT)
+                ),
+                rows = daily.map { day ->
+                    listOf(
+                        TableCell(day.date.dayOfWeek.shortName(locale)),
+                        TableCell(tempInt(day.highC)),
+                        TableCell(tempInt(day.lowC)),
+                        TableCell(translate(day.condition.description), day.condition.emoji),
+                        TableCell("${day.precipPct}%")
                     )
                 }
             )
@@ -130,31 +156,6 @@ fun WeatherReport.toReadmeMarkdown(
     )
     add("${s(R.string.readme_daylight)}: ${astronomical.daylightDuration.hhMm()}")
     add("${s(R.string.readme_moon)}: ${status(astronomical.moonPhase.label, astronomical.moonPhase.emoji)}")
-
-    if (daily.isNotEmpty()) {
-        add("")
-        add("## ${s(R.string.readme_h_forecast)}")
-        addAll(
-            markdownTable(
-                columns = listOf(
-                    TableColumn(s(R.string.readme_t_day)),
-                    TableColumn(s(R.string.readme_t_high), TableAlign.RIGHT),
-                    TableColumn(s(R.string.readme_t_low), TableAlign.RIGHT),
-                    TableColumn(s(R.string.readme_t_status)),
-                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT)
-                ),
-                rows = daily.map { day ->
-                    listOf(
-                        TableCell(day.date.dayOfWeek.shortName(locale)),
-                        TableCell(tempInt(day.highC)),
-                        TableCell(tempInt(day.lowC)),
-                        TableCell(translate(day.condition.description), day.condition.emoji),
-                        TableCell("${day.precipPct}%")
-                    )
-                }
-            )
-        )
-    }
 
     add("")
     add("## ${s(R.string.readme_h_status)}")

@@ -102,7 +102,10 @@
     <string name="readme_moon">Luna</string>
     <string name="readme_t_hour">Ora</string>
     <string name="readme_t_temp">Temp</string>
-    <string name="readme_t_day">Giorno</string>
+    <!-- Intestazione a 3 caratteri: "gg" è l'abbreviazione italiana di giorno
+         (gg/mm/aaaa) e non collide con nessun nome di giorno, a differenza di "Gio".
+         Tenerla corta è ciò che fa entrare la colonna Stato nello schermo. -->
+    <string name="readme_t_day">Gg</string>
     <string name="readme_t_high">Max</string>
     <string name="readme_t_low">Min</string>
     <string name="readme_t_status">Stato</string>

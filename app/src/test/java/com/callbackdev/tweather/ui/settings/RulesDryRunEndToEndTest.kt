@@ -193,10 +193,19 @@ class RulesDryRunEndToEndTest {
     fun `a firing rule produces an interpolated notify line, not a crash`() = runBlocking {
         ruleStore.add() // template: next_6h.precip_chance_max >= 60 → passes at 30%
         val template = ruleStore.rules.first().single()
-        viewModel.cycleOp(template, 0) // >= is followed by < in the cycle
-        withTimeout(10_000) {
-            ruleStore.rules.first { it.single().conditions.single().op == RuleOp.LT }
-        }
+        // `>=` → `<` with a suspend write this test can *await*. It used to go through
+        // viewModel.cycleOp() and then wait for the change to surface on the store's
+        // flow (`first { op == LT }`, 10s budget): cycleOp is fire-and-forget on
+        // viewModelScope, so that wait polled a DataStore round-trip driven by nobody,
+        // and on a loaded CI runner it hung once and reddened the gate (ago 2026).
+        // The op cycle is not what this test is about — it is covered by
+        // RulesScreenTest — here it is setup, and setup must be deterministic.
+        ruleStore.update(
+            template.copy(
+                conditions = listOf(template.conditions.single().copy(op = RuleOp.LT))
+            )
+        )
+        assertEquals(RuleOp.LT, ruleStore.rules.first().single().conditions.single().op)
 
         viewModel.runRules()
         val done = awaitDryRun()

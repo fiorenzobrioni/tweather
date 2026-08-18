@@ -36,7 +36,7 @@ import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
 import com.callbackdev.tweather.ui.components.EditorOptions
-import com.callbackdev.tweather.ui.components.EditorTab
+import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.LocalEditorOptions
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.StatusBarText
@@ -186,7 +186,9 @@ fun WidgetConfigScreen(
                 .statusBarsPadding()
                 .navigationBarsPadding()
         ) {
-            EditorTab(fileName = "widget.config")
+            // Same one-element tab strip as cities.json: the active indicator is part
+            // of the chrome, and a second widget file would slot in here as-is.
+            EditorTabs(fileNames = listOf("widget.config"), activeIndex = 0, onSelect = {})
             CodeCanvas(
                 lines = lines,
                 modifier = Modifier

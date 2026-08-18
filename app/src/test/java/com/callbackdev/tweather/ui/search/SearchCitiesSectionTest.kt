@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.search
 
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -110,5 +111,12 @@ class SearchCitiesSectionTest {
         )
         compose.onAllNodesWithText("[rm]")[1].performClick()
         assertEquals(turin, removed)
+    }
+
+    /** Fase 11b: the open file carries the active indicator like every other screen. */
+    @Test
+    fun `the open file renders as a selected tab`() {
+        setScreen(CitiesUiState(cities = listOf(milan), activeCity = milan))
+        compose.onNodeWithText("cities.json").assertIsSelected()
     }
 }

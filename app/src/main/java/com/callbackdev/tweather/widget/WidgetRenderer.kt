@@ -162,7 +162,7 @@ object WidgetRenderer {
             Intent(context, MainActivity::class.java)
                 // SINGLE_TOP is what makes CLEAR_TOP resume the running activity: without
                 // it a launchMode=standard MainActivity is finished and rebuilt, replaying
-                // the splash and dropping the user back on Explorer.
+                // the splash and dropping the user back on the editor tab.
                 .addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK or
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or

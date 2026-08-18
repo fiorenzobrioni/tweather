@@ -26,65 +26,25 @@ import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 
 /**
- * Editor-style top bar: terminal prompt glyph + active file name in primary, 48dp
- * tall, flat with a 1px bottom border (mockup TopAppBar). [actions] land on the right.
- * Border in `syntax.border` like the nav and status bars — DESIGN.md wants one
- * color for all structural separation, and this bar is the same chrome.
+ * Editor-style top bar: terminal prompt glyph + one tappable tab per open file,
+ * 48dp tall, flat with a 1px bottom border (mockup TopAppBar). Border in
+ * `syntax.border` like the nav and status bars — DESIGN.md wants one color for all
+ * structural separation, and this bar is the same chrome. Active tab in primary with
+ * a 2px bottom indicator (the nav bar's active treatment); inactive tabs in comment
+ * gray. Tabs scroll horizontally when the file names outgrow a narrow screen.
+ * [actions] land pinned on the right, outside the scrolling tab strip. (The main
+ * screen's `$ ls cities/` lived there in Fase 10; gone since 10b — a pinned action
+ * steals fixed width from the strip and truncates the file names.)
  *
  * File name at bodyMedium + bold on every screen (post-9h, decided with the
  * committente): the tab bar is chrome, not content, and once the Logs grew a real
  * two-tab bar at 14sp the 24sp single-file titles clashed on every tab switch.
- */
-@Composable
-fun EditorTab(
-    fileName: String,
-    modifier: Modifier = Modifier,
-    actions: @Composable RowScope.() -> Unit = {}
-) {
-    val borderColor = TweatherTheme.syntax.border
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            // min instead of fixed: 48dp normally, grows with the system font scale
-            .heightIn(min = 48.dp)
-            .background(MaterialTheme.colorScheme.background)
-            .drawBehind {
-                drawLine(
-                    color = borderColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx()
-                )
-            }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = ">_",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primaryContainer
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = fileName,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.weight(1f))
-        actions()
-    }
-}
-
-/**
- * Multi-file variant of [EditorTab] (Fase 9h, Logs): the same 48dp chrome but with
- * one tappable tab per open file, like a real editor. Active tab in primary with a
- * 2px bottom indicator (the nav bar's active treatment); inactive tabs in comment
- * gray. Tabs scroll horizontally when two file names outgrow a narrow screen.
- * [actions] land pinned on the right, outside the scrolling tab strip. (The main
- * screen's `$ ls cities/` lived there in Fase 10; gone since 10b — a pinned action
- * steals fixed width from the strip and truncates the file names.)
+ *
+ * Single-file screens (`cities.json`, `widget.config`) pass a one-element list
+ * rather than a plainer bar of their own (pre-v1): they were the only two places
+ * where the open file had no indicator under it, which read as a different kind of
+ * chrome on every switch into them. A one-element strip also means those screens
+ * grow a second file without touching their layout.
  */
 @Composable
 fun EditorTabs(
@@ -166,9 +126,9 @@ fun EditorTabs(
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)
 @Composable
-private fun EditorTabPreview() {
+private fun EditorTabSingleFilePreview() {
     TweatherTheme {
-        EditorTab(fileName = "weather_data.json")
+        EditorTabs(fileNames = listOf("cities.json"), activeIndex = 0, onSelect = {})
     }
 }
 

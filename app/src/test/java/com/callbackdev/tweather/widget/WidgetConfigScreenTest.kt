@@ -2,6 +2,7 @@ package com.callbackdev.tweather.widget
 
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -189,5 +190,12 @@ class WidgetConfigScreenTest {
 
         compose.onNodeWithText("\"source\": \"active_file\",").assertExists()
         onEntry(entry("active_file", hint = "// selected"))
+    }
+
+    /** Fase 11b: the open file carries the active indicator like every other screen. */
+    @Test
+    fun theOpenFileRendersAsASelectedTab() {
+        setScreen()
+        compose.onNodeWithText("widget.config").assertIsSelected()
     }
 }

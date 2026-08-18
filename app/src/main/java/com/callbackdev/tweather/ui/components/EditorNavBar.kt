@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
@@ -112,13 +112,19 @@ fun EditorNavBar(
     }
 }
 
-/** The app's four tabs, in mockup order and with the mockup's glyph choices. */
+/**
+ * The app's four tabs, in mockup order and with the mockup's glyph choices — with
+ * one deliberate deviation (pre-v1): the first tab was "Explorer" behind a file-tree
+ * glyph, which since Fase 10b promised a tree that no longer exists (`cities/` moved
+ * into the Cerca tab). It is an open editor, so it says so, behind the `{ }` of the
+ * file it opens. Its route stays "explorer" — that string is state, not a label.
+ */
 object EditorNavItems {
-    val Explorer = EditorNavItem("explorer", R.string.nav_explorer, Icons.Filled.AccountTree)
+    val Editor = EditorNavItem("explorer", R.string.nav_editor, Icons.Filled.DataObject)
     val Search = EditorNavItem("search", R.string.nav_search, Icons.Filled.Search)
     val Settings = EditorNavItem("settings", R.string.nav_settings, Icons.Filled.Code)
     val Logs = EditorNavItem("logs", R.string.nav_logs, Icons.Filled.Terminal)
-    val All = listOf(Explorer, Search, Settings, Logs)
+    val All = listOf(Editor, Search, Settings, Logs)
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)
@@ -127,7 +133,7 @@ private fun EditorNavBarPreview() {
     TweatherTheme {
         EditorNavBar(
             items = EditorNavItems.All,
-            isSelected = { it == EditorNavItems.Explorer },
+            isSelected = { it == EditorNavItems.Editor },
             onSelect = {}
         )
     }

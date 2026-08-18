@@ -34,9 +34,10 @@ import com.callbackdev.tweather.ui.weather.WeatherScreen
 /**
  * App shell: NavHost above the editor-style bottom bar, one destination per tab.
  * Since Fase 10b the city list lives inside the Cerca tab (`cities.json`), so the
- * Explorer tab is just the open editor — no nested graph. Tab switches save and
+ * first tab is just the open editor — no nested graph. Tab switches save and
  * restore each stack (`saveState`/`restoreState`). The editor keeps the route name
- * "explorer": it is the nav bar item's selection key.
+ * "explorer" even though the tab is now labelled Editor: the route is the nav bar
+ * item's selection key and the saved-stack key, never a user-visible string.
  */
 object Routes {
     const val Editor = "explorer"

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `cities.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-All four screens, the home widget and the per-city `README.md` tab are implemented (see `PLANNING.md`, phases 0 through 10b); Fase 11 ("Weather CI": user-defined notification rules in `alerts.rules`, a second file behind the Settings tab bar) is implemented pending on-device verification; what remains after that is Fase 12, release. Design artifacts and specifications:
+All four screens, the home widget, the per-city `README.md` tab and Fase 11's "Weather CI" (user-defined notification rules in `alerts.rules`, a second file behind the Settings tab bar) are implemented and verified on device (see `PLANNING.md`, phases 0 through 11b). Feature work is closed: Fase 11b was a pre-v1 restyling pass (no new features) and what remains is Fase 12, release. Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.
@@ -50,7 +50,7 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 
 ## App structure (per the PRD)
 
-Four screens, each presented as a fake "file" behind a bottom navigation bar (Explorer / Search / Settings / Logs):
+Four screens, each presented as a fake "file" behind a bottom navigation bar (Editor / Search / Settings / Logs — the first tab was labelled "Explorer" behind a file-tree glyph until Fase 11b; its nav route is still `"explorer"`):
 
 1. **Main editor** (`weather_data.json` + `README.md`) — live weather rendered as formatted JSON with syntax highlighting and a line-number gutter; refresh via a glowing FAB. A second editor tab (Fase 10) shows the city's `README.md`: the human summary as highlighted markdown *source*, fully localized (headings included — it's prose, the keys-stay-English rule doesn't apply), with `## Status` fed statelessly by the AlertEngine. The active tab persists in the `workspace` DataStore (editor workspace state, deliberately not a `settings.config` key). The `⎇ <city>` in the status bar is tappable (VS Code's branch switcher) and jumps to `cities.json`.
 2. **Search / cities** (`cities.json`, Fase 10b — it absorbed the old `cities/` Explorer screen) — the input field is the `"search_term"` JSON property; geocoding results while typing; `"saved_cities"` is the array of saved cities as fake filenames (GPS entry `current_location.json` pinned in tertiary, active city in primary + `// active`, removal via `[rm]`); recent searches as a JSON array.

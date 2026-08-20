@@ -337,10 +337,15 @@ Richiesta del committente (ago 2026), estensione naturale della 11e al tab gemel
 
 ## Fase 12 — Release
 
-- [ ] Configurare signing config e build release (R8/ProGuard, regole per Retrofit/serialization) — **la firma va sostituita**: oggi la release è non firmata di default e la CI la firma con la chiave di debug committata solo per poterla installare e provare (`-PsignReleaseWithDebugKey`); serve un keystore vero da GitHub Secrets
-- [ ] Screenshot e testi per lo store
-- [ ] Versione 1.0.0, tag git e changelog
-- [ ] (Opzionale) CI: build + test su push
+Decisioni di apertura (ago 2026), condivise col committente: **pubblicazione solo su GitHub** per ora (niente account sviluppatore Play; il Play Store resta un capitolo futuro — stessa chiave come upload key, si caricherà un AAB), nella release va **il solo APK release firmato con la chiave vera** più il `mapping.txt` R8 (gli artifact di CI scadono a 30 giorni, la mappa di una versione pubblicata serve per sempre; col sorgente pubblico non nasconde nulla). Keystore reale generato dal committente con `keytool` (RSA 4096, 30 anni, alias `tweather`), custodito FUORI dal repo in `C:\Fiorenzo\keys\` con backup nel password manager; stessa operazione fatta in parallelo per tsteps (e chiavi già pronte per saldo e snake).
+
+- [x] Signing config reale: la `release` signingConfig nasce solo se le 4 proprietà `TWEATHER_*` sono valorizzate (da `~/.gradle/gradle.properties` in locale, da `ORG_GRADLE_PROJECT_*`/GitHub Secrets in CI) e vince sempre quando c'è; il flag `-PsignReleaseWithDebugKey` resta per la CI per-push, il checkout non configurato resta non firmato. `*.jks` in `.gitignore` per cintura di sicurezza. R8/ProGuard erano già a posto dalla fase della CI.
+- [x] Workflow `release.yml` su tag `v*`: test + lint (una suite rossa non pubblica), APK firmato con la chiave vera, GitHub Release automatica con APK e mapping rinominati sul tag (`tweather-v1.0.0.apk`)
+- [ ] Secrets sul repo GitHub (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) — li carica il committente via `gh secret set`
+- [ ] Verifica firma in locale: password compilate in `~/.gradle/gradle.properties`, `assembleRelease` produce `app-release.apk` firmato con la chiave vera (nota: il primo APK con la firma nuova richiede disinstallazione di quello debug-signed sul device)
+- [ ] Versione 1.0.0 (versionCode/versionName), tag `v1.0.0` e changelog → prima GitHub Release dal workflow
+- [ ] Pagina release e README curati al posto di "screenshot e testi per lo store" (gli screenshot in repo ci sono già)
+- [x] CI build + test su push — già chiusa dalla fase che ha introdotto `android-ci.yml`
 
 ---
 

@@ -344,7 +344,7 @@ Decisioni di apertura (ago 2026), condivise col committente: **pubblicazione sol
 - [x] Secrets sul repo GitHub (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) — caricati dal committente via `gh secret set` (ago 2026), stessi nomi su tsteps
 - [x] Verifica firma in locale: password compilate in `~/.gradle/gradle.properties`, `assembleRelease` produce `app-release.apk` firmato con la chiave vera — certificato controllato con apksigner (`CN=callbackdev`, chiave distinta da tsteps). Nota: il primo APK con la firma nuova richiede disinstallazione di quello debug-signed sul device
 - [x] README curato al posto di "screenshot e testi per lo store": sezione Install che punta alla latest release (con l'avviso di Android spiegato), link al changelog, paragrafo sul workflow di release; la pagina release la compone il workflow (APK + mapping + note generate)
-- [ ] Versione 1.0.0 (`versionName` in questa PR, `versionCode` resta 1) e `CHANGELOG.md`; dopo il merge, tag `v1.0.0` su main → prima GitHub Release dal workflow, da verificare (APK scaricabile, firma, mapping allegato)
+- [x] Versione 1.0.0 (`versionName`; `versionCode` resta 1) e `CHANGELOG.md`; tag `v1.0.0` su main → **prima GitHub Release pubblicata dal workflow** (20 ago 2026): `tweather-v1.0.0.apk` + `mapping-v1.0.0.txt` allegati, APK riscaricato e firma verificata con apksigner — stesso SHA-256 del certificato della chiave vera. **Fase 12 chiusa, v1.0.0 fuori.**
 - [x] CI build + test su push — già chiusa dalla fase che ha introdotto `android-ci.yml`
 
 ---

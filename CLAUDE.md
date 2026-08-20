@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **tweather** is a planned Android weather app (Kotlin 1.9+ / Jetpack Compose Material 3) whose entire UI mimics a code editor: weather data is rendered as syntax-highlighted "files" (`weather_data.json`, `cities.json`, `settings.config`, `weather_history.diff`) with line numbers, editor tabs, and a terminal aesthetic inspired by Obsidian/VS Code.
 
-All four screens, the home widget, the per-city `README.md` tab and Fase 11's "Weather CI" (user-defined notification rules in `alerts.rules`, a second file behind the Settings tab bar) are implemented and verified on device (see `PLANNING.md`, phases 0 through 11b). Feature work is closed: Fase 11b was a pre-v1 restyling pass (no new features) and what remains is Fase 12, release. Design artifacts and specifications:
+All four screens, the home widget, the per-city `README.md` tab and Fase 11's "Weather CI" (user-defined notification rules in `alerts.rules`, a second file behind the Settings tab bar) are implemented and verified on device (see `PLANNING.md`, phases 0 through 11b). Feature work is closed: Fase 11b was a pre-v1 restyling pass (no new features) and Fase 12 shipped **v1.0.0** as a GitHub Release (tag `v1.0.0`, 20 Aug 2026 — APK signed with the real key + R8 mapping, published automatically by `release.yml`). Design artifacts and specifications:
 
 - `tweather_comprehensive_project_prd_final.md` — the PRD; the source of truth for features, screens, and colors.
 - `obsidian_syntax/DESIGN.md` — the full design system ("Obsidian Syntax" theme): Material 3 color tokens (YAML frontmatter), typography scale, spacing, and component specs.

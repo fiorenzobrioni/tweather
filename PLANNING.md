@@ -341,10 +341,10 @@ Decisioni di apertura (ago 2026), condivise col committente: **pubblicazione sol
 
 - [x] Signing config reale: la `release` signingConfig nasce solo se le 4 proprietà `TWEATHER_*` sono valorizzate (da `~/.gradle/gradle.properties` in locale, da `ORG_GRADLE_PROJECT_*`/GitHub Secrets in CI) e vince sempre quando c'è; il flag `-PsignReleaseWithDebugKey` resta per la CI per-push, il checkout non configurato resta non firmato. `*.jks` in `.gitignore` per cintura di sicurezza. R8/ProGuard erano già a posto dalla fase della CI.
 - [x] Workflow `release.yml` su tag `v*`: test + lint (una suite rossa non pubblica), APK firmato con la chiave vera, GitHub Release automatica con APK e mapping rinominati sul tag (`tweather-v1.0.0.apk`)
-- [ ] Secrets sul repo GitHub (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) — li carica il committente via `gh secret set`
-- [ ] Verifica firma in locale: password compilate in `~/.gradle/gradle.properties`, `assembleRelease` produce `app-release.apk` firmato con la chiave vera (nota: il primo APK con la firma nuova richiede disinstallazione di quello debug-signed sul device)
-- [ ] Versione 1.0.0 (versionCode/versionName), tag `v1.0.0` e changelog → prima GitHub Release dal workflow
-- [ ] Pagina release e README curati al posto di "screenshot e testi per lo store" (gli screenshot in repo ci sono già)
+- [x] Secrets sul repo GitHub (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) — caricati dal committente via `gh secret set` (ago 2026), stessi nomi su tsteps
+- [x] Verifica firma in locale: password compilate in `~/.gradle/gradle.properties`, `assembleRelease` produce `app-release.apk` firmato con la chiave vera — certificato controllato con apksigner (`CN=callbackdev`, chiave distinta da tsteps). Nota: il primo APK con la firma nuova richiede disinstallazione di quello debug-signed sul device
+- [x] README curato al posto di "screenshot e testi per lo store": sezione Install che punta alla latest release (con l'avviso di Android spiegato), link al changelog, paragrafo sul workflow di release; la pagina release la compone il workflow (APK + mapping + note generate)
+- [ ] Versione 1.0.0 (`versionName` in questa PR, `versionCode` resta 1) e `CHANGELOG.md`; dopo il merge, tag `v1.0.0` su main → prima GitHub Release dal workflow, da verificare (APK scaricabile, firma, mapping allegato)
 - [x] CI build + test su push — già chiusa dalla fase che ha introdotto `android-ci.yml`
 
 ---

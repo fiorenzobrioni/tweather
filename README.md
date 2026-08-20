@@ -271,6 +271,18 @@ last position you acquired while the app was open, and nothing else.
 
 ---
 
+## Install
+
+Download the APK from the [latest release](https://github.com/fiorenzobrioni/tweather/releases/latest)
+and open it on the phone (Android 13 or newer). Android warns before installing
+anything from outside a store: expected, since this comes from GitHub. Every release is
+signed with the project's release key, so each version installs over the previous one
+without losing your cities or settings.
+
+Changes per version are in the [changelog](CHANGELOG.md).
+
+---
+
 ## Build
 
 Requires JDK 21. No signing setup, no API key, no local properties: clone and build.
@@ -296,6 +308,10 @@ exists so a store artifact can never be produced with it by accident.
 CI runs the tests and lint **before** the builds, so a red suite never produces an
 installable artifact. Every push uploads the debug APK, the release APK and the R8
 mapping.
+
+Published releases are a separate workflow: a `v*` tag builds the APK signed with the
+real release key (kept outside the repo, injected through GitHub Secrets) and publishes
+it as a GitHub Release together with the R8 mapping for that exact build.
 
 ---
 

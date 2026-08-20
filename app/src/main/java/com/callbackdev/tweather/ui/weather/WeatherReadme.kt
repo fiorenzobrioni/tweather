@@ -20,8 +20,9 @@ import kotlin.math.roundToInt
  * `show_details` toggle, which governs the JSON's technical fields: the hourly
  * forecast is here too (Fase 11c — it is the most consulted forecast there is, and
  * what the JSON was found to get wrong was its POSITION, not its presence),
- * compressed to the next [HourlyRows] hours. The full 24-hour run, technical
- * fields included, stays the JSON's.
+ * compressed to [HourlyRows] hours starting from the NEXT full hour (Fase 11e —
+ * the current hour is `## Current`'s job, rain probability included). The full
+ * 24-hour run, technical fields included, stays the JSON's.
  *
  * Both tables are [markdownTable]s: columns padded to their widest cell, numbers
  * right-aligned, exactly one emoji per cell against the cell's left edge with the
@@ -57,7 +58,14 @@ fun WeatherReport.toReadmeMarkdown(
     add("")
     add("## ${s(R.string.readme_h_current)}")
     add("**${temp(current.tempC)}** · ${status(current.condition.description, current.condition.emoji)}")
-    add("${s(R.string.readme_feels_like)}: ${temp(current.feelsLikeC)}")
+    // Rain probability of the CURRENT hour (the mapper reads it off the same hourly
+    // slot the table's dropped first row came from — see below), on the feels-like
+    // line rather than its own: Current stays a two-line glance. Same table
+    // vocabulary (`readme_t_rain`), so "Pioggia" means one thing across the page.
+    add(
+        "${s(R.string.readme_feels_like)}: ${temp(current.feelsLikeC)} · " +
+            "${s(R.string.readme_t_rain)}: ${current.precipitation.chancePct}%"
+    )
 
     add("")
     add("## ${s(R.string.readme_h_today)}")
@@ -77,7 +85,12 @@ fun WeatherReport.toReadmeMarkdown(
     // had no description at all — the committente found the emoji alone ambiguous,
     // and the repetition down the rows is itself information: it shows WHEN the
     // weather turns.
-    val nextHours = hourly.take(HourlyRows)
+    //
+    // The first hourly slot is dropped (Fase 11e): it is the hour we are IN, already
+    // told by `## Current` right above — at 08:44 a "08:00" row is a duplicate of
+    // the section AND mostly elapsed. The table reads +1h..+[HourlyRows]h, seamless
+    // with Current covering now.
+    val nextHours = hourly.drop(1).take(HourlyRows)
     if (nextHours.isNotEmpty()) {
         add("")
         add("## ${s(R.string.readme_h_hourly)}")
@@ -208,13 +221,15 @@ fun WeatherReport.toReadmeMarkdown(
 }
 
 /**
- * Hours in `## Next hours`. Twelve is the app's own horizon — the AlertEngine looks
- * 12h ahead for severe weather and the rules language namespaces its aggregates as
- * `next_12h.*` — so the table and the `## Status` badge underneath describe the same
- * window. Past it the daily table takes over: no sampling, no overlap, no lying
- * about which hour it rains.
+ * Hours in `## Next hours`, counted from the hour AFTER the current one. Fourteen is
+ * the committente's call (Fase 11e): a morning glance reaches the evening — at 08:00
+ * the table runs to 22:00. It knowingly gives up the 12h symmetry with the
+ * AlertEngine/`next_12h.*` horizon that 11c argued for; the committente's counter
+ * was decisive: the JSON tab shows 24 hours and never had that symmetry either.
+ * Past the window the daily table takes over: no sampling, no lying about which
+ * hour it rains.
  */
-private const val HourlyRows = 12
+private const val HourlyRows = 14
 
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 

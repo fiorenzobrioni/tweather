@@ -93,10 +93,14 @@ field at the end of a log line: the numbers stay on screen, and when a long Ital
 description outgrows the display it clips without hiding anything ("Temporale con
 grand" still reads as hail). The emoji leads precisely so the sky survives the clip.
 
-Twelve hours, not twenty-four: that is the horizon the rest of the app works in, and a
-second full dump would erase the difference between the two tabs. The whole page is
-translated, headings included. That is not a contradiction of the keys-stay-English
-rule below, because this file is prose, not code.
+Fourteen hours, starting from the hour after the current one. The hour you are in is
+already covered by `## Current`, rain probability included on its feels-like line, so
+repeating it as the first row would say the same thing twice; and fourteen means a
+morning glance reaches the evening (open the app at 08:00 and the table runs to
+22:00). A second full dump of all twenty-four hours would erase the difference
+between the two tabs. The whole page is translated, headings included. That is not a
+contradiction of the keys-stay-English rule below, because this file is prose, not
+code.
 
 ### `cities.json`: search and saved cities
 

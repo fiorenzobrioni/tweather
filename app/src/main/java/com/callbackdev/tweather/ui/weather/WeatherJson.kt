@@ -134,7 +134,10 @@ fun WeatherReport.toDisplayJson(
         put("daylight_duration", astronomical.daylightDuration.hhMm())
     }
     putJsonArray("hourly_forecast") {
-        hourly.forEach { h ->
+        // From the hour AFTER the current one (Fase 11f, like the README's table):
+        // slot 0 only repeats `current_conditions` right above. Still 24 rows — the
+        // mapper carries 25 so a full day survives the drop.
+        hourly.drop(1).forEach { h ->
             add(buildJsonObject {
                 put("time", h.time.format(ClockTime))
                 put("temp_$tempKey", temp(h.tempC).roundToInt())

@@ -26,7 +26,13 @@ import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
-private const val HOURLY_WINDOW = 24
+/**
+ * Hourly slots carried in the domain: the CURRENT hour first — slot 0 feeds
+ * `current_conditions`' rain chance and anchors AlertEngine/rules — plus the full
+ * day both tabs read from the hour after it (Fase 11f: the views drop slot 0, it
+ * only repeats the current section; the JSON still shows 24 rows, `+1h..+24h`).
+ */
+private const val HOURLY_WINDOW = 25
 private const val DAILY_WINDOW = 7
 
 object WeatherReportMapper {

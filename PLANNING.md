@@ -322,6 +322,19 @@ Richiesta del committente (ago 2026) sull'app in uso: la prima riga di `## Pross
 - [x] Docs: CLAUDE.md, README di root (paragrafo "Twelve hours" riscritto a 14), questa sezione
 - [ ] Verifica manuale su device: prima riga = ora successiva a quella corrente, `Pioggia: n%` in `## Attuale` coerente con l'ex prima riga, 14 righe
 
+## Fase 11f — Anche `hourly_forecast` nel JSON parte dall'ora successiva (24 righe piene)
+
+Richiesta del committente (ago 2026), estensione naturale della 11e al tab gemello: anche in `weather_data.json` la prima riga di `hourly_forecast` è lo slot dell'ora corrente, ridondante con `current_conditions` appena sopra (non *identica* — `current` è il blocco istantaneo di Open-Meteo, lo slot è la previsione dell'ora — ma stessa ora e stessa informazione, e `chance_pct` sta già in `current_conditions.precipitation`). Decisioni:
+
+- **`drop(1)` nel solo renderer JSON** (`WeatherJson.kt`), come nel README: il dominio resta ancorato all'ora corrente — slot 0 riempie `current_conditions.precipitation.chance_pct` nel mapper ed è il riferimento di AlertEngine e regole — quindi motori, dedup e Logs invariati.
+- **Variante a 24 righe piene** (scelta del committente tra 23 e 24): `HOURLY_WINDOW` nel mapper passa da 24 a **25** — l'ora corrente più il giorno intero che le viste mostrano da `+1h` — così `hourly_forecast` legge `+1h..+24h` senza accorciarsi. Room non persiste le orarie: nessun impatto su snapshot e diff.
+
+- [x] `WeatherReportMapper.kt`: `HOURLY_WINDOW = 25` con KDoc sul perché dello slot in più
+- [x] `WeatherJson.kt`: `hourly.drop(1)` in `hourly_forecast`
+- [x] Test: mapper a 25 slot (ultimo = stessa ora del giorno dopo), prima riga JSON = ora successiva (EN e imperiale); il test del clipping rinominato (il taglio non è più "sotto 24")
+- [x] Docs: CLAUDE.md e questa sezione (il README di root non quantifica le righe del JSON, nulla da toccare)
+- [ ] Verifica manuale su device: prima riga di `hourly_forecast` = ora successiva, 24 righe, `chance_pct` in `current_conditions` al posto della riga eliminata
+
 ## Fase 12 — Release
 
 - [ ] Configurare signing config e build release (R8/ProGuard, regole per Retrofit/serialization) — **la firma va sostituita**: oggi la release è non firmata di default e la CI la firma con la chiave di debug committata solo per poterla installare e provare (`-PsignReleaseWithDebugKey`); serve un keystore vero da GitHub Secrets

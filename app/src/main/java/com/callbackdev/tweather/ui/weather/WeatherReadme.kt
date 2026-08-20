@@ -19,12 +19,14 @@ import kotlin.math.roundToInt
  * stays the full data source. Curated summary by design, and independent of the
  * `show_details` toggle, which governs the JSON's technical fields: the hourly
  * forecast is here too (Fase 11c — it is the most consulted forecast there is, and
- * what the JSON was found to get wrong was its POSITION, not its presence), but
- * compressed to the next [HourlyRows] hours with the sky reduced to its emoji. The
- * full 24-hour run, descriptions and technical fields included, stays the JSON's.
+ * what the JSON was found to get wrong was its POSITION, not its presence),
+ * compressed to the next [HourlyRows] hours. The full 24-hour run, technical
+ * fields included, stays the JSON's.
  *
  * Both tables are [markdownTable]s: columns padded to their widest cell, numbers
- * right-aligned, exactly one emoji per cell against the cell's right edge.
+ * right-aligned, exactly one emoji per cell against the cell's left edge with the
+ * description after it, and the status column LAST (Fase 11d) — see the table
+ * comment below for why.
  *
  * FULLY localized, headings included — a README is prose, not code, so the
  * keys-stay-English rule doesn't apply (decided with the committente). Weather
@@ -67,9 +69,14 @@ fun WeatherReport.toReadmeMarkdown(
 
     // Both forecasts sit straight after Today, before every detail section: they are
     // what a weather app is opened for, and the hours read into the days without a
-    // page of conditions and pollen in between. The hourly table carries no
-    // description column — at hourly resolution it repeats itself, and the emoji
-    // alone keeps the table narrow enough to read without panning in either language.
+    // page of conditions and pollen in between. Both tables share one column plan
+    // (Fase 11d): the status — emoji first, description after — sits LAST, so the
+    // numeric columns never pan off-screen and a description that outgrows the
+    // display just clips ("Temporale con grand…" still reads); leading with the
+    // emoji keeps the sky legible at a glance even then. Until 11d the hourly table
+    // had no description at all — the committente found the emoji alone ambiguous,
+    // and the repetition down the rows is itself information: it shows WHEN the
+    // weather turns.
     val nextHours = hourly.take(HourlyRows)
     if (nextHours.isNotEmpty()) {
         add("")
@@ -79,15 +86,15 @@ fun WeatherReport.toReadmeMarkdown(
                 columns = listOf(
                     TableColumn(s(R.string.readme_t_hour)),
                     TableColumn(s(R.string.readme_t_temp), TableAlign.RIGHT),
-                    TableColumn(s(R.string.readme_t_status), TableAlign.RIGHT),
-                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT)
+                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_status))
                 ),
                 rows = nextHours.map { hour ->
                     listOf(
                         TableCell(hour.time.format(ClockTime)),
                         TableCell(tempInt(hour.tempC)),
-                        TableCell.icon(hour.condition.emoji),
-                        TableCell("${hour.precipChancePct}%")
+                        TableCell("${hour.precipChancePct}%"),
+                        TableCell(translate(hour.condition.description), hour.condition.emoji)
                     )
                 }
             )
@@ -103,16 +110,16 @@ fun WeatherReport.toReadmeMarkdown(
                     TableColumn(s(R.string.readme_t_day)),
                     TableColumn(s(R.string.readme_t_high), TableAlign.RIGHT),
                     TableColumn(s(R.string.readme_t_low), TableAlign.RIGHT),
-                    TableColumn(s(R.string.readme_t_status)),
-                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT)
+                    TableColumn(s(R.string.readme_t_rain), TableAlign.RIGHT),
+                    TableColumn(s(R.string.readme_t_status))
                 ),
                 rows = daily.map { day ->
                     listOf(
                         TableCell(day.date.dayOfWeek.shortName(locale)),
                         TableCell(tempInt(day.highC)),
                         TableCell(tempInt(day.lowC)),
-                        TableCell(translate(day.condition.description), day.condition.emoji),
-                        TableCell("${day.precipPct}%")
+                        TableCell("${day.precipPct}%"),
+                        TableCell(translate(day.condition.description), day.condition.emoji)
                     )
                 }
             )

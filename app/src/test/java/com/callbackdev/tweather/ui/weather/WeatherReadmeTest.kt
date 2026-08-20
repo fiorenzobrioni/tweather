@@ -20,8 +20,9 @@ import org.robolectric.annotation.Config
  * The README.md document (Fase 10): the human summary of weather_data.json,
  * FULLY localized (headings included — it's prose, not code), curated sections,
  * `## Status` as the repo's build badge via AlertEngine. Since Fase 11c both
- * tables are formatted (columns padded, emoji on the right edge) and the next
- * twelve hours are here too, compressed to hour, temperature, emoji and rain.
+ * tables are formatted (columns padded) and the next twelve hours are here too;
+ * since Fase 11d both tables end with the status column, emoji first and
+ * description after it, so the numeric columns never pan off-screen.
  */
 @RunWith(RobolectricTestRunner::class)
 class WeatherReadmeTest {
@@ -75,30 +76,30 @@ class WeatherReadmeTest {
         val forecast = readme().section("## Forecast")
         assertEquals(
             listOf(
-                "| Day | High | Low | Status           | Rain |",
-                "| --- | ---: | --: | ---------------- | ---: |",
-                "| Mon |  20° | 12° | Sunny         ☀️ |   0% |",
-                "| Tue |  18° | 11° | Rainy         🌧️ |  85% |",
-                "| Wed |  16° | 10° | Cloudy        ☁️ |  20% |",
-                "| Thu |  19° | 13° | Partly Cloudy ⛅ |  10% |"
+                "| Day | High | Low | Rain | Status           |",
+                "| --- | ---: | --: | ---: | ---------------- |",
+                "| Mon |  20° | 12° |   0% | ☀️ Sunny         |",
+                "| Tue |  18° | 11° |  85% | 🌧️ Rainy         |",
+                "| Wed |  16° | 10° |  20% | ☁️ Cloudy        |",
+                "| Thu |  19° | 13° |  10% | ⛅ Partly Cloudy |"
             ),
             forecast.filter { it.startsWith("|") }
         )
     }
 
     @Test
-    fun `the next hours are their own table, emoji only, right after today`() {
+    fun `the next hours are their own table, described like the days, right after today`() {
         val lines = readme()
         assertEquals("## Next hours", lines[lines.indexOf("## Today") + 5])
         assertEquals(
             listOf(
-                "| Hour  | Temp | Status | Rain |",
-                "| ----- | ---: | -----: | ---: |",
-                "| 15:00 |  19° |     ☀️ |   0% |",
-                "| 16:00 |  18° |     ☀️ |   0% |",
-                "| 17:00 |  17° |     ⛅ |   5% |",
-                "| 18:00 |  15° |     ⛅ |  10% |",
-                "| 19:00 |  14° |     🌙 |   0% |"
+                "| Hour  | Temp | Rain | Status           |",
+                "| ----- | ---: | ---: | ---------------- |",
+                "| 15:00 |  19° |   0% | ☀️ Sunny         |",
+                "| 16:00 |  18° |   0% | ☀️ Sunny         |",
+                "| 17:00 |  17° |   5% | ⛅ Partly Cloudy |",
+                "| 18:00 |  15° |  10% | ⛅ Partly Cloudy |",
+                "| 19:00 |  14° |   0% | 🌙 Clear         |"
             ),
             lines.section("## Next hours").filter { it.startsWith("|") }
         )
@@ -176,8 +177,8 @@ class WeatherReadmeTest {
     fun `units follow the display options like the JSON`() {
         val lines = readme(options = DisplayOptions(temperature = TemperatureUnit.FAHRENHEIT))
         assertTrue("**65.3°F** · Partly Cloudy ⛅" in lines)
-        assertTrue("| Mon |  68° | 54° | Sunny         ☀️ |   0% |" in lines)
-        assertTrue("| 15:00 |  66° |     ☀️ |   0% |" in lines)
+        assertTrue("| Mon |  68° | 54° |   0% | ☀️ Sunny         |" in lines)
+        assertTrue("| 15:00 |  66° |   0% | ☀️ Sunny         |" in lines)
         assertTrue(lines.none { "°C" in it })
     }
 
@@ -196,10 +197,10 @@ class WeatherReadmeTest {
         assertTrue("Percepita: 17.2°C" in lines)
         assertTrue("Max: 20°C · Min: 12°C" in lines)
         assertTrue("## Prossime ore" in lines)
-        assertTrue("| Ora   | Temp | Stato | Pioggia |" in lines)
-        assertTrue("| 15:00 |  19° |    ☀️ |      0% |" in lines)
-        assertTrue("| Gg  | Max | Min | Stato                    | Pioggia |" in lines)
-        assertTrue("| Mar | 18° | 11° | Pioggia               🌧️ |     85% |" in lines)
+        assertTrue("| Ora   | Temp | Pioggia | Stato                    |" in lines)
+        assertTrue("| 15:00 |  19° |      0% | ☀️ Sunny                 |" in lines)
+        assertTrue("| Gg  | Max | Min | Pioggia | Stato                    |" in lines)
+        assertTrue("| Mar | 18° | 11° |     85% | 🌧️ Pioggia               |" in lines)
         assertTrue("Tutto regolare." in lines)
         assertTrue(lines.any { it.startsWith("*Aggiornato alle 09:30") })
     }

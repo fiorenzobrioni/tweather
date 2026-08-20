@@ -7,8 +7,9 @@ import org.junit.Test
 /**
  * Pipe tables as a formatter would write them (Fase 11c): columns padded to their
  * widest cell, numbers right-aligned with the real `---:` marker, and emoji parked
- * against the right edge of their cell so that a glyph nobody can measure in
- * character cells still leaves the following pipe in column.
+ * against the left edge of their cell (right edge until Fase 11d) so that a glyph
+ * nobody can measure in character cells starts every description at the same
+ * offset and still leaves the closing pipe in column.
  */
 class MarkdownTableTest {
 
@@ -29,8 +30,8 @@ class MarkdownTableTest {
             listOf(
                 "| Day | High | Status           |",
                 "| --- | ---: | ---------------- |",
-                "| Mon |  20° | Sunny         ☀️ |",
-                "| Tue |   8° | Partly Cloudy ⛅ |"
+                "| Mon |  20° | ☀️ Sunny         |",
+                "| Tue |   8° | ⛅ Partly Cloudy |"
             ),
             markdownTable(columns, rows)
         )
@@ -38,29 +39,30 @@ class MarkdownTableTest {
 
     @Test
     fun `an emoji is measured as two cells, never by its UTF-16 length`() {
-        // One glyph each, but 2, 1 and 3 UTF-16 units: measuring the rendered string
-        // would stagger the column by the width of the encoding.
+        // One glyph each, but 2, 1 and 3 UTF-16 units: measuring the encoded string
+        // would give each row a different gap and stagger the closing pipe.
         val emojis = listOf("☀️", "⛅", "🌧️")
         val lines = markdownTable(
             columns = listOf(TableColumn("Status")),
             rows = emojis.map { listOf(TableCell("Rain", it)) }
         ).drop(2)
 
-        val offsets = lines.mapIndexed { i, line -> line.indexOf(emojis[i]) }
-        assertEquals(listOf(offsets.first(), offsets.first(), offsets.first()), offsets)
+        assertTrue(lines.mapIndexed { i, line -> line.startsWith("| ${emojis[i]} ") }.all { it })
+        val tails = lines.mapIndexed { i, line -> line.substringAfter(emojis[i]) }
+        assertEquals(listOf(tails.first(), tails.first(), tails.first()), tails)
     }
 
     @Test
-    fun `an icon-only cell hugs the right edge of its column`() {
+    fun `an emoji cell leads with its glyph even in a right-aligned column`() {
         assertEquals(
             listOf(
                 "| Status |",
                 "| -----: |",
-                "|     ☀️ |"
+                "| ☀️ Hot |"
             ),
             markdownTable(
                 columns = listOf(TableColumn("Status", TableAlign.RIGHT)),
-                rows = listOf(listOf(TableCell.icon("☀️")))
+                rows = listOf(listOf(TableCell("Hot", "☀️")))
             )
         )
     }

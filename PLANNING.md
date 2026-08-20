@@ -320,7 +320,7 @@ Richiesta del committente (ago 2026) sull'app in uso: la prima riga di `## Pross
 - [x] `WeatherReadme.kt`: `drop(1).take(HourlyRows)`, `HourlyRows = 14` con KDoc riscritto, `Pioggia: n%` sulla riga della Percepita
 - [x] Test: golden EN/IT/°F sull'ora di partenza spostata e sulla riga Percepita; il test del taglio passa a 14 righe (16:00→05:00 su 24 generate); nuovo test: con la SOLA ora corrente in `hourly` la sezione è assente (è compito di `## Attuale`)
 - [x] Docs: CLAUDE.md, README di root (paragrafo "Twelve hours" riscritto a 14), questa sezione
-- [ ] Verifica manuale su device: prima riga = ora successiva a quella corrente, `Pioggia: n%` in `## Attuale` coerente con l'ex prima riga, 14 righe
+- [x] Verifica manuale su device — completata dal committente sull'APK di CI (ago 2026): prima riga = ora successiva a quella corrente, `Pioggia: n%` in `## Attuale` coerente con l'ex prima riga, 14 righe
 
 ## Fase 11f — Anche `hourly_forecast` nel JSON parte dall'ora successiva (24 righe piene)
 
@@ -333,7 +333,7 @@ Richiesta del committente (ago 2026), estensione naturale della 11e al tab gemel
 - [x] `WeatherJson.kt`: `hourly.drop(1)` in `hourly_forecast`
 - [x] Test: mapper a 25 slot (ultimo = stessa ora del giorno dopo), prima riga JSON = ora successiva (EN e imperiale); il test del clipping rinominato (il taglio non è più "sotto 24")
 - [x] Docs: CLAUDE.md e questa sezione (il README di root non quantifica le righe del JSON, nulla da toccare)
-- [ ] Verifica manuale su device: prima riga di `hourly_forecast` = ora successiva, 24 righe, `chance_pct` in `current_conditions` al posto della riga eliminata
+- [x] Verifica manuale su device — completata dal committente sull'APK di CI (ago 2026): prima riga di `hourly_forecast` = ora successiva, 24 righe, `chance_pct` in `current_conditions` al posto della riga eliminata
 
 ## Fase 12 — Release
 

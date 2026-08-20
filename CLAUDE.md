@@ -34,7 +34,7 @@ Stack: Kotlin 2.2 + Jetpack Compose (Material 3), Gradle 9.1 / AGP 8.13, version
 - Installable minified build: `./gradlew :app:assembleRelease -PsignReleaseWithDebugKey`
 - On this machine there is no system JDK: prepend `JAVA_HOME="/c/Program Files/Android/Android Studio/jbr"` (Android Studio's bundled JDK) to gradlew commands.
 
-**Debug signing**: `keystore/debug.keystore` is intentionally committed (alias `tweather-debug`, store/key password `android`) so debug APKs from CI and any machine share one signature and can update an existing install. Do not regenerate it.
+**Debug signing**: `keystore/debug.keystore` is intentionally committed (alias `tweather-debug`, store/key password `android`) so debug APKs from CI and any machine share one signature and can update an existing install. Do not regenerate it. Debug builds carry `applicationIdSuffix ".debug"` and the launcher label `tweather (dev)` (debug res overlay), so they install **side-by-side** with the release-signed app — series decision (Aug 2026), same as snake. The debug-signed *release* build (`-PsignReleaseWithDebugKey`) keeps the plain id: it exists for pre-release smoke tests, not for daily side-by-side testing.
 
 **CI**: `.github/workflows/android-ci.yml` runs on every push — unit tests, lint, then both APKs. Artifacts: `tweather-debug-apk`, `tweather-release-apk-testing-only`, `tweather-release-mapping` (the R8 map, needed to read a release stack trace), plus `app/build/reports/` on failure. Tests run *before* the builds so a red suite never produces an installable artifact.
 

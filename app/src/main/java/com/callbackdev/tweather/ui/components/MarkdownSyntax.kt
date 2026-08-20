@@ -118,7 +118,7 @@ private fun MarkdownSyntaxPreview() {
             "",
             "| Day | High | Low | Status   |",
             "| --- | ---: | --: | -------- |",
-            "| Mon |  34° | 24° | Clear ☀️ |",
+            "| Mon |  34° | 24° | ☀️ Clear |",
             "",
             "## Status",
             "> ⚠️ Thunderstorm ⛈️ expected around 18:00",

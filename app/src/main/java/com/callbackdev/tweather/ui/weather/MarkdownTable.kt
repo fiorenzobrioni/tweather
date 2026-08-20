@@ -16,9 +16,14 @@ package com.callbackdev.tweather.ui.weather
  * - a cell is measured on its TEXT only, never on the string that carries the emoji
  *   (`"🌧️".length` is 3 UTF-16 units for a single glyph, and that glyph is not one
  *   character wide anyway);
- * - an emoji always sits at the RIGHT edge of its cell, exactly one per cell, so
+ * - an emoji always sits at the LEFT edge of its cell, exactly one per cell, so
  *   whatever its real width turns out to be on a given device it is the same
- *   constant on every row and the following pipe still falls in column.
+ *   constant on every row: every description starts at the same offset and the
+ *   closing pipe still falls in column. (It sat at the right edge until Fase 11d;
+ *   leading with the glyph keeps the sky readable even when a long description
+ *   clips at the screen edge.) Everything AFTER the glyph inherits its unknown
+ *   width, which is why both README tables put their status column last — past
+ *   the cell there is nothing left to knock out of column but the closing pipe.
  *
  * [EmojiCells] therefore only decides how much padding the emoji-free header and
  * separator rows get; 2 is what markdown formatters and terminals assume for the
@@ -39,13 +44,8 @@ internal enum class TableAlign { LEFT, RIGHT }
 
 internal data class TableColumn(val header: String, val align: TableAlign = TableAlign.LEFT)
 
-/** A cell: [text] against the left edge, optional [emoji] against the right one. */
-internal data class TableCell(val text: String, val emoji: String? = null) {
-    companion object {
-        /** Icon-only cell (the hourly table's sky column). */
-        fun icon(emoji: String) = TableCell("", emoji)
-    }
-}
+/** A cell: optional [emoji] against the left edge, [text] right after it. */
+internal data class TableCell(val text: String, val emoji: String? = null)
 
 /** Header, separator and one line per row, all padded to the same column widths. */
 internal fun markdownTable(
@@ -67,21 +67,17 @@ internal fun markdownTable(
 private fun List<String>.toRow(): String = joinToString(" | ", "| ", " |")
 
 /** Width in character cells: text length plus the emoji and the gap it needs. */
-private fun TableCell.cells(): Int = when {
-    emoji == null -> text.length
-    text.isEmpty() -> EmojiCells
+private fun TableCell.cells(): Int = when (emoji) {
+    null -> text.length
     else -> text.length + 1 + EmojiCells
 }
 
 private fun pad(cell: TableCell, width: Int, align: TableAlign): String = when {
     cell.emoji == null ->
         if (align == TableAlign.RIGHT) cell.text.padStart(width) else cell.text.padEnd(width)
-    // Text left, emoji right: the padding goes between them, never after the emoji,
+    // Emoji left, text right after it: the padding trails, never precedes the emoji,
     // so every row in the column puts its glyph at the same offset.
-    else -> {
-        val gap = (width - cell.text.length - EmojiCells).coerceAtLeast(0)
-        cell.text + " ".repeat(gap) + cell.emoji
-    }
+    else -> "${cell.emoji} ${cell.text}" + " ".repeat((width - cell.cells()).coerceAtLeast(0))
 }
 
 private fun TableAlign.separator(width: Int): String = when (this) {

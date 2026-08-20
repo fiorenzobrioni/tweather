@@ -76,17 +76,22 @@ config file.
 Lombardy, Italy
 
 ## Next hours
-| Hour  | Temp | Status | Rain |
-| ----- | ---: | -----: | ---: |
-| 08:00 |  22° |     🌤️ |   0% |
-| 09:00 |  24° |     🌤️ |   0% |
-| 10:00 |  25° |     ⛅ |   0% |
+| Hour  | Temp | Rain | Status           |
+| ----- | ---: | ---: | ---------------- |
+| 08:00 |  22° |   0% | 🌤️ Mainly Clear  |
+| 09:00 |  24° |   0% | 🌤️ Mainly Clear  |
+| 10:00 |  25° |   0% | ⛅ Partly Cloudy |
 ```
 
-Exactly one emoji sits against the right edge of each cell. None of the twelve weather
-emoji exist in JetBrains Mono, so every one of them is drawn by the system font at
-roughly two character cells: pinning one per cell makes that unknown width the same
-constant on every row, and the next pipe stays in column whatever the device draws.
+Exactly one emoji sits against the left edge of each cell, with the description right
+after it. None of the twelve weather emoji exist in JetBrains Mono, so every one of
+them is drawn by the system font at roughly two character cells: pinning one per cell
+makes that unknown width the same constant on every row, so every description starts
+at the same offset and the closing pipe stays in column whatever the device draws.
+The status column comes last in both tables for the same reason you put the noisy
+field at the end of a log line: the numbers stay on screen, and when a long Italian
+description outgrows the display it clips without hiding anything ("Temporale con
+grand" still reads as hail). The emoji leads precisely so the sky survives the clip.
 
 Twelve hours, not twenty-four: that is the horizon the rest of the app works in, and a
 second full dump would erase the difference between the two tabs. The whole page is

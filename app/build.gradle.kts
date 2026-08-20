@@ -31,6 +31,25 @@ android {
             keyAlias = "tweather-debug"
             keyPassword = "android"
         }
+
+        // Real release key (Fase 12). The keystore lives OUTSIDE the repo; the four
+        // properties come from ~/.gradle/gradle.properties locally and from
+        // ORG_GRADLE_PROJECT_* env vars (GitHub Secrets) in the release workflow.
+        // Only created when fully configured, so a clean checkout still builds.
+        val releaseStore = findProperty("TWEATHER_KEYSTORE") as String?
+        val releaseStorePassword = findProperty("TWEATHER_KEYSTORE_PASSWORD") as String?
+        val releaseKeyAlias = findProperty("TWEATHER_KEY_ALIAS") as String?
+        val releaseKeyPassword = findProperty("TWEATHER_KEY_PASSWORD") as String?
+        if (!releaseStore.isNullOrBlank() && !releaseStorePassword.isNullOrBlank() &&
+            !releaseKeyAlias.isNullOrBlank() && !releaseKeyPassword.isNullOrBlank()
+        ) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -44,14 +63,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Opt-in only, and never by default: with the flag, CI signs the minified
-            // build with the shared debug key so it can actually be installed and
-            // smoke-tested (R8 breakage only shows up in a release build). Off by
-            // default so a store artifact can never be produced with a committed key
-            // by accident — Fase 11 replaces this with a real keystore.
-            if (project.hasProperty("signReleaseWithDebugKey")) {
-                signingConfig = signingConfigs.getByName("debug")
-            }
+            // The real key wins whenever it is configured. Otherwise the debug-key
+            // opt-in stays: with the flag, per-push CI signs the minified build with
+            // the shared debug key so it can actually be installed and smoke-tested
+            // (R8 breakage only shows up in a release build). Off by default so an
+            // unconfigured checkout can never produce an installable release by accident.
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
+                    .takeIf { project.hasProperty("signReleaseWithDebugKey") }
         }
     }
 

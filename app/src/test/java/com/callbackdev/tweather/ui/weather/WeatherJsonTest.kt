@@ -45,14 +45,16 @@ class WeatherJsonTest {
     }
 
     @Test
-    fun `hourly rows carry rounded temps and clock times`() {
+    fun `hourly rows carry rounded temps and start after the current hour`() {
         val first = json.getValue("hourly_forecast").jsonArray.first().jsonObject
         assertEquals(
             listOf("time", "temp_c", "status", "precip_chance"),
             first.keys.toList()
         )
-        assertEquals("15:00", first.getValue("time").jsonPrimitive.content)
-        assertEquals("19", first.getValue("temp_c").jsonPrimitive.content)
+        // The sample's 15:00 slot is the current hour: current_conditions' job,
+        // not the table's (Fase 11f).
+        assertEquals("16:00", first.getValue("time").jsonPrimitive.content)
+        assertEquals("18", first.getValue("temp_c").jsonPrimitive.content)
     }
 
     @Test
@@ -112,7 +114,7 @@ class WeatherJsonTest {
         val wind = current.getValue("wind").jsonObject
         assertEquals("7.8", wind.getValue("speed_mph").jsonPrimitive.content) // 12.5 kph
         val firstHour = imperial.getValue("hourly_forecast").jsonArray.first().jsonObject
-        assertEquals("66", firstHour.getValue("temp_f").jsonPrimitive.content) // 19°C
+        assertEquals("64", firstHour.getValue("temp_f").jsonPrimitive.content) // 18°C, 16:00
     }
 
     @Test

@@ -307,7 +307,33 @@ Richiesta del committente (ago 2026) a valle dell'uso su device della 11c: nella
 - [x] `WeatherReadme.kt`: entrambe le tabelle riordinate a `… | Pioggia | Stato`, cella oraria con `translate(description)` + emoji come la giornaliera
 - [x] `@Preview` di `MarkdownSyntax` allineata alla nuova forma (emoji in testa)
 - [x] Test: golden EN/IT/°F rifatti nelle `WeatherReadmeTest`; in `MarkdownTableTest` il test della cella sola-icona sostituito 1:1 da emoji-in-testa-anche-su-colonna-right-aligned, e il test UTF-16 ora fissa che i suffissi dopo il glifo siano identici riga per riga (con l'emoji a sinistra è il lato destro a dipendere dalla misura). Suite a **317** come la 11c — il test rimosso è sostituito 1:1 — tutta verde, lint senza errori
-- [ ] Verifica manuale su device: colonne vere con l'emoji in testa sul font emoji del device — stessa riserva chiusa per la 11c, ora sul lato sinistro della cella
+- [x] Verifica manuale su device — completata dal committente sull'APK di CI (ago 2026): "provate e tutto ok", colonne vere con l'emoji in testa sul font emoji del device
+
+## Fase 11e — Le orarie partono dall'ora successiva, 14 righe, pioggia in `## Attuale`
+
+Richiesta del committente (ago 2026) sull'app in uso: la prima riga di `## Prossime ore` è l'ora corrente — verificato: il mapper fa partire `hourly` dalla prima ora non precedente a `now` troncato all'ora (`WeatherReportMapper`, `currentHourIndex`) — quindi duplica la sezione `## Attuale` appena sopra, e alle 08:44 la riga "08:00" descrive per giunta un'ora già quasi trascorsa. Decisioni prese in apertura:
+
+- **La tabella parte dall'ora successiva** (`hourly.drop(1)` nel solo compositore del README): l'ora corrente la racconta `## Attuale`, la tabella legge `+1h..+14h` senza buchi né doppioni. Il dominio resta intatto — `report.hourly` continua a partire dall'ora corrente, così AlertEngine, regole (`RuleVariables` filtra già `!isBefore(now)`, che esclude da sé lo slot corrente a ora iniziata) e diff dei Logs non cambiano di una virgola.
+- **La probabilità di pioggia dell'ora corrente sale in `## Attuale`**, sulla riga della Percepita (`Percepita: 26.4°C · Pioggia: 45%`), non su una riga nuova: la sezione resta un colpo d'occhio da due righe. Nessun dato "spostato" dalla tabella: il dominio ce l'aveva già come `current.precipitation.chancePct`, che il mapper riempie esattamente dalla stessa cella oraria della riga eliminata. Etichetta riusata dalla tabella (`readme_t_rain`), zero stringhe nuove; "Precipitazioni" resta il vocabolo di `## Oggi` per il dato giornaliero.
+- **14 righe invece di 12** (richiesta esplicita): al mattino la tabella arriva alla sera — alle 08:00 si legge fino alle 22:00. **Supera la simmetria della 11c** con l'orizzonte a 12h dell'AlertEngine/`next_12h.*`; il contro-argomento del committente ha chiuso la questione: il tab gemello `weather_data.json` mostra 24 ore e quella simmetria non l'ha mai avuta. Il badge `## Status` continua a guardare 12h avanti, per suo conto. Copertura garantita: il dominio porta 24 ore dall'ora corrente, `+1..+14` c'è sempre.
+
+- [x] `WeatherReadme.kt`: `drop(1).take(HourlyRows)`, `HourlyRows = 14` con KDoc riscritto, `Pioggia: n%` sulla riga della Percepita
+- [x] Test: golden EN/IT/°F sull'ora di partenza spostata e sulla riga Percepita; il test del taglio passa a 14 righe (16:00→05:00 su 24 generate); nuovo test: con la SOLA ora corrente in `hourly` la sezione è assente (è compito di `## Attuale`)
+- [x] Docs: CLAUDE.md, README di root (paragrafo "Twelve hours" riscritto a 14), questa sezione
+- [ ] Verifica manuale su device: prima riga = ora successiva a quella corrente, `Pioggia: n%` in `## Attuale` coerente con l'ex prima riga, 14 righe
+
+## Fase 11f — Anche `hourly_forecast` nel JSON parte dall'ora successiva (24 righe piene)
+
+Richiesta del committente (ago 2026), estensione naturale della 11e al tab gemello: anche in `weather_data.json` la prima riga di `hourly_forecast` è lo slot dell'ora corrente, ridondante con `current_conditions` appena sopra (non *identica* — `current` è il blocco istantaneo di Open-Meteo, lo slot è la previsione dell'ora — ma stessa ora e stessa informazione, e `chance_pct` sta già in `current_conditions.precipitation`). Decisioni:
+
+- **`drop(1)` nel solo renderer JSON** (`WeatherJson.kt`), come nel README: il dominio resta ancorato all'ora corrente — slot 0 riempie `current_conditions.precipitation.chance_pct` nel mapper ed è il riferimento di AlertEngine e regole — quindi motori, dedup e Logs invariati.
+- **Variante a 24 righe piene** (scelta del committente tra 23 e 24): `HOURLY_WINDOW` nel mapper passa da 24 a **25** — l'ora corrente più il giorno intero che le viste mostrano da `+1h` — così `hourly_forecast` legge `+1h..+24h` senza accorciarsi. Room non persiste le orarie: nessun impatto su snapshot e diff.
+
+- [x] `WeatherReportMapper.kt`: `HOURLY_WINDOW = 25` con KDoc sul perché dello slot in più
+- [x] `WeatherJson.kt`: `hourly.drop(1)` in `hourly_forecast`
+- [x] Test: mapper a 25 slot (ultimo = stessa ora del giorno dopo), prima riga JSON = ora successiva (EN e imperiale); il test del clipping rinominato (il taglio non è più "sotto 24")
+- [x] Docs: CLAUDE.md e questa sezione (il README di root non quantifica le righe del JSON, nulla da toccare)
+- [ ] Verifica manuale su device: prima riga di `hourly_forecast` = ora successiva, 24 righe, `chance_pct` in `current_conditions` al posto della riga eliminata
 
 ## Fase 12 — Release
 

@@ -122,11 +122,13 @@ class WeatherReportMapperTest {
     }
 
     @Test
-    fun `hourly window starts at current hour and spans 24 entries`() {
+    fun `hourly window starts at current hour and spans 25 entries`() {
+        // 25, not 24: slot 0 is the current hour (current_conditions' rain chance,
+        // the engines' anchor), the views drop it and still show a full day.
         val hourly = map().hourly
-        assertEquals(24, hourly.size)
+        assertEquals(25, hourly.size)
         assertEquals(LocalDateTime.parse("2026-08-13T14:00"), hourly.first().time)
-        assertEquals(LocalDateTime.parse("2026-08-14T13:00"), hourly.last().time)
+        assertEquals(LocalDateTime.parse("2026-08-14T14:00"), hourly.last().time)
         assertEquals(24.0, hourly.first().tempC, 0.0)        // 10.0 + index 14
         assertEquals("Light Rain 🌧️", hourly.first().condition.label)
         assertEquals(40, hourly.first().precipChancePct)
@@ -137,7 +139,7 @@ class WeatherReportMapperTest {
     }
 
     @Test
-    fun `hourly window is clipped when fewer than 24 slots remain`() {
+    fun `hourly window is clipped when the API returns fewer slots`() {
         // 20 slots total, current hour at index 14 → only 6 remain.
         val report = map(forecast = forecast(hourlyCount = 20))
         assertEquals(6, report.hourly.size)

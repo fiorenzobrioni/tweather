@@ -84,6 +84,7 @@ class RuleVariablesTest {
         assertEquals(20.0, resolve("today.high_c")!!.value, 0.0)
         assertEquals(12.0, resolve("today.low_c")!!.value, 0.0)
         assertEquals(0.0, resolve("today.precip_pct")!!.value, 0.0)
+        assertEquals(5.0, resolve("today.uv_max")!!.value, 0.0)  // peak, not current.uv_index (4)
         assertNull(RuleVariables.byId("today.high_c")!!.resolve(report.copy(daily = emptyList()), now))
     }
 

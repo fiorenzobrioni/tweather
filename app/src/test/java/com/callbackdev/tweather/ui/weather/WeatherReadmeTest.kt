@@ -63,7 +63,10 @@ class WeatherReadmeTest {
         assertTrue("**18.5°C** · Partly Cloudy ⛅" in lines)
         assertTrue("Feels like: 17.2°C · Rain: 10%" in lines)
         assertTrue("High: 20°C · Low: 12°C" in lines)
-        assertTrue("UV index: 4 (Moderate ☀️)" in lines)
+        // Today's MAXIMUM (sample daily.first() = 5), NOT current.uvIndex (= 4):
+        // under "## Today" the instant index reads as a daily figure and is 0 every
+        // evening — the Aug 2026 report that started this fix
+        assertTrue("UV index: 5 (Moderate ☀️)" in lines)
         assertTrue("🌬️ Wind: 12.5 km/h NW" in lines)
         assertTrue("💧 Humidity: 54%" in lines)
         assertTrue("AQI 42 · Good ⚪" in lines)

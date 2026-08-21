@@ -154,6 +154,9 @@ fun WeatherReport.toDisplayJson(
                 put("low", temp(d.lowC).roundToInt())
                 put("status", "${translate(d.condition.description)} ${d.condition.emoji}")
                 put("precip_pct", d.precipPct)
+                // The day's PEAK UV, hence the `_max` in the key: bare `uv_index`
+                // would read like current_conditions' instant one.
+                if (details) put("uv_index_max", d.uvIndexMax)
             })
         }
     }

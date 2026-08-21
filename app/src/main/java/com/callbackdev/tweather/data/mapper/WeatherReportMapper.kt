@@ -124,12 +124,15 @@ object WeatherReportMapper {
     private fun mapDaily(forecast: ForecastResponseDto): List<DailyForecast> {
         val daily = forecast.daily
         return daily.time.take(DAILY_WINDOW).mapIndexed { i, date ->
+            val uvMax = daily.uvIndexMax.getOrNull(i)?.roundToInt() ?: 0
             DailyForecast(
                 date = LocalDate.parse(date),
                 highC = daily.temperatureMaxC[i],
                 lowC = daily.temperatureMinC[i],
                 condition = WeatherCodes.condition(daily.weatherCode[i], isDay = true),
-                precipPct = daily.precipitationProbabilityMaxPct.getOrNull(i) ?: 0
+                precipPct = daily.precipitationProbabilityMaxPct.getOrNull(i) ?: 0,
+                uvIndexMax = uvMax,
+                uvDescription = WeatherCodes.uvDescription(uvMax)
             )
         }
     }

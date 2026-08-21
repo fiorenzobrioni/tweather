@@ -72,8 +72,13 @@ fun WeatherReport.toReadmeMarkdown(
     daily.firstOrNull()?.let { today ->
         add("${s(R.string.readme_high)}: ${temp(today.highC)} · ${s(R.string.readme_low)}: ${temp(today.lowC)}")
         add("${s(R.string.readme_precipitation)}: ${today.precipPct}%")
+        // Today's MAXIMUM, like the two lines above it — this used to print
+        // `current.uvIndex`, the instant reading, which under this heading read as a
+        // daily figure and was 0 all evening (committente's report, Aug 2026: "UV 0
+        // (Basso)" at 23:52 on a day whose max was 2.1). The instant value keeps its
+        // place in the JSON's `current_conditions`, where it is what it says it is.
+        add("${s(R.string.readme_uv)}: ${today.uvIndexMax} (${translate(today.uvDescription)})")
     }
-    add("${s(R.string.readme_uv)}: ${current.uvIndex} (${translate(current.uvDescription)})")
 
     // Both forecasts sit straight after Today, before every detail section: they are
     // what a weather app is opened for, and the hours read into the days without a

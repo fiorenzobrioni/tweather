@@ -4,6 +4,23 @@ All notable changes to tweather are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- `README.md`, `## Today`: the UV index line showed the *instant* reading next to the
+  day's max and min, so it was 0 every evening. It now shows the day's peak
+  (Open-Meteo's `uv_index_max`, fetched and parsed all along but never mapped into the
+  domain). The instant value keeps its place in `weather_data.json`'s
+  `current_conditions`, where the key says what it is.
+
+### Added
+
+- `weather_data.json`: `uv_index_max` on each `daily_forecast` row (with
+  `show_details` on).
+- `alerts.rules`: new variable `today.uv_max`, the day's peak UV — a sunscreen rule
+  has to fire in the morning, when the current index is still low.
+
 ## [1.0.0] — 2026-08-20
 
 First release. Everything below is new.

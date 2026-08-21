@@ -21,10 +21,10 @@ class WeatherSnapshotsTest {
     @Test
     fun `forecast flatten keeps only tomorrow and the day after, keyed by date`() {
         val report = reportWithDaily(
-            DailyForecast(today, 21.0, 14.0, sunny, 0),               // today: out
-            DailyForecast(today.plusDays(1), 20.0, 12.0, rainy, 85),  // tomorrow
-            DailyForecast(today.plusDays(2), 16.0, 10.0, sunny, 20),  // day after
-            DailyForecast(today.plusDays(3), 19.0, 13.0, sunny, 10)   // beyond: out
+            DailyForecast(today, 21.0, 14.0, sunny, 0, 5, "Moderate ☀️"),               // today: out
+            DailyForecast(today.plusDays(1), 20.0, 12.0, rainy, 85, 2, "Low"),  // tomorrow
+            DailyForecast(today.plusDays(2), 16.0, 10.0, sunny, 20, 4, "Moderate ☀️"),  // day after
+            DailyForecast(today.plusDays(3), 19.0, 13.0, sunny, 10, 6, "High ☀️")   // beyond: out
         )
         assertEquals(
             mapOf(
@@ -45,7 +45,7 @@ class WeatherSnapshotsTest {
     fun `horizon follows the city's local date, not the device's`() {
         // Local time 14:30 on the 27th: tomorrow is the 28th wherever the device is
         val report = reportWithDaily(
-            DailyForecast(today.plusDays(1), 20.0, 12.0, sunny, 0)
+            DailyForecast(today.plusDays(1), 20.0, 12.0, sunny, 0, 5, "Moderate ☀️")
         )
         assertEquals(
             setOf("2023-10-28.status", "2023-10-28.high_c", "2023-10-28.low_c", "2023-10-28.precip_pct"),

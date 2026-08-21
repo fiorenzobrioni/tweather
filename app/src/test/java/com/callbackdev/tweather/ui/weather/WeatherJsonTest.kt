@@ -62,6 +62,15 @@ class WeatherJsonTest {
         val first = json.getValue("daily_forecast").jsonArray.first().jsonObject
         assertEquals("Mon", first.getValue("day").jsonPrimitive.content)
         assertEquals("20", first.getValue("high").jsonPrimitive.content)
+        assertEquals("5", first.getValue("uv_index_max").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `hidden details drop the daily UV peak`() {
+        val compact = sampleWeatherReport()
+            .toDisplayJson(options = DisplayOptions(showDetails = false))
+        val first = compact.getValue("daily_forecast").jsonArray.first().jsonObject
+        assertEquals(listOf("day", "high", "low", "status", "precip_pct"), first.keys.toList())
     }
 
     @Test

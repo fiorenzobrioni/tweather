@@ -155,6 +155,10 @@ class WeatherReportMapperTest {
         assertEquals("Overcast ☁️", daily.first().condition.label)
         assertEquals(55, daily.first().precipPct)
         assertEquals(0, daily[1].precipPct)                  // null max probability → 0
+        // uv_index_max was fetched and parsed all along but never mapped, so the
+        // README's "Today" section fell back to the instant reading (Aug 2026 fix)
+        assertEquals(6, daily.first().uvIndexMax)
+        assertEquals("High ☀️", daily.first().uvDescription)
     }
 
     @Test

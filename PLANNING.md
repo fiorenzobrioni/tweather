@@ -347,6 +347,25 @@ Decisioni di apertura (ago 2026), condivise col committente: **pubblicazione sol
 - [x] Versione 1.0.0 (`versionName`; `versionCode` resta 1) e `CHANGELOG.md`; tag `v1.0.0` su main → **prima GitHub Release pubblicata dal workflow** (20 ago 2026): `tweather-v1.0.0.apk` + `mapping-v1.0.0.txt` allegati, APK riscaricato e firma verificata con apksigner — stesso SHA-256 del certificato della chiave vera. **Fase 12 chiusa, v1.0.0 fuori.**
 - [x] CI build + test su push — già chiusa dalla fase che ha introdotto `android-ci.yml`
 
+## Fase 13 — Verifica dati Open-Meteo e UV giornaliero nel README (post-1.0)
+
+Segnalazione del committente (21 ago 2026, screenshot del `README.md` di Cavenago di Brianza alle 23:52): la tabella `## Prossime ore` segna **nebbia** alle 03, 05, 06, 07, 08 e 09 di una notte d'agosto, e in mezzo due ore serene — "impossibile". Richiesta: verifica completa della lettura dei dati da Open-Meteo e della loro resa nell'app.
+
+**Verifica: l'app è fedele, la nebbia è del provider.** API interrogata dal vivo sulle stesse coordinate (45.589 / 9.419) e confrontata riga per riga con lo screenshot: `weather_code` = 45 in tutte e sei le ore contestate, 1 alle 02:00 e 0 alle 04:00 (le due ore serene), 2 alle 10-11, 0 alle 12-13; temperature identiche al decimale dopo l'arrotondamento (17.7→18°, 16.2→16°, 22.5→23°). Nessun disallineamento di indici tra `temperature_2m`, `weather_code`, `precipitation_probability` e `is_day` (il mapper li legge dallo stesso `i`), `currentHourIndex` correttamente ancorato all'ora troncata, mapping WMO conforme alla tabella pubblicata da Open-Meteo. Diagnostica del modello (`best_match` = ICON per l'Italia): alle 07-09 umidità 100%, temperatura **uguale** al punto di rugiada, nubi basse 84-100%, visibilità 60-260 m — nebbia da irraggiamento fisicamente coerente dopo una giornata con 100% di precipitazione e suolo saturo, anche ad agosto; alle 03, 05 e 06 invece il codice 45 arriva con visibilità 8-11 km e cielo quasi sereno, cioè è un difetto della derivazione del codice in ICON (ECMWF dà 3 su tutta la notte, GFS 3/0). **Decisione del committente: sulla nebbia non si interviene** — l'app resta lo specchio fedele del provider, niente riclassificazione dei codici 45/48 sulla visibilità oraria.
+
+**Perché sul sito open-meteo.com l'icona non è una nebbia** (domanda del committente, indagata sul repo `open-meteo/open-meteo-website`): non viene da un altro parametro. `src/lib/components/response/highcharts/json-to-chart.ts` legge lo **stesso** `data.hourly.weather_code` e lo passa a `getWeatherIconName` di `src/lib/utils/weather-codes.ts`, la cui tabella però non è la WMO 4677 (ww) che il sito stesso documenta in `wmo-codes-table.svelte` ("45, 48: Fog and depositing rime fog"): mappa `45 → hail`, `48 → snow`, `65 → hail`, `99 → tornado`, e manda a `fog` codici (4, 5, 10, 11, 20, 30-35) che Open-Meteo non emette nemmeno. È la mappatura **wmo4680** (wawa, stazioni automatiche) della libreria weather-icons applicata a un valore ww: sul sito il codice 45 diventa un'icona di grandine. Il difetto è dell'icona del sito, non del dato né del nostro mapping — nessuna azione da parte nostra, ma vale come conferma che `weather_code` è l'unica fonte dell'aspetto meteo.
+
+**Bug vero emerso dalla verifica: l'indice UV del README.** Sotto `## Oggi`, accanto a max/min e precipitazione (tutti valori giornalieri), il file stampava `current.uvIndex`, cioè la lettura **istantanea**: alle 23:52 "Indice UV: 0 (Basso)" in un giorno il cui massimo era 2.1, e ogni sera lo stesso. Causa a monte: `uv_index_max` era già richiesto all'API e deserializzato in `DailyDto`, ma `mapDaily` non lo copiava nel dominio, quindi il dato non arrivava mai alle viste.
+
+- [x] `WeatherModels.kt`: `DailyForecast` porta `uvIndexMax` + `uvDescription` (specularmente a `CurrentConditions`), con KDoc sul perché non è la lettura istantanea
+- [x] `WeatherReportMapper.kt`: `mapDaily` mappa `uv_index_max` (arrotondato) e ne deriva l'etichetta con `WeatherCodes.uvDescription`
+- [x] `WeatherReadme.kt`: la riga UV entra nel blocco `daily.firstOrNull()` e usa il massimo di oggi — è una riga di `## Oggi`, non di `## Attuale`
+- [x] `WeatherJson.kt`: `uv_index_max` nelle righe di `daily_forecast`, dietro `show_details` (la riga compatta resta giorno/max/min/stato/pioggia); chiave con `_max` esplicito per non confondersi con l'`uv_index` istantaneo di `current_conditions`
+- [x] `RuleVariables.kt`: nuova variabile `today.uv_max` per `alerts.rules` — una regola "metti la crema" deve poter scattare al mattino, quando l'indice istantaneo è ancora basso
+- [x] Test: mapper (6 → `"High ☀️"`), README golden (5 = massimo di oggi, **non** 4 = istantaneo del campione), `today.uv_max`, JSON con e senza dettagli; fixture del campione e degli snapshot aggiornate
+- [x] Nessun impatto su `WeatherSnapshots.flattenForecast`: il diff dei Logs continua a seguire stato/max/min/pioggia, l'UV non entra nei commit (scelta, non dimenticanza)
+- [ ] Verifica manuale su device (committente): `## Oggi` mostra il massimo del giorno anche di sera
+
 ---
 
 ## Note trasversali

@@ -125,7 +125,15 @@ data class DailyForecast(
     val highC: Double,
     val lowC: Double,
     val condition: WeatherCondition,
-    val precipPct: Int
+    val precipPct: Int,
+    /**
+     * The day's PEAK UV (Open-Meteo `uv_index_max`), with [uvDescription] its label
+     * — never the instant reading [CurrentConditions.uvIndex]: under a "Today"
+     * heading only the maximum says anything, since at 23:52 the current index is 0
+     * whatever the day was (which is exactly what the README used to print).
+     */
+    val uvIndexMax: Int,
+    val uvDescription: String
 )
 
 enum class CacheStatus { HIT, MISS }

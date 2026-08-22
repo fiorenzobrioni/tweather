@@ -26,9 +26,12 @@ interface OpenMeteoForecastApi {
         const val CURRENT_VARIABLES =
             "temperature_2m,relative_humidity_2m,apparent_temperature,dew_point_2m," +
                 "is_day,precipitation,weather_code,pressure_msl,wind_speed_10m," +
-                "wind_direction_10m,wind_gusts_10m,visibility,uv_index"
+                "wind_direction_10m,wind_gusts_10m,visibility,cloud_cover,uv_index"
+        // visibility + cloud_cover are not displayed: they repair `weather_code`, whose
+        // fog is unreliable in both directions (Fase 13c) — see WeatherReportMapper.
         const val HOURLY_VARIABLES =
-            "temperature_2m,weather_code,precipitation_probability,is_day"
+            "temperature_2m,weather_code,precipitation_probability,is_day," +
+                "visibility,cloud_cover"
         const val DAILY_VARIABLES =
             "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset," +
                 "daylight_duration,precipitation_probability_max,uv_index_max"

@@ -42,6 +42,13 @@ private const val DAILY_WINDOW = 7
  */
 private const val FIRST_PRECIP_CODE = 51
 
+/** WMO 45; Open-Meteo derives 48 in its enum but never emits it. */
+private const val WMO_FOG = 45
+private val FogCodes = setOf(45, 48)
+
+/** Open-Meteo's own fog threshold, `WeatherCode.swift:99`: `visibility <= 1000 → fog`. */
+private const val FOG_VISIBILITY_M = 1000.0
+
 object WeatherReportMapper {
 
     const val SOURCE = "Open-Meteo API"
@@ -59,6 +66,7 @@ object WeatherReportMapper {
         val isDay = current.isDay == 1
 
         val hourlyTimes = forecast.hourly.time.map(LocalDateTime::parse)
+        val hourlyCodes = forecast.hourly.repairedCodes()
         val currentHour = localTime.truncatedTo(ChronoUnit.HOURS)
         val currentHourIndex = hourlyTimes.indexOfFirst { !it.isBefore(currentHour) }
             .coerceAtLeast(0)
@@ -73,7 +81,10 @@ object WeatherReportMapper {
                 localTime = localTime
             ),
             current = CurrentConditions(
-                condition = WeatherCodes.condition(current.weatherCode, isDay),
+                condition = WeatherCodes.condition(
+                    repairFog(current.weatherCode, current.visibilityM, current.cloudCoverPct),
+                    isDay
+                ),
                 tempC = current.temperatureC,
                 feelsLikeC = current.apparentTemperatureC,
                 humidityPct = current.humidityPct,
@@ -97,8 +108,8 @@ object WeatherReportMapper {
             airQuality = airQuality?.toAirQuality(),
             pollen = airQuality?.toPollenReport(),
             astronomical = mapAstronomical(forecast, fetchedAt),
-            hourly = mapHourly(forecast, hourlyTimes, currentHourIndex),
-            daily = mapDaily(forecast, hourlyTimes),
+            hourly = mapHourly(forecast, hourlyTimes, hourlyCodes, currentHourIndex),
+            daily = mapDaily(forecast, hourlyTimes, hourlyCodes),
             systemInfo = SystemInfo(
                 source = SOURCE,
                 lastSync = fetchedAt,
@@ -111,6 +122,7 @@ object WeatherReportMapper {
     private fun mapHourly(
         forecast: ForecastResponseDto,
         times: List<LocalDateTime>,
+        codes: List<Int>,
         fromIndex: Int
     ): List<HourlyForecast> {
         val hourly = forecast.hourly
@@ -120,7 +132,7 @@ object WeatherReportMapper {
                     time = times[i],
                     tempC = hourly.temperatureC[i],
                     condition = WeatherCodes.condition(
-                        hourly.weatherCode[i],
+                        codes[i],
                         isDay = hourly.isDay[i] == 1
                     ),
                     precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0
@@ -130,7 +142,8 @@ object WeatherReportMapper {
 
     private fun mapDaily(
         forecast: ForecastResponseDto,
-        hourlyTimes: List<LocalDateTime>
+        hourlyTimes: List<LocalDateTime>,
+        hourlyCodes: List<Int>
     ): List<DailyForecast> {
         val daily = forecast.daily
         val hoursByDate = hourlyTimes.indices.groupBy { hourlyTimes[it].toLocalDate() }
@@ -142,7 +155,12 @@ object WeatherReportMapper {
                 highC = daily.temperatureMaxC[i],
                 lowC = daily.temperatureMinC[i],
                 condition = WeatherCodes.condition(
-                    dailyCode(forecast.hourly, hoursByDate[day].orEmpty(), daily.weatherCode[i]),
+                    dailyCode(
+                        hourlyCodes,
+                        forecast.hourly.isDay,
+                        hoursByDate[day].orEmpty(),
+                        daily.weatherCode[i]
+                    ),
                     isDay = true
                 ),
                 precipPct = daily.precipitationProbabilityMaxPct.getOrNull(i) ?: 0,
@@ -179,16 +197,64 @@ object WeatherReportMapper {
      * Dates the hourly run does not reach keep the provider's code: it ends with
      * `forecast_days` and the daily one can outrun it. Aggregate better, never blank a row.
      */
-    private fun dailyCode(hourly: HourlyDto, hours: List<Int>, fallback: Int): Int {
+    private fun dailyCode(
+        codes: List<Int>,
+        isDay: List<Int>,
+        hours: List<Int>,
+        fallback: Int
+    ): Int {
         if (hours.isEmpty()) return fallback
-        hours.map { hourly.weatherCode[it] }
+        hours.map { codes[it] }
             .filter { it >= FIRST_PRECIP_CODE }
             .maxOrNull()
             ?.let { return it }
-        val daylight = hours.filter { hourly.isDay[it] == 1 }.ifEmpty { hours }
-        return daylight.map { hourly.weatherCode[it] }
+        val daylight = hours.filter { isDay[it] == 1 }.ifEmpty { hours }
+        return daylight.map { codes[it] }
             .groupingBy { it }.eachCount()
             .maxWithOrNull(compareBy({ it.value }, { it.key }))?.key ?: fallback
+    }
+
+    private fun HourlyDto.repairedCodes(): List<Int> = weatherCode.indices.map { i ->
+        repairFog(weatherCode[i], visibilityM.getOrNull(i), cloudCoverPct[i])
+    }
+
+    /**
+     * `weather_code` with its fog checked against the same hour's visibility — the only
+     * rewriting the app does to a provider code, and it applies Open-Meteo's own rule
+     * rather than any meteorology of ours: `WeatherCode.swift:99` derives fog from
+     * `visibility <= 1000` once precipitation is ruled out, and falls back on the cloud
+     * cover otherwise. The served code is categorical and interpolated differently from the
+     * continuous fields, so the two drift apart and the code loses: measured 22 Aug 2026 on
+     * 8 Po Valley cities, `45` arrives with 10 km of visibility (01:00 and 03:00 at
+     * Cavenago) while 160 m of dense fog is served as `3`, overcast. Both directions are
+     * wrong and the second is the dangerous one.
+     *
+     * Deliberately surgical: only the fog verdict is revisited. Re-deriving the sky from
+     * `cloud_cover` too — the obvious next step — moved 308 of those 1344 hours, 23%, which
+     * is no longer repairing a defect but replacing the provider's classification wholesale.
+     * The fog-only rule moves 15 hours, 1.1%, every one of them with its reason legible in
+     * the visibility. Precipitation (>= 51) is never touched: it is not derived from
+     * visibility, and thunderstorms need CAPE fields the app does not fetch.
+     *
+     * A null visibility (never seen in 8 cities across 3 continents, but the field is
+     * model-dependent) leaves the code exactly as the provider sent it.
+     */
+    private fun repairFog(code: Int, visibilityM: Double?, cloudCoverPct: Int): Int {
+        if (code >= FIRST_PRECIP_CODE || visibilityM == null) return code
+        val foggy = visibilityM <= FOG_VISIBILITY_M
+        return when {
+            code in FogCodes && !foggy -> skyCode(cloudCoverPct)
+            code !in FogCodes && foggy -> WMO_FOG
+            else -> code
+        }
+    }
+
+    /** Open-Meteo's cloud cover buckets, `WeatherCode.swift:103`. */
+    private fun skyCode(cloudCoverPct: Int): Int = when {
+        cloudCoverPct < 20 -> 0
+        cloudCoverPct < 50 -> 1
+        cloudCoverPct < 80 -> 2
+        else -> 3
     }
 
     private fun mapAstronomical(forecast: ForecastResponseDto, fetchedAt: Instant): Astronomical {

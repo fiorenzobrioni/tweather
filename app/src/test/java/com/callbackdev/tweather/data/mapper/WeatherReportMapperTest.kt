@@ -56,6 +56,7 @@ class WeatherReportMapperTest {
                 windDirectionDeg = 310,
                 windGustsKph = 18.3,
                 visibilityM = 16090.0,
+                cloudCoverPct = 60,
                 uvIndex = 5.4
             ),
             hourly = HourlyDto(
@@ -63,7 +64,9 @@ class WeatherReportMapperTest {
                 temperatureC = List(hourlyCount) { 10.0 + it },
                 weatherCode = List(hourlyCount) { if (it == 14) 61 else 0 },
                 precipitationProbabilityPct = List(hourlyCount) { if (it == 14) 40 else null },
-                isDay = List(hourlyCount) { if (it % 24 in 6..19) 1 else 0 }
+                isDay = List(hourlyCount) { if (it % 24 in 6..19) 1 else 0 },
+                visibilityM = List(hourlyCount) { 20_000.0 },
+                cloudCoverPct = List(hourlyCount) { 0 }
             ),
             daily = DailyDto(
                 time = List(dailyCount) { LocalDate.parse("2026-08-13").plusDays(it.toLong()).toString() },
@@ -176,7 +179,11 @@ class WeatherReportMapperTest {
                 temperatureC = List(24) { 20.0 },
                 weatherCode = codes,
                 precipitationProbabilityPct = List(24) { null },
-                isDay = List(24) { if (it in 6..19) 1 else 0 }
+                isDay = List(24) { if (it in 6..19) 1 else 0 },
+                // Kept coherent with the codes, or the fog repair would rewrite them: the
+                // aggregation is what these tests are about.
+                visibilityM = codes.map { if (it in setOf(45, 48)) 200.0 else 20_000.0 },
+                cloudCoverPct = codes.map { if (it >= 45) 100 else it * 30 }
             ),
             daily = base.daily.copy(weatherCode = List(8) { providerCode })
         )
@@ -184,6 +191,63 @@ class WeatherReportMapperTest {
 
     private fun statusOfFirstDay(codes: List<Int>, providerCode: Int) =
         map(forecast = dayOf(codes, providerCode)).daily.first().condition.label
+
+    /** The default fixture with the CURRENT hour (index 14, `hourly.first()`) overridden. */
+    private fun hourAt(code: Int, visibilityM: Double?, cloudPct: Int): ForecastResponseDto {
+        val base = forecast()
+        val n = base.hourly.time.size
+        return base.copy(
+            hourly = base.hourly.copy(
+                weatherCode = List(n) { if (it == 14) code else 0 },
+                visibilityM = List(n) { if (it == 14) visibilityM else 20_000.0 },
+                cloudCoverPct = List(n) { if (it == 14) cloudPct else 0 }
+            )
+        )
+    }
+
+    private fun statusOfCurrentHour(code: Int, visibilityM: Double?, cloudPct: Int) =
+        map(forecast = hourAt(code, visibilityM, cloudPct)).hourly.first().condition.label
+
+    @Test
+    fun `fog reported with kilometres of visibility falls back on the cloud cover`() {
+        // Cavenago, 22 Aug 2026, 01:00: weather_code 45 with 9.76 km of visibility.
+        assertEquals("Partly Cloudy ⛅", statusOfCurrentHour(45, 9760.0, 59))
+    }
+
+    @Test
+    fun `dense fog the provider called overcast reads as fog`() {
+        // Same city, 07:00: 160 m of visibility served as code 3. The dangerous direction.
+        assertEquals("Foggy 🌫️", statusOfCurrentHour(3, 160.0, 100))
+    }
+
+    @Test
+    fun `fog that really is fog is left alone`() {
+        assertEquals("Foggy 🌫️", statusOfCurrentHour(45, 40.0, 100))
+    }
+
+    @Test
+    fun `precipitation is never rewritten by the fog repair`() {
+        // Rain is not derived from visibility, and it can rain in fog.
+        assertEquals("Light Rain 🌧️", statusOfCurrentHour(61, 40.0, 100))
+    }
+
+    @Test
+    fun `a missing visibility leaves the provider code untouched`() {
+        assertEquals("Foggy 🌫️", statusOfCurrentHour(45, null, 10))
+    }
+
+    @Test
+    fun `current conditions get the same repair as the hours`() {
+        val base = forecast()
+        val report = map(
+            forecast = base.copy(
+                current = base.current.copy(weatherCode = 45, visibilityM = 9760.0, cloudCoverPct = 59)
+            )
+        )
+        // The JSON printed "Foggy" right above a 9.76 km visibility of its own.
+        assertEquals("Partly Cloudy ⛅", report.current.condition.label)
+        assertEquals(9.76, report.current.visibilityKm, 1e-9)
+    }
 
     @Test
     fun `night fog does not label a clear day`() {

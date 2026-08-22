@@ -389,6 +389,24 @@ Compromesso accettato: dentro la famiglia della precipitazione resta il `max()` 
 - [x] Test del mapper: nebbia notturna su giornata serena, pioggia diurna che batte il cielo, pioggia notturna che etichetta comunque il giorno, giornata davvero nebbiosa che resta nebbiosa, pareggio al codice più alto, date fuori dall'orizzonte orario che tengono il codice del provider
 
 
+## Fase 13c — La nebbia oraria riparata con la visibilità del provider (post-1.0)
+
+Richiesta del committente (22 ago 2026, dopo la 13b): correggere la nebbia anche in `## Prossime ore` e, se serve, in `## Attuale`. La Fase 13 aveva deciso di non intervenire perché non esisteva un discriminante affidabile; la 13b ha mostrato che il `weather_code` servito non è ricostruibile dalle altre variabili servite. **Rivalutato con i numeri: un discriminante c'è, ed è la regola di Open-Meteo stessa.** `WeatherCode.swift:99` deriva la nebbia da `visibility <= 1000` una volta escluse le precipitazioni, e altrimenti ricade sulla nuvolosità. Non stiamo inventando meteorologia: stiamo applicando la definizione del provider al campo `visibility` del provider, nell'ora in cui i due si contraddicono. Il codice perde perché è categoriale e interpolato diversamente dai campi continui.
+
+**Misura sulle 8 città padane (1344 ore).** La regola sposta **15 ore, l'1.1%**, in entrambe le direzioni: 8 false nebbie rimosse (a Cavenago il 45 delle 01:00 e delle 03:00 arriva con 9.8 e 10.0 km di visibilità) e 7 nebbie vere aggiunte, dove 120-640 m di visibilità erano serviti come `3` (coperto) o `2`. La seconda direzione è quella pericolosa: alle 07:00 a Cavenago il modello vede 160 m e l'app scriveva "coperto". Verificata anche fuori dall'Italia: `visibility` non è mai nullo in 8 località su 3 continenti (1344 ore), e le ore corrette sono coerenti — nebbia marina a Reykjavík (blocchi di 6-9 ore a 120-400 m) e nebbia da irraggiamento all'alba a Sydney (520 e 820 m con cielo quasi sereno).
+
+**Perché solo la nebbia e non anche il cielo.** Ri-derivare pure i codici 0-3 dal `cloud_cover`, che è il passo successivo ovvio e userebbe la stessa tabella del provider (`WeatherCode.swift:103`), sposterebbe **308 ore su 1344, il 23%**: a quel punto non si ripara un difetto, si sostituisce all'ingrosso la classificazione del provider, e per giunta su un campo che l'app non mostra da nessuna parte (quindi l'utente non può nemmeno verificare la contraddizione). La visibilità invece l'app la stampa, in `## Attuale` e in `current_conditions`: "Nebbia" sopra "Visibilità: 9.8 km" era una contraddizione visibile nella stessa schermata. Scartato quindi il ri-calcolo del cielo; la nebbia si tocca perché è l'unico verdetto che il provider stesso definisce con un numero che l'app possiede.
+
+**Le precipitazioni non si toccano mai** (codici >= 51): non sono derivate dalla visibilità, può benissimo piovere dentro la nebbia, e i temporali dipendono da CAPE/lifted index che l'app non scarica. Una `visibility` nulla lascia il codice esattamente com'era.
+
+Raggio d'azione: `## Prossime ore` e `hourly_forecast`, `## Attuale` e `current_conditions`, il widget, le righe del Logs e — a cascata — l'aggregazione giornaliera della 13b, che ora conta ore già riparate. **Non toccati**: alert severi (`SevereCodes` sono tutti >= 51) e regole utente (nessuna variabile espone il codice meteo; `current.visibility_km` continua a leggere il dato grezzo).
+
+- [x] `OpenMeteoApis.kt`: `visibility,cloud_cover` fra le variabili orarie, `cloud_cover` fra quelle correnti (la visibilità corrente c'era già). Nessuna delle due viene mostrata: servono solo a riparare il codice
+- [x] `ForecastDto.kt`: `HourlyDto.visibilityM` (`List<Double?>`, difensivo — il campo dipende dal modello) e `cloudCoverPct`; `CurrentDto.cloudCoverPct`
+- [x] `WeatherReportMapper.kt`: `repairFog` con le costanti della soglia (`FOG_VISIBILITY_M`, `WMO_FOG`, `FogCodes`) e `skyCode` con i bucket di nuvolosità del provider; `repairedCodes()` calcolato una volta e passato sia a `mapHourly` sia a `dailyCode`, così le ore e i giorni non possono divergere
+- [x] Test: nebbia con chilometri di visibilità che ricade sul cielo, nebbia fitta servita come coperto che diventa nebbia, nebbia vera lasciata stare, precipitazione mai riscritta, visibilità nulla che lascia il codice del provider, stessa riparazione su `## Attuale`; fixture dei test della 13b rese coerenti (visibilità bassa dove il codice dice nebbia)
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

@@ -28,6 +28,7 @@ data class CurrentDto(
     @SerialName("wind_direction_10m") val windDirectionDeg: Int,
     @SerialName("wind_gusts_10m") val windGustsKph: Double,
     @SerialName("visibility") val visibilityM: Double,
+    @SerialName("cloud_cover") val cloudCoverPct: Int,
     @SerialName("uv_index") val uvIndex: Double
 )
 
@@ -37,7 +38,9 @@ data class HourlyDto(
     @SerialName("temperature_2m") val temperatureC: List<Double>,
     @SerialName("weather_code") val weatherCode: List<Int>,
     @SerialName("precipitation_probability") val precipitationProbabilityPct: List<Int?>,
-    @SerialName("is_day") val isDay: List<Int>
+    @SerialName("is_day") val isDay: List<Int>,
+    @SerialName("visibility") val visibilityM: List<Double?>,
+    @SerialName("cloud_cover") val cloudCoverPct: List<Int>
 )
 
 @Serializable

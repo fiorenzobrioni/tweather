@@ -160,6 +160,7 @@ class RulesDryRunEndToEndTest {
                 windDirectionDeg = 310,
                 windGustsKph = 18.0,
                 visibilityM = 16100.0,
+                cloudCoverPct = 60,
                 uvIndex = 4.0
             ),
             hourly = HourlyDto(
@@ -167,7 +168,9 @@ class RulesDryRunEndToEndTest {
                 temperatureC = List(count) { 18.0 },
                 weatherCode = List(count) { 2 },
                 precipitationProbabilityPct = List(count) { 30 },
-                isDay = List(count) { 1 }
+                isDay = List(count) { 1 },
+                visibilityM = List(count) { 16_100.0 },
+                cloudCoverPct = List(count) { 60 }
             ),
             daily = DailyDto(
                 time = List(3) { LocalDate.now(zone).plusDays(it.toLong()).toString() },

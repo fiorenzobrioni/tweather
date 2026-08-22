@@ -19,7 +19,8 @@ import org.robolectric.annotation.Config
 /**
  * The README.md document (Fase 10): the human summary of weather_data.json,
  * FULLY localized (headings included — it's prose, not code), curated sections,
- * `## Status` as the repo's build badge via AlertEngine. Since Fase 11c both
+ * `## Status` as the repo's build badge via AlertEngine, read third since Fase 13d
+ * (a badge below the fold is not a badge). Since Fase 11c both
  * tables are formatted (columns padded) and the next hours are here too; since
  * Fase 11d both tables end with the status column, emoji first and description
  * after it, so the numeric columns never pan off-screen; since Fase 11e the
@@ -53,9 +54,9 @@ class WeatherReadmeTest {
         val headings = lines.filter { it.startsWith("#") }
         assertEquals(
             listOf(
-                "# New York", "## Current", "## Today", "## Next hours",
-                "## Forecast", "## Conditions", "## Air quality", "## Astronomy",
-                "## Status"
+                "# New York", "## Current", "## Today", "## Status",
+                "## Next hours", "## Forecast", "## Air quality", "## Conditions",
+                "## Astronomy"
             ),
             headings
         )
@@ -93,9 +94,25 @@ class WeatherReadmeTest {
     }
 
     @Test
-    fun `the next hours start at the hour after the current one, right after today`() {
+    fun `status is the badge of the page, read before the forecasts`() {
+        // Fase 13d: it used to close the document — a warning landed on line 57 of 58,
+        // below the moon phase. It is the only actionable line there is.
         val lines = readme()
-        assertEquals("## Next hours", lines[lines.indexOf("## Today") + 5])
+        val status = lines.indexOf("## Status")
+        assertTrue(status < lines.indexOf("## Next hours"))
+        assertTrue(status < lines.indexOf("## Astronomy"))
+        assertTrue(lines.indexOf("## Today") < status)
+    }
+
+    @Test
+    fun `the next hours start at the hour after the current one, after today and status`() {
+        val lines = readme()
+        // Nothing but the status badge sits between Today and the hours.
+        val headings = lines.filter { it.startsWith("## ") }
+        assertEquals(
+            listOf("## Today", "## Status", "## Next hours"),
+            headings.subList(headings.indexOf("## Today"), headings.indexOf("## Next hours") + 1)
+        )
         assertEquals(
             listOf(
                 "| Hour  | Temp | Rain | Status           |",
@@ -183,6 +200,12 @@ class WeatherReadmeTest {
         val lines = readme(report)
         assertTrue(lines.none { "Air quality" in it })
         assertTrue(lines.none { it.startsWith("Pollen:") })
+        // It leads the detail sections (Fase 13d) but is still the one that can vanish:
+        // dropping it must not take Conditions or the heading order with it.
+        assertEquals(
+            listOf("## Forecast", "## Conditions", "## Astronomy"),
+            lines.filter { it.startsWith("## ") }.takeLast(3)
+        )
     }
 
     @Test

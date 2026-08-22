@@ -152,13 +152,81 @@ class WeatherReportMapperTest {
         assertEquals(LocalDate.parse("2026-08-13"), daily.first().date)
         assertEquals(28.0, daily.first().highC, 0.0)
         assertEquals(18.0, daily.first().lowC, 0.0)
-        assertEquals("Overcast ☁️", daily.first().condition.label)
+        // Derived from the day's hours, not from daily.weather_code (3): it rains at hour
+        // 14, and rain outranks any sky code.
+        assertEquals("Light Rain 🌧️", daily.first().condition.label)
         assertEquals(55, daily.first().precipPct)
         assertEquals(0, daily[1].precipPct)                  // null max probability → 0
         // uv_index_max was fetched and parsed all along but never mapped, so the
         // README's "Today" section fell back to the instant reading (Aug 2026 fix)
         assertEquals(6, daily.first().uvIndexMax)
         assertEquals("High ☀️", daily.first().uvDescription)
+    }
+
+    /**
+     * One local day of hourly codes (index = hour of 2026-08-13), daylight 06:00-19:00
+     * like the default fixture, and the code `daily.weather_code` would have carried.
+     */
+    private fun dayOf(codes: List<Int>, providerCode: Int): ForecastResponseDto {
+        val base = forecast()
+        val midnight = LocalDateTime.parse("2026-08-13T00:00")
+        return base.copy(
+            hourly = base.hourly.copy(
+                time = List(24) { midnight.plusHours(it.toLong()).toString() },
+                temperatureC = List(24) { 20.0 },
+                weatherCode = codes,
+                precipitationProbabilityPct = List(24) { null },
+                isDay = List(24) { if (it in 6..19) 1 else 0 }
+            ),
+            daily = base.daily.copy(weatherCode = List(8) { providerCode })
+        )
+    }
+
+    private fun statusOfFirstDay(codes: List<Int>, providerCode: Int) =
+        map(forecast = dayOf(codes, providerCode)).daily.first().condition.label
+
+    @Test
+    fun `night fog does not label a clear day`() {
+        // The reported case: Open-Meteo's daily code is max() over 24 hours, so the fog
+        // hours of a Po Valley night outrank 14 hours of sun. Only the daylight votes.
+        val codes = List(24) { if (it in 6..19) 0 else 45 }
+        assertEquals("Clear ☀️", statusOfFirstDay(codes, providerCode = 45))
+    }
+
+    @Test
+    fun `rain in daylight outranks the sky`() {
+        val codes = List(24) { if (it == 15) 61 else 0 }
+        assertEquals("Light Rain 🌧️", statusOfFirstDay(codes, providerCode = 61))
+    }
+
+    @Test
+    fun `rain that only falls at night still labels the day`() {
+        // Only the sky is the daylight's. Scoping the rain to it too silently turned 8
+        // nocturnal thunderstorms into "Overcast" across the 8 cities measured — the rule
+        // may remove a distortion, never a warning.
+        val codes = List(24) { if (it in 6..19) 3 else 95 }
+        assertEquals("Thunderstorm ⛈️", statusOfFirstDay(codes, providerCode = 95))
+    }
+
+    @Test
+    fun `a day that really is foggy still reads foggy`() {
+        // No special case for 45: it wins on its own when it is the day's usual sky.
+        val codes = List(24) { if (it in 6..15) 45 else 3 }
+        assertEquals("Foggy 🌫️", statusOfFirstDay(codes, providerCode = 45))
+    }
+
+    @Test
+    fun `a tie between two skies goes to the heavier one`() {
+        val codes = List(24) { if (it in 6..12) 1 else 3 }
+        assertEquals("Overcast ☁️", statusOfFirstDay(codes, providerCode = 3))
+    }
+
+    @Test
+    fun `days the hourly run does not reach keep the provider code`() {
+        // 48 hourly slots cover two days; the rest of the week falls back on daily.
+        val daily = map().daily
+        assertEquals("Clear ☀️", daily[1].condition.label)     // derived: clear all day
+        assertEquals("Overcast ☁️", daily[2].condition.label)  // provider's code 3
     }
 
     @Test

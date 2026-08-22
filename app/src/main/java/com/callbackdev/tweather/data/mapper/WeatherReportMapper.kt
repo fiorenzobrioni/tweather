@@ -2,6 +2,7 @@ package com.callbackdev.tweather.data.mapper
 
 import com.callbackdev.tweather.data.remote.dto.AirQualityCurrentDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
+import com.callbackdev.tweather.data.remote.dto.HourlyDto
 import com.callbackdev.tweather.domain.WeatherCodes
 import com.callbackdev.tweather.domain.model.AirQuality
 import com.callbackdev.tweather.domain.model.Astronomical
@@ -34,6 +35,12 @@ import kotlin.math.roundToInt
  */
 private const val HOURLY_WINDOW = 25
 private const val DAILY_WINDOW = 7
+
+/**
+ * Below 51 the WMO scale carries only sky states and fog; from 51 up every code is a
+ * precipitation of some kind (drizzle, rain, snow, showers, thunderstorm).
+ */
+private const val FIRST_PRECIP_CODE = 51
 
 object WeatherReportMapper {
 
@@ -91,7 +98,7 @@ object WeatherReportMapper {
             pollen = airQuality?.toPollenReport(),
             astronomical = mapAstronomical(forecast, fetchedAt),
             hourly = mapHourly(forecast, hourlyTimes, currentHourIndex),
-            daily = mapDaily(forecast),
+            daily = mapDaily(forecast, hourlyTimes),
             systemInfo = SystemInfo(
                 source = SOURCE,
                 lastSync = fetchedAt,
@@ -121,20 +128,67 @@ object WeatherReportMapper {
             }
     }
 
-    private fun mapDaily(forecast: ForecastResponseDto): List<DailyForecast> {
+    private fun mapDaily(
+        forecast: ForecastResponseDto,
+        hourlyTimes: List<LocalDateTime>
+    ): List<DailyForecast> {
         val daily = forecast.daily
+        val hoursByDate = hourlyTimes.indices.groupBy { hourlyTimes[it].toLocalDate() }
         return daily.time.take(DAILY_WINDOW).mapIndexed { i, date ->
+            val day = LocalDate.parse(date)
             val uvMax = daily.uvIndexMax.getOrNull(i)?.roundToInt() ?: 0
             DailyForecast(
-                date = LocalDate.parse(date),
+                date = day,
                 highC = daily.temperatureMaxC[i],
                 lowC = daily.temperatureMinC[i],
-                condition = WeatherCodes.condition(daily.weatherCode[i], isDay = true),
+                condition = WeatherCodes.condition(
+                    dailyCode(forecast.hourly, hoursByDate[day].orEmpty(), daily.weatherCode[i]),
+                    isDay = true
+                ),
                 precipPct = daily.precipitationProbabilityMaxPct.getOrNull(i) ?: 0,
                 uvIndexMax = uvMax,
                 uvDescription = WeatherCodes.uvDescription(uvMax)
             )
         }
+    }
+
+    /**
+     * The day's weather code, derived from the day's own hourly codes instead of read off
+     * `daily.weather_code` — which is `max()` over all 24 of them ("the most severe weather
+     * condition on a given day"), the one summary guaranteed to pick the least
+     * representative hour there is. A single 3am fog code relabelled a whole clear August
+     * day `Foggy 🌫️` in Prossimi giorni, in `daily_forecast` and in the morning summary
+     * notification; the same `max()` prints a thunderstorm over a week for one nocturnal
+     * CAPE spike. Measured 22 Aug 2026 on 8 Po Valley cities — see Fase 13b in PLANNING.md
+     * for the numbers behind every choice below.
+     *
+     * Rain first, over the WHOLE day: any precipitation code (≥ 51) outranks every sky code,
+     * as it does for the provider. Scoping this half to the daylight too was the first cut
+     * and it dropped the precipitation from 17 days out of 56, 8 of them turning a night
+     * thunderstorm into `Overcast` — this rule may remove a distortion, never a warning.
+     * `max()` within the precipitation family keeps Open-Meteo's own ordering, where 80
+     * (slight showers) outranks 65 (heavy rain): imprecise about intensity, never wrong
+     * about whether it rains.
+     *
+     * The sky, with no rain to report, is the daylight's: the row answers "how will the day
+     * look", so a single closed hour at 4am neither darkens nor fogs a sunny day. Apple
+     * (`daytimeForecast`/`overnightForecast`) and Google (`daytimeForecast` 07-19) split the
+     * day for the same reason. Most frequent daylight code wins, ties to the heavier one —
+     * which needs no case for fog: on a really foggy day fog is the most frequent code.
+     *
+     * Dates the hourly run does not reach keep the provider's code: it ends with
+     * `forecast_days` and the daily one can outrun it. Aggregate better, never blank a row.
+     */
+    private fun dailyCode(hourly: HourlyDto, hours: List<Int>, fallback: Int): Int {
+        if (hours.isEmpty()) return fallback
+        hours.map { hourly.weatherCode[it] }
+            .filter { it >= FIRST_PRECIP_CODE }
+            .maxOrNull()
+            ?.let { return it }
+        val daylight = hours.filter { hourly.isDay[it] == 1 }.ifEmpty { hours }
+        return daylight.map { hourly.weatherCode[it] }
+            .groupingBy { it }.eachCount()
+            .maxWithOrNull(compareBy({ it.value }, { it.key }))?.key ?: fallback
     }
 
     private fun mapAstronomical(forecast: ForecastResponseDto, fetchedAt: Instant): Astronomical {

@@ -36,7 +36,8 @@ import kotlin.math.roundToInt
  *
  * `## Status` is the repo's build badge: [AlertEngine]'s severe/precipitation
  * rules evaluated statelessly (no dedup fingerprints — the README shows what IS,
- * notifications decide what's news) render as `>` blockquote warnings.
+ * notifications decide what's news) render as `>` blockquote warnings. It reads third,
+ * right after Current and Today (Fase 13d) — a badge below the fold is not a badge.
  */
 fun WeatherReport.toReadmeMarkdown(
     resources: Resources,
@@ -80,9 +81,54 @@ fun WeatherReport.toReadmeMarkdown(
         add("${s(R.string.readme_uv)}: ${today.uvIndexMax} (${translate(today.uvDescription)})")
     }
 
-    // Both forecasts sit straight after Today, before every detail section: they are
-    // what a weather app is opened for, and the hours read into the days without a
-    // page of conditions and pollen in between. Both tables share one column plan
+    // Status sits HERE, third of the curated sections, not at the foot of the document
+    // (Fase 13d): it is the only actionable line on the page, and at the bottom it landed
+    // on line 57 of 58 — a thunderstorm warning two screens below the fold, with the moon
+    // phase above it. A real README puts its build badge under the H1 and this section is
+    // exactly that badge; it stops one notch short of the top only because the page must
+    // answer "how warm is it" before "is anything wrong", and Current + Today cost 8 lines
+    // between them. It stays in a FIXED place whether or not there is anything to warn
+    // about: a section that moves with its content is harder to learn than one that is
+    // early, and "Everything looks good." earns its two lines the way a green badge does.
+    add("")
+    add("## ${s(R.string.readme_h_status)}")
+    val warnings = AlertEngine.evaluate(
+        report = this@toReadmeMarkdown,
+        settings = NotificationSettings(
+            severeWeatherAlerts = true,
+            dailySummary = false,
+            precipitationWarning = true
+        ),
+        state = AlertState(),
+        now = location.localTime,
+        cityKey = "readme"
+    )
+    if (warnings.isEmpty()) {
+        add(s(R.string.readme_status_ok))
+    } else {
+        warnings.forEach { alert ->
+            val at = alert.at?.format(ClockTime) ?: ""
+            when (alert.kind) {
+                AlertKind.SEVERE -> add(
+                    "> " + s(
+                        R.string.readme_status_severe,
+                        alert.condition?.let { status(it.description, it.emoji) } ?: "",
+                        at
+                    )
+                )
+                AlertKind.PRECIPITATION -> add(
+                    "> " + s(R.string.readme_status_precip, at, alert.precipPct ?: 0)
+                )
+                AlertKind.DAILY_SUMMARY -> Unit // disabled above; not a warning
+            }
+        }
+    }
+
+    // Both forecasts sit before every detail section: they are what a weather app is
+    // opened for, and the hours read into the days without a page of conditions and
+    // pollen in between. Fase 11c put them "straight after Today"; Status now sits in
+    // that gap, which the rule was never about — two lines of warning are not the page
+    // of detail it was written to keep out. Both tables share one column plan
     // (Fase 11d): the status — emoji first, description after — sits LAST, so the
     // numeric columns never pan off-screen and a description that outgrows the
     // display just clips ("Temporale con grand…" still reads); leading with the
@@ -181,40 +227,6 @@ fun WeatherReport.toReadmeMarkdown(
     )
     add("${s(R.string.readme_daylight)}: ${astronomical.daylightDuration.hhMm()}")
     add("${s(R.string.readme_moon)}: ${status(astronomical.moonPhase.label, astronomical.moonPhase.emoji)}")
-
-    add("")
-    add("## ${s(R.string.readme_h_status)}")
-    val warnings = AlertEngine.evaluate(
-        report = this@toReadmeMarkdown,
-        settings = NotificationSettings(
-            severeWeatherAlerts = true,
-            dailySummary = false,
-            precipitationWarning = true
-        ),
-        state = AlertState(),
-        now = location.localTime,
-        cityKey = "readme"
-    )
-    if (warnings.isEmpty()) {
-        add(s(R.string.readme_status_ok))
-    } else {
-        warnings.forEach { alert ->
-            val at = alert.at?.format(ClockTime) ?: ""
-            when (alert.kind) {
-                AlertKind.SEVERE -> add(
-                    "> " + s(
-                        R.string.readme_status_severe,
-                        alert.condition?.let { status(it.description, it.emoji) } ?: "",
-                        at
-                    )
-                )
-                AlertKind.PRECIPITATION -> add(
-                    "> " + s(R.string.readme_status_precip, at, alert.precipPct ?: 0)
-                )
-                AlertKind.DAILY_SUMMARY -> Unit // disabled above; not a warning
-            }
-        }
-    }
 
     add("")
     val lastSync = systemInfo.lastSync

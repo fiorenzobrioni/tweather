@@ -407,6 +407,22 @@ Raggio d'azione: `## Prossime ore` e `hourly_forecast`, `## Attuale` e `current_
 - [x] Test: nebbia con chilometri di visibilità che ricade sul cielo, nebbia fitta servita come coperto che diventa nebbia, nebbia vera lasciata stare, precipitazione mai riscritta, visibilità nulla che lascia il codice del provider, stessa riparazione su `## Attuale`; fixture dei test della 13b rese coerenti (visibilità bassa dove il codice dice nebbia)
 
 
+## Fase 13d — `## Stato` promosso a terza sezione del README (post-1.0)
+
+Domanda del committente (22 ago 2026): `## Stato` è in fondo alla schermata `README.md`, è il posto giusto? **No.** Contate le righe che il documento produce con dati reali (14 ore + 7 giorni), la sezione cadeva alla riga **57 su 58**: `⚠️ Temporale in arrivo verso le 18:00` — l'unica riga azionabile dell'intera pagina — stava due schermate sotto la piega, con la fase lunare sopra di sé. C'era anche un'incoerenza interna: la KDoc del compositore dichiara che `## Status` è il *build badge* del repo, e in un README vero il badge sta sotto l'H1, prima di tutto.
+
+**Scartata però la promozione in cima.** Un badge di build si consulta a colpo d'occhio perché è minuscolo; qui la sezione costa un heading più una riga, lo stesso peso di ogni altra. Sopra `## Attuale` farebbe rispondere all'app "c'è un allerta?" prima di "quanti gradi ci sono?", che è la priorità sbagliata per un'app aperta venti volte al giorno per la temperatura.
+
+**Adottato: terza sezione, subito dopo `## Oggi` e prima di `## Prossime ore`** — dalla riga 57 alla riga ~13, sempre nella prima schermata, senza spostare in basso la temperatura di una sola riga. Completa il blocco del colpo d'occhio (adesso → oggi → c'è qualcosa di cui preoccuparsi) prima che si debba scorrere le due tabelle. La regola della Fase 11c ("le previsioni subito dopo Oggi, prima di ogni sezione di dettaglio") non è violata nello spirito: era scritta per impedire che una pagina di condizioni e pollini separasse le ore dai giorni, e due righe di avviso non sono quella pagina; il commento in `WeatherReadme.kt` è stato aggiornato per dirlo.
+
+**Posizione fissa, non condizionale.** Valutata e scartata la variante "in alto se c'è un avviso, in fondo se non c'è": una sezione che si sposta col contenuto è più difficile da imparare di una anticipata, e `Tutto regolare.` guadagna le sue due righe come le guadagna un badge verde — dice che il controllo è stato fatto. Resta invece invariata la regola della Fase 10 per cui una sezione senza dati sparisce del tutto (`## Qualità dell'aria` fuori dalla copertura pollini): assente non è lo stesso che mobile.
+
+Resto dell'ordine confermato: Attuale → Oggi → Stato → ore → giorni → Condizioni → Aria → Astronomia è un gradiente di importanza pulito, con l'astronomia in coda perché la fase lunare è vezzo, non utilità. Segnalato al committente ma **non applicato**: `## Qualità dell'aria` prima di `## Condizioni` (AQI e pollini sono azionabili, la pressione in mb è il valore meno azionabile della pagina) — modifica marginale, in attesa di una sua decisione.
+
+- [x] `WeatherReadme.kt`: blocco `## Stato` spostato fra `## Oggi` e le due tabelle, con il commento del perché (riga 57 su 58, badge sotto la piega) e la nota che la regola 11c non ne è toccata; KDoc aggiornata
+- [x] `WeatherReadmeTest.kt`: ordine degli heading aggiornato nel golden; l'asserzione posizionale delle ore non usa più un offset fisso (`## Today` + 5, che il contenuto variabile dello Stato avrebbe reso fragile) ma la sequenza degli heading; nuovo test che lo Stato precede previsioni e astronomia
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

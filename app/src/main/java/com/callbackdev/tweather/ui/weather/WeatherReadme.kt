@@ -190,19 +190,13 @@ fun WeatherReport.toReadmeMarkdown(
         )
     }
 
-    add("")
-    add("## ${s(R.string.readme_h_conditions)}")
-    add(
-        "🌬️ ${s(R.string.readme_wind)}: " +
-            "${decimal1(options.windSpeed.convert(current.wind.speedKph))} " +
-            "${options.windSpeed.symbol} ${current.wind.directionCompass}"
-    )
-    add("💧 ${s(R.string.readme_humidity)}: ${current.humidityPct}%")
-    add("🌡️ ${s(R.string.readme_pressure)}: ${decimal1(current.pressureMb)} mb")
-    add("👁️ ${s(R.string.readme_visibility)}: ${decimal1(current.visibilityKm)} km")
-
-    // A README documents what exists: sections the APIs could not fill are simply
-    // absent (the JSON's in-character `null` has no README equivalent).
+    // Air quality leads the two detail sections (Fase 13d): AQI and pollen are things
+    // you act on — whether to run outside, whether to take the antihistamine — while
+    // the block below them is reference, pressure in mb being the least actionable
+    // value on the page. A README documents what exists, so a section the APIs could
+    // not fill is simply absent (the JSON's in-character `null` has no equivalent
+    // here) — which is also why this one cannot be merged into Conditions: outside
+    // the pollen coverage it has to be able to disappear whole.
     if (airQuality != null || pollen != null) {
         add("")
         add("## ${s(R.string.readme_h_air)}")
@@ -218,6 +212,17 @@ fun WeatherReport.toReadmeMarkdown(
             )
         }
     }
+
+    add("")
+    add("## ${s(R.string.readme_h_conditions)}")
+    add(
+        "🌬️ ${s(R.string.readme_wind)}: " +
+            "${decimal1(options.windSpeed.convert(current.wind.speedKph))} " +
+            "${options.windSpeed.symbol} ${current.wind.directionCompass}"
+    )
+    add("💧 ${s(R.string.readme_humidity)}: ${current.humidityPct}%")
+    add("🌡️ ${s(R.string.readme_pressure)}: ${decimal1(current.pressureMb)} mb")
+    add("👁️ ${s(R.string.readme_visibility)}: ${decimal1(current.visibilityKm)} km")
 
     add("")
     add("## ${s(R.string.readme_h_astronomy)}")

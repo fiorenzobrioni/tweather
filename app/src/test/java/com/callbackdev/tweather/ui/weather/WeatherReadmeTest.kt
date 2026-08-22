@@ -55,7 +55,7 @@ class WeatherReadmeTest {
         assertEquals(
             listOf(
                 "# New York", "## Current", "## Today", "## Status",
-                "## Next hours", "## Forecast", "## Conditions", "## Air quality",
+                "## Next hours", "## Forecast", "## Air quality", "## Conditions",
                 "## Astronomy"
             ),
             headings
@@ -200,6 +200,12 @@ class WeatherReadmeTest {
         val lines = readme(report)
         assertTrue(lines.none { "Air quality" in it })
         assertTrue(lines.none { it.startsWith("Pollen:") })
+        // It leads the detail sections (Fase 13d) but is still the one that can vanish:
+        // dropping it must not take Conditions or the heading order with it.
+        assertEquals(
+            listOf("## Forecast", "## Conditions", "## Astronomy"),
+            lines.filter { it.startsWith("## ") }.takeLast(3)
+        )
     }
 
     @Test

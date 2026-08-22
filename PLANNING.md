@@ -417,10 +417,13 @@ Domanda del committente (22 ago 2026): `## Stato` è in fondo alla schermata `RE
 
 **Posizione fissa, non condizionale.** Valutata e scartata la variante "in alto se c'è un avviso, in fondo se non c'è": una sezione che si sposta col contenuto è più difficile da imparare di una anticipata, e `Tutto regolare.` guadagna le sue due righe come le guadagna un badge verde — dice che il controllo è stato fatto. Resta invece invariata la regola della Fase 10 per cui una sezione senza dati sparisce del tutto (`## Qualità dell'aria` fuori dalla copertura pollini): assente non è lo stesso che mobile.
 
-Resto dell'ordine confermato: Attuale → Oggi → Stato → ore → giorni → Condizioni → Aria → Astronomia è un gradiente di importanza pulito, con l'astronomia in coda perché la fase lunare è vezzo, non utilità. Segnalato al committente ma **non applicato**: `## Qualità dell'aria` prima di `## Condizioni` (AQI e pollini sono azionabili, la pressione in mb è il valore meno azionabile della pagina) — modifica marginale, in attesa di una sua decisione.
+**Secondo scambio, approvato dal committente nella stessa sessione: `## Qualità dell'aria` prima di `## Condizioni`.** AQI e pollini sono azionabili (esco a correre? prendo l'antistaminico?), mentre il blocco sotto è consultazione e la pressione in mb è il valore meno azionabile della pagina. Le due sezioni restano separate e non si fondono: fuori dalla copertura pollini l'aria deve poter sparire per intero (regola della Fase 10), e una sezione che sparisce non può portarsi via il vento e l'umidità.
+
+Ordine finale: Attuale → Oggi → **Stato** → ore → giorni → **Aria** → Condizioni → Astronomia. Gradiente pulito, con l'astronomia in coda perché la fase lunare è vezzo, non utilità.
 
 - [x] `WeatherReadme.kt`: blocco `## Stato` spostato fra `## Oggi` e le due tabelle, con il commento del perché (riga 57 su 58, badge sotto la piega) e la nota che la regola 11c non ne è toccata; KDoc aggiornata
-- [x] `WeatherReadmeTest.kt`: ordine degli heading aggiornato nel golden; l'asserzione posizionale delle ore non usa più un offset fisso (`## Today` + 5, che il contenuto variabile dello Stato avrebbe reso fragile) ma la sequenza degli heading; nuovo test che lo Stato precede previsioni e astronomia
+- [x] `WeatherReadme.kt`: blocco `## Qualità dell'aria` spostato sopra `## Condizioni`, con il commento del perché e della ragione per cui non si fondono
+- [x] `WeatherReadmeTest.kt`: ordine degli heading aggiornato nel golden; l'asserzione posizionale delle ore non usa più un offset fisso (`## Today` + 5, che il contenuto variabile dello Stato avrebbe reso fragile) ma la sequenza degli heading; nuovo test che lo Stato precede previsioni e astronomia; il test della sezione assente verifica anche che togliere l'aria non sposti la coda dell'ordine
 
 
 ## Note trasversali

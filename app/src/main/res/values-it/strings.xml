@@ -72,6 +72,7 @@
          del picker e accessibilità sono chrome (localizzati) -->
     <string name="widget_description">Meteo attuale come finestra terminale</string>
     <string name="cd_widget_refresh">Aggiorna i dati meteo</string>
+    <string name="cd_widget_refresh_busy">Aggiornamento dei dati meteo in corso</string>
     <string name="cd_widget_follow_app">Segui la località attiva dell\'app</string>
     <string name="cd_widget_pin">Fissa %1$s a questo widget</string>
 

@@ -426,6 +426,27 @@ Ordine finale: Attuale → Oggi → **Stato** → ore → giorni → **Aria** �
 - [x] `WeatherReadmeTest.kt`: ordine degli heading aggiornato nel golden; l'asserzione posizionale delle ore non usa più un offset fisso (`## Today` + 5, che il contenuto variabile dello Stato avrebbe reso fragile) ma la sequenza degli heading; nuovo test che lo Stato precede previsioni e astronomia; il test della sezione assente verifica anche che togliere l'aria non sposti la coda dell'ordine
 
 
+## Fase 13e — Il tap sul ↻ del widget si vede (post-1.0)
+
+Richiesta del committente (25 ago 2026): la freccia di refresh del widget deve cambiare disegno al tap, come quella di tsteps. Portata da lì (tsteps Fase 16), stessa forma e stessi nomi di risorsa.
+
+**Il difetto.** Il tap accodava il sync e ridisegnava lo stesso identico frame: il fetch è un job WorkManager e atterra secondi dopo, quindi per secondi non cambia un pixel; e quando il meteo non è cambiato — o il fetch fallisce — il frame resta identico anche *dopo*. L'unica riga che si muove è `# last_sync`, che è l'ultima del transcript: le taglie che la gente piazza davvero la tagliano. Il risultato è un tasto che sembra morto.
+
+**La soluzione: il glifo indossa il tap.** `↻` diventa `…` in colore commento (con la sua `contentDescription`) mentre il fetch è in volo, e torna al primo repaint utile. È l'unico elemento presente su tutte e tre le tier, small compresa, quindi l'unico riscontro che raggiunge ogni taglia.
+
+**Chi lo fa tornare.** Il primo repaint che arriva: il commit della history quando il fetch riesce (il gancio del repository), il repaint che il worker fa da sé quando il sync fallisce, altrimenti la finestra `BusyWindowMs` (5s) nel provider. La finestra è un **tetto, non un'attesa**: serve al tap che non serve nessuno. tsteps legge il contapassi dentro il broadcast e sa quando ha finito; qui no — il vincolo CONNECTED tiene il job accodato finché la rete non torna, e un widget che resta con `…` per ore sarebbe una bugia peggiore di numeri che non si muovono. Cinque secondi stanno larghi su un fetch normale (due GET dietro un job expedited) e stretti sul budget che un broadcast di background può tenere con `goAsync`.
+
+**Scartato: osservare il lavoro con `getWorkInfosForUniqueWorkFlow`.** In teoria più preciso (il glifo tornerebbe esattamente a job finito), in pratica fragile: `enqueueUniqueWork` registra il lavoro in modo asincrono, e un `WorkInfo` terminale del tap precedente può soddisfare il predicato prima che il nuovo esista — il glifo tornerebbe subito, proprio nel caso che questa fase esiste per riparare. La finestra è deterministica e non dipende dagli interni di WorkManager.
+
+**L'enqueue resta sincrono in `onReceive`**, prima della coroutine: il fetch è quello che il tap sta davvero chiedendo e non deve mettersi in coda dietro a un render.
+
+- [x] `strings.xml` (EN/IT): `widget_refresh_glyph_busy` (`…`, non traducibile come l'altro glifo) e `cd_widget_refresh_busy` per il TalkBack
+- [x] `WidgetRenderer`: parametro `syncing` su `render` e `sizeMap`; testo, colore e `contentDescription` impostati su **entrambi** i rami — un glifo scritto solo quando è occupato non tornerebbe più
+- [x] `TweatherWidgetUpdater.updateAll(syncing)`: stesso stato persistito, glifo diverso
+- [x] `TweatherWidgetProvider.acknowledgeTap`: repaint occupato, finestra, repaint normale; il ramo del tap sostituisce il vecchio `needsRender = true`
+- [x] Test: il glifo indossa il tap su tutte le tier (testo, colore e accessibilità, occupato e a riposo)
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

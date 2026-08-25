@@ -66,13 +66,16 @@ class WidgetRendererTest {
     private fun inflate(
         content: WidgetContent,
         tier: WidgetTier,
-        opacityPct: Int = 100
-    ): View = WidgetRenderer.render(context, content, palette, opacityPct, tier)
+        opacityPct: Int = 100,
+        syncing: Boolean = false
+    ): View = WidgetRenderer.render(context, content, palette, opacityPct, tier, syncing = syncing)
         .apply(context, FrameLayout(context))
 
     private fun View.text(id: Int): String = findViewById<TextView>(id).text.toString()
 
     private fun View.visibility(id: Int): Int = findViewById<View>(id).visibility
+
+    private fun View.textColor(id: Int): Int = findViewById<TextView>(id).currentTextColor
 
     /** Color of the token covering [index] — spans are the only carrier of per-token color. */
     private fun View.tokenColorAt(id: Int, index: Int): Int {
@@ -237,6 +240,35 @@ class WidgetRendererTest {
         assertEquals(View.GONE, view.visibility(R.id.widget_line2))
         // No weather, no glyph: the emoji slot collapses instead of showing "".
         assertEquals(View.GONE, view.visibility(R.id.widget_emoji))
+    }
+
+    /**
+     * The tap's acknowledgment has to reach the sizes people actually place, and
+     * `# last_sync` is last in the transcript — the medium tier cuts it. So the glyph
+     * carries it, on every tier, and comes back on the next repaint.
+     */
+    @Test
+    fun theRefreshGlyphWearsTheTapOnEveryTier() {
+        val idle = context.getString(R.string.widget_refresh_glyph)
+        val busy = context.getString(R.string.widget_refresh_glyph_busy)
+
+        listOf(WidgetTier.Small, WidgetTier.Terminal(4), WidgetTier.Terminal(11)).forEach { tier ->
+            val waiting = inflate(content(tier), tier, syncing = true)
+            assertEquals(busy, waiting.text(R.id.widget_refresh))
+            assertEquals(palette.comment, waiting.textColor(R.id.widget_refresh))
+            assertEquals(
+                context.getString(R.string.cd_widget_refresh_busy),
+                waiting.findViewById<View>(R.id.widget_refresh).contentDescription
+            )
+
+            val settled = inflate(content(tier), tier)
+            assertEquals(idle, settled.text(R.id.widget_refresh))
+            assertEquals(palette.plain, settled.textColor(R.id.widget_refresh))
+            assertEquals(
+                context.getString(R.string.cd_widget_refresh),
+                settled.findViewById<View>(R.id.widget_refresh).contentDescription
+            )
+        }
     }
 
     @Test

@@ -50,10 +50,11 @@ object WidgetRenderer {
         content: (WidgetTier) -> WidgetContent,
         palette: WidgetPalette,
         opacityPct: Int,
-        cityKey: String? = null
+        cityKey: String? = null,
+        syncing: Boolean = false
     ): RemoteViews = RemoteViews(
         breakpoints().entries.associate { (tier, size) ->
-            size to render(context, content(tier), palette, opacityPct, tier, cityKey)
+            size to render(context, content(tier), palette, opacityPct, tier, cityKey, syncing)
         }
     )
 
@@ -83,7 +84,8 @@ object WidgetRenderer {
         palette: WidgetPalette,
         opacityPct: Int,
         tier: WidgetTier,
-        cityKey: String? = null
+        cityKey: String? = null,
+        syncing: Boolean = false
     ): RemoteViews {
         val views = RemoteViews(context.packageName, layoutFor(tier))
 
@@ -97,10 +99,22 @@ object WidgetRenderer {
             R.id.widget_emoji,
             if (content.emoji != null) View.VISIBLE else View.GONE
         )
-        views.setTextColor(R.id.widget_refresh, palette.plain)
+        // The tap's only acknowledgment, and the one that reaches every tier: the
+        // `# last_sync` line is last in the transcript, so the sizes most people place
+        // never show it, and a fetch that changed nothing repaints pixel-identical.
+        // Set on both branches — the glyph has to come back.
+        views.setTextViewText(
+            R.id.widget_refresh,
+            context.getString(
+                if (syncing) R.string.widget_refresh_glyph_busy else R.string.widget_refresh_glyph
+            )
+        )
+        views.setTextColor(R.id.widget_refresh, if (syncing) palette.comment else palette.plain)
         views.setContentDescription(
             R.id.widget_refresh,
-            context.getString(R.string.cd_widget_refresh)
+            context.getString(
+                if (syncing) R.string.cd_widget_refresh_busy else R.string.cd_widget_refresh
+            )
         )
 
         if (tier is WidgetTier.Small) {

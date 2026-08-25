@@ -3,6 +3,7 @@ package com.callbackdev.tweather.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -36,8 +37,26 @@ class WorkspaceStore(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[MainActiveFile] = file.name }
     }
 
+    /**
+     * The one-shot `HELP.md` pointer in the editor (Fase 14d), shown until it is
+     * used or dismissed. Workspace state, and deliberately NOT a `settings.config`
+     * toggle: a switch for something that happens once would spend the rest of the
+     * app's life sitting on `false` in a file the user reads, and
+     * `$ tweather reset settings` would bring the hint back to someone who has been
+     * using tweather for a year. The way to see the help again is the file itself,
+     * which never goes anywhere.
+     */
+    val helpHintDismissed: Flow<Boolean> = dataStore.data
+        .map { it[HelpHintDismissed] ?: false }
+        .distinctUntilChanged()
+
+    suspend fun dismissHelpHint() {
+        dataStore.edit { it[HelpHintDismissed] = true }
+    }
+
     companion object {
         private val MainActiveFile = stringPreferencesKey("main_active_file")
+        private val HelpHintDismissed = booleanPreferencesKey("help_hint_dismissed")
 
         fun create(context: Context) = WorkspaceStore(context.workspaceDataStore)
     }

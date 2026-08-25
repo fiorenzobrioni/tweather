@@ -130,5 +130,8 @@ object TweatherWidgetUpdater {
     private fun ActiveSource.city(location: LocationSettings): City? = when (this) {
         is ActiveSource.Saved -> city
         is ActiveSource.Gps -> lastFix ?: location.gpsCity
+        // Nothing configured (Fase 14b): the widget already has the honest render for
+        // it — `# no data yet — open tweather`.
+        ActiveSource.None -> null
     }
 }

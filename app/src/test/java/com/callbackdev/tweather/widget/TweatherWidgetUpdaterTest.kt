@@ -102,6 +102,9 @@ class TweatherWidgetUpdaterTest {
             },
             json
         )
+        // Fase 14b: nothing is seeded any more, so the fixture states its own
+        // precondition instead of inheriting one from the data layer.
+        runBlocking { cityStore.add(milan) }
         widgetCityStore = WidgetCityStore(
             PreferenceDataStoreFactory.create(scope = scope) {
                 tmp.newFile("widget-cities-${System.nanoTime()}.preferences_pb")

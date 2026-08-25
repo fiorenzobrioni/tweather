@@ -473,6 +473,74 @@ Ricaduta accettata: nome, `admin1` e `country` arrivano localizzati (Toscana, It
 - [x] Test: la query va all'indice della lingua del dispositivo, un cambio di lingua raggiunge la ricerca successiva, `languageOf` su locale con regione, lingua non supportata e `Locale.ROOT`
 
 
+## Fase 14a — Ri-aggiungere una città ne aggiorna il record (post-1.0)
+
+Segnalazione del committente (25 ago 2026, dopo la 13f): cercata "Milano" in italiano, il file resta `milan.json`.
+
+Non era la ricerca: era `CityStore.add()`, che su una città già salvata **saltava la scrittura** (`if (cities.none { it.id == city.id })`) e teneva il record vecchio. Milano cercata in italiano ha lo stesso id GeoNames (3173435) della "Milan" seminata, quindi l'add era un no-op e sopravviveva il nome inglese. Vale per chiunque cambi lingua al telefono e ri-aggiunga una città, non solo per il seed.
+
+Adesso è un upsert: stesso id, record fresco, **stessa posizione nella lista** — ri-aggiungere una città non è un riordino.
+
+- [x] `CityStore.add()`: sostituisce in posizione invece di saltare
+- [x] Test: ri-aggiungere una città salvata ne aggiorna nome, regione e paese senza spostarla
+
+## Fase 14b — "Nessuna città" diventa uno stato rappresentabile (post-1.0)
+
+Proposta del committente (25 ago 2026): togliere la città di default all'installazione, la sceglie l'utente.
+
+**D'accordo nel merito**: `cities.json` che elenca una città mai scelta è la bugia più grossa rimasta in un prodotto la cui regola dichiarata è che il file non deve mentire. E Milano non è un default neutro: è l'impronta del laboratorio.
+
+**Il prezzo vero non era togliere una costante.** Prima della 14b lo stato "zero città" non era rappresentabile: `decode()` rimetteva Milano ogni volta che la lista era vuota, `activeCity` e `activeSource` facevano `cities.first()` (che su lista vuota lancia), `remove()` rifiutava di cancellare l'ultima e la UI nascondeva `[rm]` sull'ultima riga. Quattro guardie che esistevano solo perché la schermata principale non sopravviveva senza un soggetto.
+
+**Il grosso era già pagato dalla Fase 9b.** Il GPS senza fix è già un "nessuna città": il widget stampa già `# no data yet — open tweather`, `resolveCity` restituisce già `City?`, il worker esce già con `lastFix ?: return`. È bastato aggiungere `ActiveSource.None` e lasciare che il `when` esaustivo elencasse i consumatori da sistemare (worker, widget, regole, editor).
+
+**La migrazione è la parte che meritava attenzione.** Chi ha installato prima della 14b deve tenere la città che sta guardando, e il caso scomodo è chi non ha *mai* toccato `cities.json`: non ha niente nello store, ma guarda la Milano seminata da mesi. Il discriminante è **la history dei Logs**: qualunque installazione usata ha almeno un commit. `migrateFirstRun(hasHistory)` gira una volta sola, prima che la shell decida cosa disegnare, e a un'installazione usata scrive il seed **per davvero** (era un fallback, non un valore salvato) marcando l'init come già risposto. Un'installazione davvero nuova scrive solo il marcatore. Da qui `FirstRun.Unknown`: finché il controllo non è passato la shell non disegna, o lampeggerebbe `init` in faccia a chi usa l'app da mesi.
+
+**Non spedibile da sola**: chi installa dallo store ha visto screenshot pieni di dati, e un primo avvio su un file vuoto si legge come "rotta", non come "onesta". All'editor vuoto ci si deve arrivare *scegliendo* di saltare, il che è la Fase 14c: le due viaggiano insieme.
+
+- [x] `ActiveSource.None` + `FirstRun` (Unknown/Pending/Done) in `CityStore`; `decode()` senza fallback, `remove()` senza guardia sull'ultima, `setUseGps(false)` che può non avere dove ricadere
+- [x] Rimosso `CityStore.activeCity`: codice morto, e l'unico altro punto che faceva `cities.first()`
+- [x] `migrateFirstRun(hasHistory)` una volta per installazione + `WeatherRepository.hasAnyHistory()`, chiamata da `MainActivity`
+- [x] Consumatori: worker ed engine escono senza città, il widget ricade sul suo stato vuoto, la dry run delle regole dice `no location configured`
+- [x] Editor: `// no location configured` + `// hint: open cities.json and search a city` (output di terminale, quindi inglese) su entrambi i tab, e **il FAB sparisce** — un refresh che non ha niente da aggiornare è la stessa bugia di una metrica senza il suo dato
+- [x] `[rm]` offerto anche sull'ultima città
+- [x] Test: store vuoto, ultima città rimossa, GPS spento senza dove ricadere, le quattro combinazioni della migrazione (fresca, usata senza lista, usata con lista, controllo che gira una volta sola), l'editor che dichiara l'assenza e la toglie appena arriva una città. Le fixture che ereditavano il seed adesso dichiarano la propria precondizione
+
+
+## Fase 14c — `$ tweather init` al primo avvio (post-1.0)
+
+Conseguenza diretta della 14b: tolta la città seminata, l'app deve chiederne una. Ed è quello che rende l'editor vuoto un posto dove l'utente ha **scelto** di essere, invece della prima cosa che vede chi ha appena installato: chi arriva dallo store ha visto screenshot pieni di dati, e un file vuoto al primo avvio si legge come "rotta", non come "onesta".
+
+**Non è un carosello, ed è una scelta.** Le schermate di onboarding sono la superficie più skippata del mobile, e una definizione offerta *prima* di aver visto la cosa che definisce non attecchisce: nessuno ricorda cos'è un "commit" se non ha ancora visto un commit. Quindi questa schermata fa **solo** il lavoro senza cui l'app non parte — una posizione — e il vocabolario vive in `HELP.md` (14d), che c'è quando la domanda arriva davvero.
+
+Tre risposte, e sono tutte risposte: `usa la mia posizione` (chiede `ACCESS_COARSE_LOCATION`, e questo è il posto dove la motivazione di un permesso ha davvero senso, non in un dialogo a freddo), `cerca una città` (marca l'init come risposto e apre `cities.json`, riusando la ricerca che esiste già), `salta` (marca e basta, si atterra sull'editor vuoto). Permesso negato: la schermata lo dice in rosso e lascia in piedi le altre due strade, non è un vicolo cieco.
+
+**Localizzata, a differenza dell'output di terminale del resto dell'app.** È la stessa eccezione che fa già `README.md`: la finzione la porta la *forma* — il prompt, le scelte `>`, le note `#` — non la lingua, e questa è l'unica schermata il cui scopo è farsi capire da chi non legge `git` per mestiere. Il comando `$ tweather init` resta com'è, perché è un comando.
+
+- [x] `ui/init/InitScreen.kt`: `CodeCanvas` con le righe tappabili, tab bar a un file (`tweather.sh` — è una sessione, non un documento), status bar `⎇ setup`
+- [x] `TweatherApp` divisa in `FirstRunSetup` e `Workspace`, con il ramo `FirstRun.Unknown` che disegna una superficie vuota: la 14b decide un attimo dopo, e indovinare "pending" per quel frame significa sbattere una schermata di setup in faccia a chi usa l'app da mesi
+- [x] Il flag `openCitiesOnStart` è `rememberSaveable`: il dialogo di sistema del permesso può ricreare l'Activity
+- [x] Test: le tre risposte, il permesso negato che non chiude le strade, l'installazione fresca che atterra su `init`, `salta` che apre comunque il workspace sull'editor vuoto
+
+## Fase 14d — `HELP.md` e la hint una tantum (post-1.0)
+
+Richiesta del committente: spiegare l'app, la sua filosofia e i termini che usa, a chi non è uno sviluppatore.
+
+**Il posto giusto non è un'intro, è un file.** Un carosello lo si vede una volta, prima di avere il contesto per capirlo, e non lo si può riconsultare il giorno in cui la domanda arriva. Uno sviluppatore impara uno strumento dal suo `--help`, non da delle slide. Quindi la spiegazione è **il quinto file dell'app**, `HELP.md`, terzo tab dietro la barra di Impostazioni: lì si va quando l'app ti ha confuso, e i due tab dell'editor appartengono alla città, non all'app.
+
+Contenuto: le quattro schede, le parole prese in prestito (commit, diff, branch, CI) spiegate in una riga ciascuna, da dove arrivano i dati (con la verità sulla posizione: se la attivi, le coordinate *escono* per chiedere le previsioni di quel punto) e un paragrafo solo sul perché ha questo aspetto. **La filosofia in quella dose e non di più**: una schermata che spiega che l'app è affascinante è l'unica cosa capace di romperne il fascino. Prosa, quindi interamente localizzata, heading compresi; le parole fra backtick sono nomi di file e di chiavi dell'app e restano com'erano. Una `<item>` per riga renderizzata, perché un a-capo vero dentro una risorsa Android viene schiacciato a spazio.
+
+**La hint: attiva di default, e NON un toggle in `settings.config`.** Domanda esplicita del committente, risposta ragionata: una riga `// prima volta? apri HELP.md` in cima al documento, tappabile, che sparisce quando l'aiuto è stato visto — **per qualunque strada**, anche aprendolo dalle Impostazioni. Un interruttore per una cosa che succede una volta passerebbe il resto della vita dell'app appoggiato su `false` dentro un file che l'utente legge, e `$ tweather reset settings` la rifarebbe comparire a chi usa tweather da un anno. Lo stato sta quindi nel DataStore `workspace`, accanto al tab attivo, che è esattamente il tipo di cosa che quel file esiste per contenere ("workspace state has no line in the settings.config file"). Il modo per rivedere l'aiuto non è un flag: è il file, che non va da nessuna parte.
+
+La hint appare anche a chi aggiorna, non solo alle installazioni nuove: `HELP.md` è nuovo anche per loro, ed è una riga che se ne va al primo tocco.
+
+- [x] `ui/settings/HelpScreen.kt` + `SettingsFiles` a tre voci (`HelpFileIndex`), status bar `ro` — l'unico file dell'app che non si può modificare
+- [x] `help_md` come `<string-array>` EN/IT; `help_hint` localizzata come la 14c
+- [x] `WorkspaceStore.helpHintDismissed` + `dismissHelpHint()`; `WeatherViewModel.showHelpHint` (Eagerly: una hint che compare un frame dopo sembra un glitch) e `SettingsViewModel.markHelpSeen()`
+- [x] La hint viaggia fra i tab: `openHelp` in `Workspace`, consumato da `SettingsScreen` — il grafo di navigazione ripristina l'ultimo file aperto, quindi non basta cambiare tab
+- [x] Test: il documento con i suoi heading, `HELP.md` come file aperto della striscia, la hint in testa al documento che apre il file, la sua assenza quando è già stata vista, e il flag che sopravvive nel workspace store
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

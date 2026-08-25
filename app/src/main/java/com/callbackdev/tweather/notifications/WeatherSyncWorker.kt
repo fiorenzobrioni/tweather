@@ -52,6 +52,9 @@ class WeatherSyncWorker(
             is ActiveSource.Saved -> source.city
             // Background location is off the table by design: last persisted fix only
             is ActiveSource.Gps -> source.lastFix ?: return Result.success()
+            // Nothing configured yet (Fase 14b): no city to fetch, and no widget pin
+            // can resolve either — a pin points at a saved city, and there are none.
+            ActiveSource.None -> return Result.success()
         }
 
         // Only the widget's ↻ forces a refresh; periodic runs stay cache-friendly.

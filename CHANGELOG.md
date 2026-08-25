@@ -6,7 +6,31 @@ All notable changes to tweather are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `$ tweather init`: the first run now asks where you are — your position, a city
+  search, or skip — instead of assuming. Skipping lands on an editor that says
+  `// no location configured` and offers the search, which is also what you get if
+  you remove every city.
+- `HELP.md`, a third file behind the Settings tab bar: what the four tabs are, what
+  the borrowed words mean (commit, diff, branch, CI), where the data comes from and
+  why the app looks like this. Written for someone who does not read `git` for a
+  living, and fully localized. A one-off `// new here? open HELP.md` line at the top
+  of the editor points at it once and goes away as soon as the file has been opened.
+
+### Changed
+
+- A fresh install no longer comes with Milan already saved. `cities.json` listing a
+  city you never chose was the one thing left in the app that the file could not
+  honestly claim, and on an Italian phone it arrived in English on top of that. An
+  install that predates this keeps the city it has been watching.
+
 ### Fixed
+
+- Re-adding a city you already have now refreshes its record instead of ignoring it.
+  Searching "Milano" in Italian kept the file named `milan.json`, because it is the
+  same GeoNames id as the English "Milan" already in the list. Same for anyone who
+  switches the phone's language and re-adds a city.
 
 - City search now asks Open-Meteo in the device's language. `language` is not a display
   setting there: it also picks the index the query is matched against, so with the

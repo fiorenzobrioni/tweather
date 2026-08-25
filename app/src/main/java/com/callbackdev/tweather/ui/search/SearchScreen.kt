@@ -246,7 +246,10 @@ private fun buildSearchLines(
                     city = city,
                     fileName = names.getValue(city.id),
                     isActive = city.id == cities.activeCity?.id,
-                    removable = cities.cities.size > 1,
+                    // Fase 14b: the last one goes too — an empty cities.json is a
+                    // state the editor can render, so the guard here was the only
+                    // thing left forcing a city on someone who wants none.
+                    removable = true,
                     trailingComma = i != cities.cities.lastIndex,
                     onSelect = { onActivate(city) },
                     onRemove = { onRemove(city) }

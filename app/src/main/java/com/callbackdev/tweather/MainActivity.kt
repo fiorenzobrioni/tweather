@@ -51,6 +51,12 @@ class MainActivity : ComponentActivity() {
                 .distinctUntilChanged()
                 .collect { AlertScheduler.reconcile(this@MainActivity) }
         }
+        // Fase 14b: decides once whether this install predates the empty state, and
+        // must land before the shell can tell `init` from a returning user.
+        lifecycleScope.launch {
+            val hasHistory = ServiceLocator.weatherRepository(this@MainActivity).hasAnyHistory()
+            ServiceLocator.cityStore(this@MainActivity).migrateFirstRun(hasHistory)
+        }
         // Widget re-renders that no fetch would trigger: theme, units, opacity and
         // active-city changes. (New data repaints it from the repository hook.)
         lifecycleScope.launch {

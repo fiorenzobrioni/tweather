@@ -37,7 +37,12 @@ data class WeatherUiState(
     val isLoading: Boolean = true,
     val error: WeatherException? = null,
     /** True while waiting for a GPS fix (rendered as its own comment line). */
-    val acquiringFix: Boolean = false
+    val acquiringFix: Boolean = false,
+    /**
+     * No location configured at all (Fase 14b): not an error and not a load — there
+     * is simply nothing to fetch, and the document says so instead of staying blank.
+     */
+    val noLocation: Boolean = false
 )
 
 class WeatherViewModel(
@@ -74,6 +79,16 @@ class WeatherViewModel(
         viewModelScope.launch { workspaceStore.setMainActiveFile(file) }
     }
 
+    /** Fase 14d: the `HELP.md` pointer, until it is used or dismissed. */
+    val showHelpHint: StateFlow<Boolean> = workspaceStore.helpHintDismissed
+        .map { !it }
+        // Eagerly like activeFile: a hint that appears one frame late reads as a glitch
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun dismissHelpHint() {
+        viewModelScope.launch { workspaceStore.dismissHelpHint() }
+    }
+
     private var city: City? = null
     private var loadJob: Job? = null
     private var gpsJob: Job? = null
@@ -104,6 +119,15 @@ class WeatherViewModel(
                     is ActiveSource.Saved -> {
                         gpsJob?.cancel()
                         switchTo(active.city)
+                    }
+                    ActiveSource.None -> {
+                        // Nothing to fetch and nothing to wait for: cancel whatever
+                        // the previous source left running and let the editor say it.
+                        gpsJob?.cancel()
+                        loadJob?.cancel()
+                        currentKey = null
+                        city = null
+                        _uiState.value = WeatherUiState(isLoading = false, noLocation = true)
                     }
                     is ActiveSource.Gps -> {
                         val lastFix = active.lastFix
@@ -152,7 +176,9 @@ class WeatherViewModel(
     private fun acquireAndLoad(forceRefresh: Boolean) {
         gpsJob?.cancel()
         gpsJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, acquiringFix = true, error = null) }
+            _uiState.update {
+                it.copy(isLoading = true, acquiringFix = true, error = null, noLocation = false)
+            }
             try {
                 val fix = locationProvider.currentFix().toGpsCity()
                 currentKey = fix.sourceKey
@@ -193,7 +219,7 @@ class WeatherViewModel(
         loadJob = viewModelScope.launch {
             _uiState.update {
                 if (clearReport) WeatherUiState()
-                else it.copy(isLoading = true, error = null)
+                else it.copy(isLoading = true, error = null, noLocation = false)
             }
             try {
                 val ttl = cacheTtl

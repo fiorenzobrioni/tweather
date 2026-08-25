@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,18 +63,25 @@ import java.util.Locale
 @Composable
 fun WeatherScreen(
     onOpenCities: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val displayOptions by viewModel.displayOptions.collectAsStateWithLifecycle()
     val activeFile by viewModel.activeFile.collectAsStateWithLifecycle()
+    val showHelpHint by viewModel.showHelpHint.collectAsStateWithLifecycle()
     WeatherScreen(
         state = state,
         displayOptions = displayOptions,
         onRefresh = viewModel::refresh,
         onOpenCities = onOpenCities,
         activeFile = activeFile,
-        onSelectFile = viewModel::selectFile
+        onSelectFile = viewModel::selectFile,
+        showHelpHint = showHelpHint,
+        onOpenHelp = {
+            viewModel.dismissHelpHint()
+            onOpenHelp()
+        }
     )
 }
 
@@ -84,13 +92,26 @@ fun WeatherScreen(
     onOpenCities: () -> Unit = {},
     displayOptions: DisplayOptions = DisplayOptions(),
     activeFile: MainEditorFile = MainEditorFile.JSON,
-    onSelectFile: (MainEditorFile) -> Unit = {}
+    onSelectFile: (MainEditorFile) -> Unit = {},
+    /** Fase 14d: the one-shot pointer to `HELP.md`, first line of the document. */
+    showHelpHint: Boolean = false,
+    onOpenHelp: () -> Unit = {}
 ) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
     val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
-    val lines = remember(state, syntax, locale, displayOptions, activeFile) {
-        when (activeFile) {
+    val hint = if (showHelpHint) stringResource(R.string.help_hint) else null
+    val lines = remember(state, syntax, locale, displayOptions, activeFile, hint) {
+        val head = hint?.let {
+            listOf(
+                CodeLine(
+                    AnnotatedString("// $it", SpanStyle(color = syntax.key)),
+                    onClick = onOpenHelp,
+                    onClickLabel = it
+                )
+            )
+        } ?: emptyList()
+        head + when (activeFile) {
             MainEditorFile.JSON -> buildScreenLines(
                 state, syntax, WeatherTranslations.translator(resources), locale, displayOptions
             )
@@ -122,14 +143,18 @@ fun WeatherScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 8.dp, bottom = FabClearance)
                 )
-                GlowFab(
-                    onClick = onRefresh,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 24.dp),
-                    contentDescription = stringResource(R.string.cd_refresh),
-                    icon = { RefreshIcon(spinning = state.isLoading) }
-                )
+                // Hidden with no location (Fase 14b): a refresh button with nothing
+                // to refresh is the same kind of lie as a metric with no input.
+                if (!state.noLocation) {
+                    GlowFab(
+                        onClick = onRefresh,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 24.dp),
+                        contentDescription = stringResource(R.string.cd_refresh),
+                        icon = { RefreshIcon(spinning = state.isLoading) }
+                    )
+                }
             }
             WeatherStatusBar(state, onOpenCities)
         }
@@ -229,7 +254,12 @@ private fun buildScreenLines(
     locale: Locale,
     displayOptions: DisplayOptions
 ): List<CodeLine> = buildList {
-    if (state.acquiringFix) {
+    if (state.noLocation) {
+        // Terminal output, so English like every other comment line here (the
+        // localization rule: code stays English, prose and values translate).
+        add(commentLine("// no location configured", syntax))
+        add(commentLine("// hint: open cities.json and search a city", syntax))
+    } else if (state.acquiringFix) {
         add(commentLine("// gps: acquiring position …", syntax))
     } else if (state.isLoading) {
         add(commentLine("// fetching weather_data.json …", syntax))
@@ -257,7 +287,10 @@ private fun buildReadmeLines(
     locale: Locale,
     displayOptions: DisplayOptions
 ): List<CodeLine> = buildList {
-    if (state.acquiringFix) {
+    if (state.noLocation) {
+        add(commentLine("<!-- no location configured -->", syntax))
+        add(commentLine("<!-- hint: open cities.json and search a city -->", syntax))
+    } else if (state.acquiringFix) {
         add(commentLine("<!-- gps: acquiring position … -->", syntax))
     } else if (state.isLoading) {
         add(commentLine("<!-- fetching README.md … -->", syntax))

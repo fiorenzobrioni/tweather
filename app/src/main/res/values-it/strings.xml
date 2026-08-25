@@ -68,6 +68,49 @@
     <string name="notif_title_summary">%1$s Meteo di oggi — %2$s</string>
     <string name="notif_channel_rules">Regole Weather CI</string>
 
+    <string name="help_hint">prima volta? apri HELP.md</string>
+
+    <!-- HELP.md (Fase 14d): prosa, quindi interamente localizzata -->
+
+    <string-array name="help_md">
+        <item># tweather</item>
+        <item></item>
+        <item>Un\'app meteo che si presenta come un editor di codice: le previsioni sono un file da leggere, non una scheda da guardare. Se le parole qui sotto non ti dicono niente, questa pagina è per te.</item>
+        <item></item>
+        <item>## Le quattro schede</item>
+        <item></item>
+        <item>- **Editor** - `weather_data.json` e `README.md`: il meteo della città attiva. Il primo è la versione tecnica, con tutti i campi; il secondo è la stessa cosa raccontata a parole.</item>
+        <item>- **Cerca** - `cities.json`: cerchi una città e la aggiungi all\'elenco. Quella attiva è marcata `// active`, e `[rm]` toglie una riga.</item>
+        <item>- **Impostazioni** - `settings.config` e `alerts.rules`: le opzioni si cambiano toccando il valore. Non c\'è nessun interruttore da cercare.</item>
+        <item>- **Log** - `weather_history.diff`: tutti gli aggiornamenti che l\'app ha fatto.</item>
+        <item></item>
+        <item>## Le parole prese in prestito</item>
+        <item></item>
+        <item>- **commit** - un aggiornamento dei dati. Ogni volta che l\'app scarica il meteo ne registra uno, con l\'ora e che cosa è cambiato.</item>
+        <item>- **diff** - la differenza fra due aggiornamenti. Le righe con `+` sono i valori nuovi, quelle con `-` i vecchi.</item>
+        <item>- **branch** (`⎇`) - la città attiva, in fondo nella barra di stato. Toccala per cambiarla.</item>
+        <item>- **CI** - nel software è il sistema che controlla il codice a ogni modifica. Qui `alerts.rules` fa lo stesso col meteo: scrivi una regola (\"pioggia sopra il 70%\") e l\'app ti avvisa quando si avvera.</item>
+        <item></item>
+        <item>## Da dove arrivano i dati</item>
+        <item></item>
+        <item>Le previsioni sono di open-meteo.com, gratuite e senza account. Niente pubblicità e niente statistiche: dal telefono esce solo la richiesta del meteo. La tua posizione, se la attivi, è quella approssimata che dà Android, e serve solo a chiedere le previsioni per quel punto.</item>
+        <item></item>
+        <item>## Perchè ha questo aspetto</item>
+        <item></item>
+        <item>Perchè un file si legge tutto insieme, e perchè ci piace così. Se sei arrivato fin qui, sai già se fa per te.</item>
+    </string-array>
+
+    <!-- `$ tweather init` (Fase 14c): prosa per chi vede l'app per la prima volta -->
+    <string name="init_intro">tweather ha bisogno di una località per iniziare.</string>
+    <string name="init_privacy">Le previsioni arrivano da open-meteo.com. Dal telefono non esce altro.</string>
+    <string name="init_option_gps">usa la mia posizione</string>
+    <string name="init_option_gps_note">posizione approssimata, te la chiede Android</string>
+    <string name="init_option_search">cerca una città</string>
+    <string name="init_option_search_note">scrivi un nome, scegli dalla lista</string>
+    <string name="init_option_skip">salta</string>
+    <string name="init_option_skip_note">decidi dopo, in cities.json</string>
+    <string name="init_permission_denied"># permesso negato: cerca una città</string>
+
     <!-- Widget home: label/glifi sono codice terminale (non tradotti); descrizione
          del picker e accessibilità sono chrome (localizzati) -->
     <string name="widget_description">Meteo attuale come finestra terminale</string>

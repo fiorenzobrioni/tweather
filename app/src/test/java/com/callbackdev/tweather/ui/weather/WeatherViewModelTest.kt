@@ -32,6 +32,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -167,9 +168,37 @@ class WeatherViewModelTest {
 
     @Test
     fun `saved city stays the source while gps is off`() {
+        // Fase 14b: the saved city is the test's own precondition now, not a seed
+        runBlocking { cityStore.add(CityStore.DefaultCity) }
         val provider = FakeLocationProvider { milanFix }
         val vm = viewModel(provider)
         awaitState(vm) { it.error is WeatherException.NoNetwork }
         assertEquals(0, provider.calls)
+    }
+
+    /**
+     * Fase 14b: no city, no GPS — the document says so instead of spinning forever on
+     * a fetch it cannot make, and the FAB goes away with it (WeatherScreen).
+     */
+    @Test
+    fun `with nothing configured the editor reports no location`() {
+        val provider = FakeLocationProvider { milanFix }
+        val vm = viewModel(provider)
+        val state = awaitState(vm) { it.noLocation }
+        assertFalse(state.isLoading)
+        assertNull(state.error)
+        assertNull(state.report)
+        assertEquals(0, provider.calls)
+    }
+
+    /** The moment a city is added the empty state must lift, not linger. */
+    @Test
+    fun `adding a city clears the no-location state`() {
+        val vm = viewModel(FakeLocationProvider { milanFix })
+        awaitState(vm) { it.noLocation }
+
+        runBlocking { cityStore.add(CityStore.DefaultCity) }
+
+        assertFalse(awaitState(vm) { !it.noLocation }.noLocation)
     }
 }

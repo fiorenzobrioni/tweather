@@ -6,7 +6,19 @@ All notable changes to tweather are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- A fresh install no longer comes with Milan already saved. `cities.json` listing a
+  city you never chose was the one thing left in the app that the file could not
+  honestly claim, and on an Italian phone it arrived in English on top of that. An
+  install that predates this keeps the city it has been watching.
+
 ### Fixed
+
+- Re-adding a city you already have now refreshes its record instead of ignoring it.
+  Searching "Milano" in Italian kept the file named `milan.json`, because it is the
+  same GeoNames id as the English "Milan" already in the list. Same for anyone who
+  switches the phone's language and re-adds a city.
 
 - City search now asks Open-Meteo in the device's language. `language` is not a display
   setting there: it also picks the index the query is matched against, so with the

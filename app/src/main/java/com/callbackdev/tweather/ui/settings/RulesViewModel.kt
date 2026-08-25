@@ -190,9 +190,15 @@ class RulesViewModel(
         viewModelScope.launch {
             _dryRun.value = DryRunUi.Running
             try {
-                val city = when (val source = cityStore.activeSource.first()) {
+                val source = cityStore.activeSource.first()
+                if (source is ActiveSource.None) {
+                    _dryRun.value = DryRunUi.Error("no location configured")
+                    return@launch
+                }
+                val city = when (source) {
                     is ActiveSource.Saved -> source.city
                     is ActiveSource.Gps -> source.lastFix
+                    ActiveSource.None -> null
                 }
                 if (city == null) {
                     _dryRun.value = DryRunUi.Error("gps::no position fix yet")

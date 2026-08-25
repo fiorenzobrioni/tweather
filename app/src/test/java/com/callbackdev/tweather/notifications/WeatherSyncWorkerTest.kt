@@ -73,6 +73,14 @@ class WeatherSyncWorkerTest {
             .baseUrl("http://127.0.0.1:1/") // unreachable: getWeather → NoNetwork
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
+        val cityStore = CityStore(
+            PreferenceDataStoreFactory.create(scope = scope) {
+                tmp.newFile("cities-${System.nanoTime()}.preferences_pb")
+            },
+            json
+        )
+        // Fase 14b: no seeded city any more — without one the worker has nothing to fetch
+        runBlocking { cityStore.add(CityStore.DefaultCity) }
         ServiceLocator.overrideForTests(
             repository = WeatherRepository(
                 forecastApi = retrofit.create(OpenMeteoForecastApi::class.java),
@@ -83,12 +91,7 @@ class WeatherSyncWorkerTest {
                 // onHistoryCommitted left at its no-op default: the widget render is
                 // TweatherWidgetUpdater's business, not the worker's
             ),
-            cityStore = CityStore(
-                PreferenceDataStoreFactory.create(scope = scope) {
-                    tmp.newFile("cities-${System.nanoTime()}.preferences_pb")
-                },
-                json
-            ),
+            cityStore = cityStore,
             settingsStore = settingsStore,
             alertStateStore = AlertStateStore(
                 PreferenceDataStoreFactory.create(scope = scope) {

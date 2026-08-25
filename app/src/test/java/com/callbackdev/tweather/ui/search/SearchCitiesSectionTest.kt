@@ -96,10 +96,14 @@ class SearchCitiesSectionTest {
         compose.onNodeWithText(",  // active").assertExists()
     }
 
+    /**
+     * Fase 14b: the last city is removable like any other. The guard that hid `[rm]`
+     * here existed only because the data layer could not represent an empty list.
+     */
     @Test
-    fun `rm is hidden while only one city is saved`() {
+    fun `rm is offered even on the last saved city`() {
         setScreen(CitiesUiState(cities = listOf(milan), activeCity = milan))
-        compose.onNodeWithText("[rm]").assertDoesNotExist()
+        compose.onNodeWithText("[rm]").assertExists()
     }
 
     @Test

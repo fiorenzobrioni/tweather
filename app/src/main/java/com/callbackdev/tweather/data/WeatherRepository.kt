@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
 
@@ -204,6 +205,13 @@ class WeatherRepository(
     } catch (e: Exception) {
         throw WeatherException.Unknown(e)
     }
+
+    /**
+     * Has this install ever fetched weather? The one durable trace of an app that has
+     * been used, whatever the user did or did not configure — which is exactly what
+     * [CityStore.migrateFirstRun] needs to tell an upgrade from a fresh install.
+     */
+    suspend fun hasAnyHistory(): Boolean = historyDao.observeLatest(limit = 1).first().isNotEmpty()
 
     companion object {
         const val HISTORY_AUTHOR = "sys@tweather.app"

@@ -122,14 +122,18 @@ fun WeatherScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 8.dp, bottom = FabClearance)
                 )
-                GlowFab(
-                    onClick = onRefresh,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 24.dp),
-                    contentDescription = stringResource(R.string.cd_refresh),
-                    icon = { RefreshIcon(spinning = state.isLoading) }
-                )
+                // Hidden with no location (Fase 14b): a refresh button with nothing
+                // to refresh is the same kind of lie as a metric with no input.
+                if (!state.noLocation) {
+                    GlowFab(
+                        onClick = onRefresh,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 24.dp),
+                        contentDescription = stringResource(R.string.cd_refresh),
+                        icon = { RefreshIcon(spinning = state.isLoading) }
+                    )
+                }
             }
             WeatherStatusBar(state, onOpenCities)
         }
@@ -229,7 +233,12 @@ private fun buildScreenLines(
     locale: Locale,
     displayOptions: DisplayOptions
 ): List<CodeLine> = buildList {
-    if (state.acquiringFix) {
+    if (state.noLocation) {
+        // Terminal output, so English like every other comment line here (the
+        // localization rule: code stays English, prose and values translate).
+        add(commentLine("// no location configured", syntax))
+        add(commentLine("// hint: open cities.json and search a city", syntax))
+    } else if (state.acquiringFix) {
         add(commentLine("// gps: acquiring position …", syntax))
     } else if (state.isLoading) {
         add(commentLine("// fetching weather_data.json …", syntax))
@@ -257,7 +266,10 @@ private fun buildReadmeLines(
     locale: Locale,
     displayOptions: DisplayOptions
 ): List<CodeLine> = buildList {
-    if (state.acquiringFix) {
+    if (state.noLocation) {
+        add(commentLine("<!-- no location configured -->", syntax))
+        add(commentLine("<!-- hint: open cities.json and search a city -->", syntax))
+    } else if (state.acquiringFix) {
         add(commentLine("<!-- gps: acquiring position … -->", syntax))
     } else if (state.isLoading) {
         add(commentLine("<!-- fetching README.md … -->", syntax))

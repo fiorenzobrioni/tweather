@@ -86,8 +86,10 @@ class RulesDryRunEndToEndTest {
             },
             json
         )
-        // Prime the cache for the default city (Milan) with data around real "now"
+        // Prime the cache for the city under test (Milan) with data around real "now".
+        // Fase 14b: it has to be saved first — nothing is seeded any more.
         runBlocking {
+            cityStore.add(CityStore.DefaultCity)
             diskCache.write(
                 CityStore.DefaultCity.cacheKey,
                 ReportDiskCache.Entry(

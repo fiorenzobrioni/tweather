@@ -473,6 +473,40 @@ Ricaduta accettata: nome, `admin1` e `country` arrivano localizzati (Toscana, It
 - [x] Test: la query va all'indice della lingua del dispositivo, un cambio di lingua raggiunge la ricerca successiva, `languageOf` su locale con regione, lingua non supportata e `Locale.ROOT`
 
 
+## Fase 14a — Ri-aggiungere una città ne aggiorna il record (post-1.0)
+
+Segnalazione del committente (25 ago 2026, dopo la 13f): cercata "Milano" in italiano, il file resta `milan.json`.
+
+Non era la ricerca: era `CityStore.add()`, che su una città già salvata **saltava la scrittura** (`if (cities.none { it.id == city.id })`) e teneva il record vecchio. Milano cercata in italiano ha lo stesso id GeoNames (3173435) della "Milan" seminata, quindi l'add era un no-op e sopravviveva il nome inglese. Vale per chiunque cambi lingua al telefono e ri-aggiunga una città, non solo per il seed.
+
+Adesso è un upsert: stesso id, record fresco, **stessa posizione nella lista** — ri-aggiungere una città non è un riordino.
+
+- [x] `CityStore.add()`: sostituisce in posizione invece di saltare
+- [x] Test: ri-aggiungere una città salvata ne aggiorna nome, regione e paese senza spostarla
+
+## Fase 14b — "Nessuna città" diventa uno stato rappresentabile (post-1.0)
+
+Proposta del committente (25 ago 2026): togliere la città di default all'installazione, la sceglie l'utente.
+
+**D'accordo nel merito**: `cities.json` che elenca una città mai scelta è la bugia più grossa rimasta in un prodotto la cui regola dichiarata è che il file non deve mentire. E Milano non è un default neutro: è l'impronta del laboratorio.
+
+**Il prezzo vero non era togliere una costante.** Prima della 14b lo stato "zero città" non era rappresentabile: `decode()` rimetteva Milano ogni volta che la lista era vuota, `activeCity` e `activeSource` facevano `cities.first()` (che su lista vuota lancia), `remove()` rifiutava di cancellare l'ultima e la UI nascondeva `[rm]` sull'ultima riga. Quattro guardie che esistevano solo perché la schermata principale non sopravviveva senza un soggetto.
+
+**Il grosso era già pagato dalla Fase 9b.** Il GPS senza fix è già un "nessuna città": il widget stampa già `# no data yet — open tweather`, `resolveCity` restituisce già `City?`, il worker esce già con `lastFix ?: return`. È bastato aggiungere `ActiveSource.None` e lasciare che il `when` esaustivo elencasse i consumatori da sistemare (worker, widget, regole, editor).
+
+**La migrazione è la parte che meritava attenzione.** Chi ha installato prima della 14b deve tenere la città che sta guardando, e il caso scomodo è chi non ha *mai* toccato `cities.json`: non ha niente nello store, ma guarda la Milano seminata da mesi. Il discriminante è **la history dei Logs**: qualunque installazione usata ha almeno un commit. `migrateFirstRun(hasHistory)` gira una volta sola, prima che la shell decida cosa disegnare, e a un'installazione usata scrive il seed **per davvero** (era un fallback, non un valore salvato) marcando l'init come già risposto. Un'installazione davvero nuova scrive solo il marcatore. Da qui `FirstRun.Unknown`: finché il controllo non è passato la shell non disegna, o lampeggerebbe `init` in faccia a chi usa l'app da mesi.
+
+**Non spedibile da sola**: chi installa dallo store ha visto screenshot pieni di dati, e un primo avvio su un file vuoto si legge come "rotta", non come "onesta". All'editor vuoto ci si deve arrivare *scegliendo* di saltare, il che è la Fase 14c: le due viaggiano insieme.
+
+- [x] `ActiveSource.None` + `FirstRun` (Unknown/Pending/Done) in `CityStore`; `decode()` senza fallback, `remove()` senza guardia sull'ultima, `setUseGps(false)` che può non avere dove ricadere
+- [x] Rimosso `CityStore.activeCity`: codice morto, e l'unico altro punto che faceva `cities.first()`
+- [x] `migrateFirstRun(hasHistory)` una volta per installazione + `WeatherRepository.hasAnyHistory()`, chiamata da `MainActivity`
+- [x] Consumatori: worker ed engine escono senza città, il widget ricade sul suo stato vuoto, la dry run delle regole dice `no location configured`
+- [x] Editor: `// no location configured` + `// hint: open cities.json and search a city` (output di terminale, quindi inglese) su entrambi i tab, e **il FAB sparisce** — un refresh che non ha niente da aggiornare è la stessa bugia di una metrica senza il suo dato
+- [x] `[rm]` offerto anche sull'ultima città
+- [x] Test: store vuoto, ultima città rimossa, GPS spento senza dove ricadere, le quattro combinazioni della migrazione (fresca, usata senza lista, usata con lista, controllo che gira una volta sola), l'editor che dichiara l'assenza e la toglie appena arriva una città. Le fixture che ereditavano il seed adesso dichiarano la propria precondizione
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

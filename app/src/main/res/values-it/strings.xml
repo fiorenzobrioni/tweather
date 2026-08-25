@@ -95,9 +95,9 @@
         <item></item>
         <item>Le previsioni sono di open-meteo.com, gratuite e senza account. Niente pubblicità e niente statistiche: dal telefono esce solo la richiesta del meteo. La tua posizione, se la attivi, è quella approssimata che dà Android, e serve solo a chiedere le previsioni per quel punto.</item>
         <item></item>
-        <item>## Perchè ha questo aspetto</item>
+        <item>## Perché ha questo aspetto</item>
         <item></item>
-        <item>Perchè un file si legge tutto insieme, e perchè ci piace così. Se sei arrivato fin qui, sai già se fa per te.</item>
+        <item>Perché un file si legge tutto insieme, e perché ci piace così. E se qualche parola qui sopra resta oscura, non importa: il meteo te lo dice lo stesso.</item>
     </string-array>
 
     <!-- `$ tweather init` (Fase 14c): prosa per chi vede l'app per la prima volta -->

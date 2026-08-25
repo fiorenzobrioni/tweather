@@ -540,6 +540,10 @@ La hint appare anche a chi aggiorna, non solo alle installazioni nuove: `HELP.md
 - [x] La hint viaggia fra i tab: `openHelp` in `Workspace`, consumato da `SettingsScreen` — il grafo di navigazione ripristina l'ultimo file aperto, quindi non basta cambiare tab
 - [x] Test: il documento con i suoi heading, `HELP.md` come file aperto della striscia, la hint in testa al documento che apre il file, la sua assenza quando è già stata vista, e il flag che sopravvive nel workspace store
 
+**Rifinitura della chiusura (26 ago, rilievo del committente).** L'ultima riga era «Se sei arrivato fin qui, sai già se fa per te»: non è imperativa in senso grammaticale, ma **emette un verdetto sul lettore**, e lo fa nell'ultima riga della pagina che esiste apposta per chi si è sentito perso. Divide chi legge in due categorie proprio dove il documento dovrebbe lasciare la porta aperta; sarebbe stata giusta nel README del repo o nella scheda dello store, dove il lettore sta ancora decidendo se installare, non qui. Sostituita con una che **restituisce** invece di giudicare — «E se qualche parola qui sopra resta oscura, non importa: il meteo te lo dice lo stesso» — che ha anche il pregio di essere vera: la metafora è decorazione, i numeri funzionano senza. La prima frase resta intatta: il registro secco è la voce dell'app, il difetto non era il tono. Scartata la variante ammiccante (emoji, «benvenuto a bordo»): in un file che si presenta come sola lettura in un editor, un guizzo di calore fuori registro si nota più di una frase secca.
+
+**Corretto insieme un refuso ortografico**: nel testo italiano `perché` era finito con l'accento grave (`perchè`), nell'heading e due volte nella riga finale. Colpa di una sostituzione automatica scritta male in fase 14d (`e' ` → `è ` applicata prima della regola specifica, che ha morso dentro `perche' `). tsteps non era affetto, perché lì gli accenti erano stati scritti direttamente.
+
 
 ## Note trasversali
 

@@ -8,6 +8,12 @@ All notable changes to tweather are documented here. The format follows
 
 ### Fixed
 
+- City search now asks Open-Meteo in the device's language. `language` is not a display
+  setting there: it also picks the index the query is matched against, so with the
+  hardcoded `en` an Italian phone had to spell its own cities in English — "Firenze"
+  returned only the hamlet Firenze Nova, "Napoli" five places that are not Naples.
+  English spellings keep working ("Florence" still finds Firenze) and results now come
+  back with local names. Cities already saved keep the name they were saved with.
 - Home widget: the ↻ now answers the tap. It used to redraw the very same frame — the
   fetch is a queued job that lands seconds later, and `# last_sync`, the only line that
   moves, is cut by the sizes most people place — so a tap looked like nothing at all.

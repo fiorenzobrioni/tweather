@@ -447,6 +447,32 @@ Richiesta del committente (25 ago 2026): la freccia di refresh del widget deve c
 - [x] Test: il glifo indossa il tap su tutte le tier (testo, colore e accessibilità, occupato e a riposo)
 
 
+## Fase 13f — La ricerca città parla la lingua del telefono (post-1.0)
+
+Segnalazione del committente (25 ago 2026): su un dispositivo italiano la maggior parte delle città italiane si trova solo scrivendola in inglese — Firenze è "Florence".
+
+**La causa è una riga nostra, non un limite del provider**: `OpenMeteoApis.kt` fissava `language = "en"` nella query di geocoding. Su Open-Meteo `language` non è un'impostazione di visualizzazione: sceglie anche **l'indice su cui la query fa match**, quindi decide che cosa l'utente può trovare. Misurato sull'API il 25 ago 2026:
+
+| query | `language=en` | `language=it` |
+|---|---|---|
+| `Firenze` | solo `Firenze Nova`, una frazione | `Firenze`, Toscana, Italia |
+| `Napoli` | Napoli (Gambia), Napoli (USA), Nāpoli (India), Napoli (Messico), Napoligu (Ghana) | `Napoli`, Campania, Italia |
+| `Roma` | Roma (Romania) in testa | `Roma`, Lazio, in testa |
+| `Genova` | Génova (Guatemala) | `Genova`, Liguria |
+| `Florence`, `Milan` | Florence, Milan | Firenze, Milano |
+
+Il cambio è quindi **additivo**: con `it` la grafia inglese continua a trovare la città (ultima riga), e in più funziona quella italiana. Un codice non supportato ricade sull'inglese lato server (verificato con `xx` e `zz`), quindi la lingua del dispositivo si passa com'è: nessuna lista di lingue supportate da mantenere qui, che daterebbe l'app il giorno in cui Open-Meteo ne aggiunge una decima. Risolta **a ogni chiamata**, non alla costruzione del repository: il language picker di sistema può cambiare la lingua mentre il processo vive.
+
+**Ambito deciso col committente: solo le nuove ricerche.** Le città già salvate tengono il nome con cui sono state salvate e la Milano seminata resta `Milan`: nessuna migrazione, nessuna riga `location` di diff nei Logs, e la `cacheKey` è sulle coordinate quindi cache e history non sentono nulla. Scartata (per ora) la variante che riallinea anche `cities.json` via `/v1/get?id=&language=` — l'endpoint funziona, verificato, e la Milano di default ha già l'id GeoNames giusto — perché rinominerebbe file che l'utente ha già imparato a riconoscere.
+
+Ricaduta accettata: nome, `admin1` e `country` arrivano localizzati (Toscana, Italia), quindi le città salvate d'ora in poi avranno nomi-file italiani (`firenze.json`) e il `⎇` della status bar il nome italiano. È la regola di l10n del progetto applicata: i nomi di città sono valori, non chiavi.
+
+- [x] `OpenMeteoApis.kt`: `language` senza default sulla `search` (un caller non può più ricadere in inglese per distrazione), `DEFAULT_LANGUAGE` e `languageOf(locale)` nel companion con il perché nella KDoc
+- [x] `WeatherRepository.searchCities`: passa `languageOf(Locale.getDefault())`, letto a ogni chiamata
+- [x] Non toccati: forecast e air quality (non restituiscono nomi), il `Geocoder` di piattaforma del GPS (già nella lingua del dispositivo), le città salvate e la Milano seminata
+- [x] Test: la query va all'indice della lingua del dispositivo, un cambio di lingua raggiunge la ricerca successiva, `languageOf` su locale con regione, lingua non supportata e `Locale.ROOT`
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

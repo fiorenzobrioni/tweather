@@ -18,6 +18,7 @@ import java.io.IOException
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.async
@@ -53,8 +54,15 @@ class WeatherRepository(
 
     private val cache = ConcurrentHashMap<String, CacheEntry>()
 
+    /**
+     * The geocoding index is searched in the DEVICE's language, not in the app's
+     * fallback English (Fase 13f): on Open-Meteo that parameter decides what the query
+     * can match, so an Italian phone had to ask for "Florence" to find Firenze. Read
+     * per call — the system per-app language picker can change it under a live process.
+     */
     suspend fun searchCities(query: String): List<City> = wrapErrors {
-        val results = geocodingApi.search(query).results
+        val language = OpenMeteoGeocodingApi.languageOf(Locale.getDefault())
+        val results = geocodingApi.search(query, language = language).results
         if (results.isEmpty()) throw WeatherException.CityNotFound(query)
         results.map { it.toCity() }
     }

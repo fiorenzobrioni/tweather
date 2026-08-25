@@ -3,6 +3,7 @@ package com.callbackdev.tweather.data.remote
 import com.callbackdev.tweather.data.remote.dto.AirQualityResponseDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
 import com.callbackdev.tweather.data.remote.dto.GeocodingResponseDto
+import java.util.Locale
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -57,15 +58,34 @@ interface OpenMeteoAirQualityApi {
 }
 
 interface OpenMeteoGeocodingApi {
+    /**
+     * [language] is not a display setting: it also picks the index the query is matched
+     * against, so it decides what the user can even find. Hardcoded to `en` until Fase
+     * 13f, which is why an Italian phone had to spell its own cities in English —
+     * "Firenze" returned only the hamlet Firenze Nova and "Napoli" five places that are
+     * not Naples. It is passed per call by `WeatherRepository.searchCities` and has no
+     * default here on purpose: a caller cannot fall back to English by distraction.
+     */
     @GET("v1/search")
     suspend fun search(
         @Query("name") name: String,
+        @Query("language") language: String,
         @Query("count") count: Int = 10,
-        @Query("language") language: String = "en",
         @Query("format") format: String = "json"
     ): GeocodingResponseDto
 
     companion object {
         const val BASE_URL = "https://geocoding-api.open-meteo.com/"
+
+        /** What a locale with no language of its own searches in. */
+        const val DEFAULT_LANGUAGE = "en"
+
+        /**
+         * The ISO code [search] wants for [locale]. Handed over as it is: Open-Meteo
+         * supports nine languages and falls back to English server-side for anything
+         * else, so filtering here would only date the app the day it supports a tenth.
+         */
+        fun languageOf(locale: Locale): String =
+            locale.language.lowercase(Locale.ROOT).ifBlank { DEFAULT_LANGUAGE }
     }
 }

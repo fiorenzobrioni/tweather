@@ -19,6 +19,7 @@ import com.callbackdev.tweather.notifications.AlertScheduler
 import com.callbackdev.tweather.notifications.WeatherSyncWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -89,15 +90,15 @@ class TweatherWidgetProvider : AppWidgetProvider() {
         deleted = null
         restored = null
         super.onReceive(context, intent)
-        if (intent.action == ACTION_REFRESH) {
-            enqueueManualSync(context, intent.getStringExtra(EXTRA_CITY_KEY))
-            needsRender = true // paint the freshly-tapped state; the fetch lands later
-        }
+        // Enqueued here rather than in the coroutine below: the fetch is what the tap
+        // is actually asking for, and it must not wait behind a render.
+        val tapped = intent.action == ACTION_REFRESH
+        if (tapped) enqueueManualSync(context, intent.getStringExtra(EXTRA_CITY_KEY))
         val render = needsRender
         val reconcile = needsReconcile
         val forget = deleted
         val remap = restored
-        if (!render && !reconcile && forget == null && remap == null) return
+        if (!tapped && !render && !reconcile && forget == null && remap == null) return
 
         // Nullable despite the platform signature: goAsync() only returns a result
         // while a real broadcast is being dispatched. The work still has to run.
@@ -109,7 +110,10 @@ class TweatherWidgetProvider : AppWidgetProvider() {
                 remap?.let { (old, new) -> store.remap(old, new) }
                 forget?.let { store.forget(it) }
                 if (reconcile) AlertScheduler.reconcile(context)
-                if (render) TweatherWidgetUpdater.updateAll(context)
+                when {
+                    tapped -> acknowledgeTap(context)
+                    render -> TweatherWidgetUpdater.updateAll(context)
+                }
             } catch (e: Exception) {
                 // An unhandled throw here would crash the app from a broadcast; the
                 // widget simply keeps whatever it was showing.
@@ -119,8 +123,34 @@ class TweatherWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /**
+     * The answer to the ↻ tap the fetch itself cannot give: it lands seconds later, so
+     * the repaint the tap used to trigger was pixel-identical to no tap at all — same
+     * numbers, same glyph — and on the sizes most people place `# last_sync` is cut
+     * anyway. So the glyph itself wears the tap, on every tier, and comes back on the
+     * first repaint that follows: the history commit the fetch writes, the worker's own
+     * repaint when the sync fails, or [BusyWindowMs] here, whichever comes first.
+     *
+     * That window is a ceiling, not a wait — it is what covers the tap nothing else
+     * answers: offline, the CONNECTED constraint holds the job enqueued for as long as
+     * it takes, and a widget left wearing `…` for good would be a worse lie than
+     * numbers that did not move.
+     */
+    private suspend fun acknowledgeTap(context: Context) {
+        TweatherWidgetUpdater.updateAll(context, syncing = true)
+        delay(BusyWindowMs)
+        TweatherWidgetUpdater.updateAll(context)
+    }
+
     companion object {
         const val ACTION_REFRESH = "com.callbackdev.tweather.widget.REFRESH"
+
+        /**
+         * How long the ↻ stays in its working form when nothing else takes it out of
+         * it. Long enough to outlast an ordinary fetch (two GETs behind an expedited
+         * job), far short of the budget a background broadcast may hold with goAsync.
+         */
+        private const val BusyWindowMs = 5_000L
 
         /** cacheKey of the city the tapped instance shows (set by [WidgetRenderer]). */
         const val EXTRA_CITY_KEY = "com.callbackdev.tweather.widget.EXTRA_CITY_KEY"

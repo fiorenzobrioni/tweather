@@ -77,8 +77,11 @@
          description and accessibility text are chrome (localized) -->
     <string name="widget_label" translatable="false">tweather --now</string>
     <string name="widget_refresh_glyph" translatable="false">↻</string>
+    <!-- the ↻ while the tap it just took is being served -->
+    <string name="widget_refresh_glyph_busy" translatable="false">…</string>
     <string name="widget_description">Current weather as a terminal window</string>
     <string name="cd_widget_refresh">Refresh weather data</string>
+    <string name="cd_widget_refresh_busy">Refreshing weather data</string>
     <string name="cd_widget_follow_app">Follow the app\'s active location</string>
     <string name="cd_widget_pin">Pin %1$s to this widget</string>
 

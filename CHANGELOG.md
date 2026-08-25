@@ -8,6 +8,18 @@ All notable changes to tweather are documented here. The format follows
 
 ### Fixed
 
+- City search now asks Open-Meteo in the device's language. `language` is not a display
+  setting there: it also picks the index the query is matched against, so with the
+  hardcoded `en` an Italian phone had to spell its own cities in English — "Firenze"
+  returned only the hamlet Firenze Nova, "Napoli" five places that are not Naples.
+  English spellings keep working ("Florence" still finds Firenze) and results now come
+  back with local names. Cities already saved keep the name they were saved with.
+- Home widget: the ↻ now answers the tap. It used to redraw the very same frame — the
+  fetch is a queued job that lands seconds later, and `# last_sync`, the only line that
+  moves, is cut by the sizes most people place — so a tap looked like nothing at all.
+  The glyph turns to `…` while the fetch is in flight and comes back on the first
+  repaint after it, or after five seconds for the tap nothing serves (offline, the job
+  waits for a connection). Same acknowledgment tsteps got in its Fase 16.
 - `README.md`, `## Today`: the UV index line showed the *instant* reading next to the
   day's max and min, so it was 0 every evening. It now shows the day's peak
   (Open-Meteo's `uv_index_max`, fetched and parsed all along but never mapped into the

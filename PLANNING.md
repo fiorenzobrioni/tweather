@@ -426,6 +426,53 @@ Ordine finale: Attuale → Oggi → **Stato** → ore → giorni → **Aria** �
 - [x] `WeatherReadmeTest.kt`: ordine degli heading aggiornato nel golden; l'asserzione posizionale delle ore non usa più un offset fisso (`## Today` + 5, che il contenuto variabile dello Stato avrebbe reso fragile) ma la sequenza degli heading; nuovo test che lo Stato precede previsioni e astronomia; il test della sezione assente verifica anche che togliere l'aria non sposti la coda dell'ordine
 
 
+## Fase 13e — Il tap sul ↻ del widget si vede (post-1.0)
+
+Richiesta del committente (25 ago 2026): la freccia di refresh del widget deve cambiare disegno al tap, come quella di tsteps. Portata da lì (tsteps Fase 16), stessa forma e stessi nomi di risorsa.
+
+**Il difetto.** Il tap accodava il sync e ridisegnava lo stesso identico frame: il fetch è un job WorkManager e atterra secondi dopo, quindi per secondi non cambia un pixel; e quando il meteo non è cambiato — o il fetch fallisce — il frame resta identico anche *dopo*. L'unica riga che si muove è `# last_sync`, che è l'ultima del transcript: le taglie che la gente piazza davvero la tagliano. Il risultato è un tasto che sembra morto.
+
+**La soluzione: il glifo indossa il tap.** `↻` diventa `…` in colore commento (con la sua `contentDescription`) mentre il fetch è in volo, e torna al primo repaint utile. È l'unico elemento presente su tutte e tre le tier, small compresa, quindi l'unico riscontro che raggiunge ogni taglia.
+
+**Chi lo fa tornare.** Il primo repaint che arriva: il commit della history quando il fetch riesce (il gancio del repository), il repaint che il worker fa da sé quando il sync fallisce, altrimenti la finestra `BusyWindowMs` (5s) nel provider. La finestra è un **tetto, non un'attesa**: serve al tap che non serve nessuno. tsteps legge il contapassi dentro il broadcast e sa quando ha finito; qui no — il vincolo CONNECTED tiene il job accodato finché la rete non torna, e un widget che resta con `…` per ore sarebbe una bugia peggiore di numeri che non si muovono. Cinque secondi stanno larghi su un fetch normale (due GET dietro un job expedited) e stretti sul budget che un broadcast di background può tenere con `goAsync`.
+
+**Scartato: osservare il lavoro con `getWorkInfosForUniqueWorkFlow`.** In teoria più preciso (il glifo tornerebbe esattamente a job finito), in pratica fragile: `enqueueUniqueWork` registra il lavoro in modo asincrono, e un `WorkInfo` terminale del tap precedente può soddisfare il predicato prima che il nuovo esista — il glifo tornerebbe subito, proprio nel caso che questa fase esiste per riparare. La finestra è deterministica e non dipende dagli interni di WorkManager.
+
+**L'enqueue resta sincrono in `onReceive`**, prima della coroutine: il fetch è quello che il tap sta davvero chiedendo e non deve mettersi in coda dietro a un render.
+
+- [x] `strings.xml` (EN/IT): `widget_refresh_glyph_busy` (`…`, non traducibile come l'altro glifo) e `cd_widget_refresh_busy` per il TalkBack
+- [x] `WidgetRenderer`: parametro `syncing` su `render` e `sizeMap`; testo, colore e `contentDescription` impostati su **entrambi** i rami — un glifo scritto solo quando è occupato non tornerebbe più
+- [x] `TweatherWidgetUpdater.updateAll(syncing)`: stesso stato persistito, glifo diverso
+- [x] `TweatherWidgetProvider.acknowledgeTap`: repaint occupato, finestra, repaint normale; il ramo del tap sostituisce il vecchio `needsRender = true`
+- [x] Test: il glifo indossa il tap su tutte le tier (testo, colore e accessibilità, occupato e a riposo)
+
+
+## Fase 13f — La ricerca città parla la lingua del telefono (post-1.0)
+
+Segnalazione del committente (25 ago 2026): su un dispositivo italiano la maggior parte delle città italiane si trova solo scrivendola in inglese — Firenze è "Florence".
+
+**La causa è una riga nostra, non un limite del provider**: `OpenMeteoApis.kt` fissava `language = "en"` nella query di geocoding. Su Open-Meteo `language` non è un'impostazione di visualizzazione: sceglie anche **l'indice su cui la query fa match**, quindi decide che cosa l'utente può trovare. Misurato sull'API il 25 ago 2026:
+
+| query | `language=en` | `language=it` |
+|---|---|---|
+| `Firenze` | solo `Firenze Nova`, una frazione | `Firenze`, Toscana, Italia |
+| `Napoli` | Napoli (Gambia), Napoli (USA), Nāpoli (India), Napoli (Messico), Napoligu (Ghana) | `Napoli`, Campania, Italia |
+| `Roma` | Roma (Romania) in testa | `Roma`, Lazio, in testa |
+| `Genova` | Génova (Guatemala) | `Genova`, Liguria |
+| `Florence`, `Milan` | Florence, Milan | Firenze, Milano |
+
+Il cambio è quindi **additivo**: con `it` la grafia inglese continua a trovare la città (ultima riga), e in più funziona quella italiana. Un codice non supportato ricade sull'inglese lato server (verificato con `xx` e `zz`), quindi la lingua del dispositivo si passa com'è: nessuna lista di lingue supportate da mantenere qui, che daterebbe l'app il giorno in cui Open-Meteo ne aggiunge una decima. Risolta **a ogni chiamata**, non alla costruzione del repository: il language picker di sistema può cambiare la lingua mentre il processo vive.
+
+**Ambito deciso col committente: solo le nuove ricerche.** Le città già salvate tengono il nome con cui sono state salvate e la Milano seminata resta `Milan`: nessuna migrazione, nessuna riga `location` di diff nei Logs, e la `cacheKey` è sulle coordinate quindi cache e history non sentono nulla. Scartata (per ora) la variante che riallinea anche `cities.json` via `/v1/get?id=&language=` — l'endpoint funziona, verificato, e la Milano di default ha già l'id GeoNames giusto — perché rinominerebbe file che l'utente ha già imparato a riconoscere.
+
+Ricaduta accettata: nome, `admin1` e `country` arrivano localizzati (Toscana, Italia), quindi le città salvate d'ora in poi avranno nomi-file italiani (`firenze.json`) e il `⎇` della status bar il nome italiano. È la regola di l10n del progetto applicata: i nomi di città sono valori, non chiavi.
+
+- [x] `OpenMeteoApis.kt`: `language` senza default sulla `search` (un caller non può più ricadere in inglese per distrazione), `DEFAULT_LANGUAGE` e `languageOf(locale)` nel companion con il perché nella KDoc
+- [x] `WeatherRepository.searchCities`: passa `languageOf(Locale.getDefault())`, letto a ogni chiamata
+- [x] Non toccati: forecast e air quality (non restituiscono nomi), il `Geocoder` di piattaforma del GPS (già nella lingua del dispositivo), le città salvate e la Milano seminata
+- [x] Test: la query va all'indice della lingua del dispositivo, un cambio di lingua raggiunge la ricerca successiva, `languageOf` su locale con regione, lingua non supportata e `Locale.ROOT`
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

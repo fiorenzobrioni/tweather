@@ -22,7 +22,11 @@ import kotlinx.serialization.json.Json
  */
 object TweatherWidgetUpdater {
 
-    suspend fun updateAll(context: Context) {
+    /**
+     * [syncing] paints the very same state with the ↻ glyph in its working form: the
+     * acknowledgment a tap gets while the fetch it asked for is still in flight.
+     */
+    suspend fun updateAll(context: Context, syncing: Boolean = false) {
         val manager = AppWidgetManager.getInstance(context)
         val ids = manager.getAppWidgetIds(
             ComponentName(context, TweatherWidgetProvider::class.java)
@@ -68,7 +72,8 @@ object TweatherWidgetUpdater {
                     groupIds.toIntArray(),
                     WidgetRenderer.sizeMap(
                         context, content, palette, settings.widgetOpacityPct,
-                        cityKey = city?.cacheKey
+                        cityKey = city?.cacheKey,
+                        syncing = syncing
                     )
                 )
             }

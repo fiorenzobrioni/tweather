@@ -79,6 +79,16 @@ class WeatherViewModel(
         viewModelScope.launch { workspaceStore.setMainActiveFile(file) }
     }
 
+    /** Fase 14d: the `HELP.md` pointer, until it is used or dismissed. */
+    val showHelpHint: StateFlow<Boolean> = workspaceStore.helpHintDismissed
+        .map { !it }
+        // Eagerly like activeFile: a hint that appears one frame late reads as a glitch
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun dismissHelpHint() {
+        viewModelScope.launch { workspaceStore.dismissHelpHint() }
+    }
+
     private var city: City? = null
     private var loadJob: Job? = null
     private var gpsJob: Job? = null

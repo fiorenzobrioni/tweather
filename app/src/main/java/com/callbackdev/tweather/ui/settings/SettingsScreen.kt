@@ -63,8 +63,15 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
-/** The two files open in the Settings tab bar (Fase 11). */
-internal val SettingsFiles = listOf("settings.config", "alerts.rules")
+/**
+ * The files open in the Settings tab bar: two since Fase 11, three since 14d —
+ * `HELP.md` lands here because this is where someone goes when the app has confused
+ * them, and because the editor's two tabs belong to the city, not to the app.
+ */
+internal val SettingsFiles = listOf("settings.config", "alerts.rules", "HELP.md")
+
+/** Index of `HELP.md` in [SettingsFiles] — the target of the editor's first-run hint. */
+internal const val HelpFileIndex = 2
 
 /** Everything the settings file can change, bundled for [buildSettingsLines]. */
 class SettingsActions(
@@ -124,7 +131,10 @@ enum class GpsLineState {
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
-    rulesViewModel: RulesViewModel = viewModel(factory = RulesViewModel.Factory)
+    rulesViewModel: RulesViewModel = viewModel(factory = RulesViewModel.Factory),
+    /** Set by the editor's `HELP.md` hint: open that file rather than the config. */
+    openHelp: Boolean = false,
+    onHelpOpened: () -> Unit = {}
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val useGps by viewModel.useGps.collectAsStateWithLifecycle()
@@ -137,6 +147,16 @@ fun SettingsScreen(
     var activeFile by rememberSaveable { mutableIntStateOf(0) }
     val settingsScroll = rememberLazyListState()
     val rulesScroll = rememberLazyListState()
+    val helpScroll = rememberLazyListState()
+
+    // The hint in the editor asks for a file, not just for this tab (the nav graph
+    // restores whichever one was open last).
+    LaunchedEffect(openHelp) {
+        if (openHelp) {
+            activeFile = HelpFileIndex
+            onHelpOpened()
+        }
+    }
 
     // The app's only runtime permission. Re-check on every resume so a grant or a
     // revocation made in the system settings is reflected as soon as we're back.
@@ -256,6 +276,12 @@ fun SettingsScreen(
         }
     }
 
+    if (activeFile == HelpFileIndex) {
+        // Seen is seen: the hint stops pointing at a file the user has now opened.
+        LaunchedEffect(Unit) { viewModel.markHelpSeen() }
+        HelpScreen(onSelectFile = { activeFile = it }, canvasState = helpScroll)
+        return
+    }
     if (activeFile == 1) {
         RulesScreen(
             onSelectFile = { activeFile = it },

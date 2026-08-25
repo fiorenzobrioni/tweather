@@ -28,7 +28,12 @@ class WeatherTabsTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private fun setContent(initial: MainEditorFile = MainEditorFile.JSON) =
+    private var helpOpened = 0
+
+    private fun setContent(
+        initial: MainEditorFile = MainEditorFile.JSON,
+        showHelpHint: Boolean = false
+    ) =
         compose.setContent {
             TweatherTheme {
                 var active by remember { mutableStateOf(initial) }
@@ -36,10 +41,32 @@ class WeatherTabsTest {
                     state = WeatherUiState(report = sampleWeatherReport(), isLoading = false),
                     onRefresh = {},
                     activeFile = active,
-                    onSelectFile = { active = it }
+                    onSelectFile = { active = it },
+                    showHelpHint = showHelpHint,
+                    onOpenHelp = { helpOpened++ }
                 )
             }
         }
+
+    /**
+     * Fase 14d: one line, on both files, and it opens HELP.md. Not a carousel and
+     * not a dialog — the pointer lives in the document it interrupts.
+     */
+    @Test
+    fun `the help hint heads the document and opens the file`() {
+        setContent(showHelpHint = true)
+
+        compose.onNodeWithText("// new here? open HELP.md").performClick()
+
+        assertTrue(helpOpened == 1)
+    }
+
+    @Test
+    fun `without the hint the document starts at its own first line`() {
+        setContent()
+
+        compose.onNodeWithText("// new here? open HELP.md").assertDoesNotExist()
+    }
 
     @Test
     fun `the json file is the default tab`() {

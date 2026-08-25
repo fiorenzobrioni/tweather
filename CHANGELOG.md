@@ -6,6 +6,18 @@ All notable changes to tweather are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `$ tweather init`: the first run now asks where you are — your position, a city
+  search, or skip — instead of assuming. Skipping lands on an editor that says
+  `// no location configured` and offers the search, which is also what you get if
+  you remove every city.
+- `HELP.md`, a third file behind the Settings tab bar: what the four tabs are, what
+  the borrowed words mean (commit, diff, branch, CI), where the data comes from and
+  why the app looks like this. Written for someone who does not read `git` for a
+  living, and fully localized. A one-off `// new here? open HELP.md` line at the top
+  of the editor points at it once and goes away as soon as the file has been opened.
+
 ### Changed
 
 - A fresh install no longer comes with Milan already saved. `cities.json` listing a

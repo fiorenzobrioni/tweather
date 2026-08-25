@@ -44,6 +44,20 @@ class WorkspaceStoreTest {
         assertEquals(MainEditorFile.README, store.mainActiveFile.first())
     }
 
+    /**
+     * Fase 14d: the HELP.md hint is workspace state on purpose — it must not be a
+     * `settings.config` key that `$ git restore` would bring back to a veteran.
+     */
+    @Test
+    fun `the help hint shows until it is dismissed`() = runBlocking {
+        val store = store(tmp.newFile("ws.preferences_pb"))
+        assertEquals(false, store.helpHintDismissed.first())
+
+        store.dismissHelpHint()
+
+        assertEquals(true, store.helpHintDismissed.first())
+    }
+
     @Test
     fun `the active file survives a restart (new store on the same file)`() = runBlocking {
         val file = tmp.newFile("ws.preferences_pb")

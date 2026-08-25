@@ -13,6 +13,7 @@ import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.UpdateFrequencies
 import com.callbackdev.tweather.data.WidgetOpacities
 import com.callbackdev.tweather.data.WindSpeedUnit
+import com.callbackdev.tweather.data.WorkspaceStore
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -21,8 +22,17 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val settingsStore: SettingsStore,
-    private val cityStore: CityStore
+    private val cityStore: CityStore,
+    private val workspaceStore: WorkspaceStore
 ) : ViewModel() {
+
+    /**
+     * The editor's `HELP.md` hint has done its job once the file has been opened —
+     * by any route, not only by tapping the hint (Fase 14d).
+     */
+    fun markHelpSeen() {
+        viewModelScope.launch { workspaceStore.dismissHelpHint() }
+    }
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
@@ -95,7 +105,8 @@ class SettingsViewModel(
                 val app = checkNotNull(this[AndroidViewModelFactory.APPLICATION_KEY])
                 SettingsViewModel(
                     settingsStore = ServiceLocator.settingsStore(app),
-                    cityStore = ServiceLocator.cityStore(app)
+                    cityStore = ServiceLocator.cityStore(app),
+                    workspaceStore = ServiceLocator.workspaceStore(app)
                 )
             }
         }

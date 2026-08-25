@@ -73,6 +73,58 @@
     <!-- Rule name + city: no words to translate, the name is the user's own -->
     <string name="notif_title_rule" translatable="false">🔔 %1$s — %2$s</string>
 
+    <!-- The editor\'s one-shot pointer to HELP.md (Fase 14d). Localized for the same
+         reason the init screen is: it is addressed to someone who does not yet read
+         the app. The file name is a file name and stays as it is. -->
+    <string name="help_hint">new here? open HELP.md</string>
+
+    <!-- HELP.md (Fase 14d): the third file behind the Settings tab bar. Prose for
+         someone who does not read `git` for a living, so FULLY localized, headings
+         included - the same rule README.md follows. One item per rendered line: the
+         document is markdown SOURCE, and Android would collapse real newlines.
+         Backticked words are the app's own file and key names and stay as they are. -->
+
+    <string-array name="help_md">
+        <item># tweather</item>
+        <item></item>
+        <item>A weather app that presents itself as a code editor: the forecast is a file you read, not a card you glance at. If the words below mean nothing to you, this page is for you.</item>
+        <item></item>
+        <item>## The four tabs</item>
+        <item></item>
+        <item>- **Editor** - `weather_data.json` and `README.md`: the weather of the active city. The first is the technical version, every field of it; the second is the same thing told in words.</item>
+        <item>- **Search** - `cities.json`: look up a city and add it to the list. The active one is marked `// active`, and `[rm]` removes a line.</item>
+        <item>- **Settings** - `settings.config` and `alerts.rules`: options change by tapping the value itself. There is no switch to hunt for.</item>
+        <item>- **Logs** - `weather_history.diff`: every update the app has made.</item>
+        <item></item>
+        <item>## The borrowed words</item>
+        <item></item>
+        <item>- **commit** - one update of the data. Every time the app fetches the weather it records one, with the time and what changed.</item>
+        <item>- **diff** - the difference between two updates. Lines with `+` are the new values, lines with `-` the old ones.</item>
+        <item>- **branch** (`⎇`) - the active city, down in the status bar. Tap it to switch.</item>
+        <item>- **CI** - in software it is the system that checks the code on every change. Here `alerts.rules` does the same to the weather: you write a rule (\"rain above 70%\") and the app tells you when it comes true.</item>
+        <item></item>
+        <item>## Where the data comes from</item>
+        <item></item>
+        <item>Forecasts are open-meteo.com\'s, free and without an account. No ads and no analytics: the only thing that leaves the phone is the weather request itself. Your position, if you turn it on, is the coarse one Android gives, and it is used only to ask for the forecast at that spot.</item>
+        <item></item>
+        <item>## Why it looks like this</item>
+        <item></item>
+        <item>Because a file can be read all at once, and because we like it this way. If you got this far, you already know whether it is for you.</item>
+    </string-array>
+
+    <!-- `$ tweather init` (Fase 14c). Prose for someone seeing the app for the
+         first time, so LOCALIZED — the same exception README.md makes. The command
+         itself, the file name and cities.json are code and stay as they are. -->
+    <string name="init_intro">tweather needs one location to start.</string>
+    <string name="init_privacy">Forecasts come from open-meteo.com. Nothing else leaves the phone.</string>
+    <string name="init_option_gps">use my position</string>
+    <string name="init_option_gps_note">approximate position, Android asks you first</string>
+    <string name="init_option_search">search a city</string>
+    <string name="init_option_search_note">type a name, pick it from the list</string>
+    <string name="init_option_skip">skip</string>
+    <string name="init_option_skip_note">decide later, in cities.json</string>
+    <string name="init_permission_denied"># permission denied: search a city instead</string>
+
     <!-- Home widget: label/glyphs are terminal code (untranslated); the picker
          description and accessibility text are chrome (localized) -->
     <string name="widget_label" translatable="false">tweather --now</string>

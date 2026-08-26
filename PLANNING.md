@@ -563,7 +563,7 @@ Rilievo del committente confrontando le tre app: tweather era l'unica con **Impo
 **Nota su una flakiness pre-esistente**: durante la verifica `TweatherNavigationTest` è fallito due volte su quattro esecuzioni della suite completa, con test diversi ogni volta (`aFreshInstallLandsOnTweatherInit`, poi `skippingInitOpensTheWorkspaceAnyway`) e sempre sull'attesa della schermata di init. È una corsa fra la scrittura DataStore della migrazione (su `Dispatchers.IO`) e la prima composizione, non una conseguenza di questa fase: la classe passa isolata e la suite completa passa pulita nelle altre esecuzioni. Annotata qui perché prima o poi tingerà di rosso una CI senza colpa del commit che la fa girare.
 
 
-## Fase 16 — Il modulo cielo (`sky.crontab`, `sky_runs.log`) — pianificata
+## Fase 16 — Il modulo cielo (`sky.crontab`, `sky_runs.log`) — in corso
 
 Proposta del committente (`VISION_SKY.md`, revisione 2 in repo): il cielo sopra la città attiva come **crontab**. `weather_data.json` dice cosa sta facendo l'atmosfera adesso; `sky.crontab` dice **cosa ha in programma il cielo**, e se le nuvole lasceranno passare il job. Ogni riga è un lavoro schedulato (alba, tramonto, ora d'oro, finestra di buio, sciame meteorico) e porta un **verdetto di build** calcolato sulle previsioni che l'app già scarica: `✓ pass`, `~ unstable`, `✗ fail`, `? unknown`, `∅ not scheduled`.
 
@@ -583,23 +583,35 @@ Il costo che resta, dichiarato: la striscia dell'editor passa a tre nomi (39 car
 
 **La riga che tiene tutto insieme è la stessa delle altre fasi**: *il file può non sapere una cosa, non può inventarla*. Un verdetto che le previsioni non reggono è `? unknown`; una luna che quel giorno non sorge è `∅`, non `00:00`; una run che l'app non ha osservato è `– skipped` e non conta in nessuna statistica; un promemoria che l'app non sa consegnare in tempo non viene offerto come lead più corto.
 
-Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una.
+Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: la **16a è fatta** (ago 2026), le altre cinque sono da fare.
 
 
 ## Fase 16a — Il layer dati smette di buttare via ciò che ha già scaricato
 
 Prerequisito di tutto il resto, e utile **anche da solo**. Niente di quanto sta in `VISION_SKY.md` §7 è calcolabile sul modello di dominio attuale: `HourlyForecast` non porta la nuvolosità e la finestra oraria si ferma a 25 slot. Entrambe le cose costano **zero rete**.
 
-- `cloud_cover` è in `HOURLY_VARIABLES` dalla Fase 13c (ripara la nebbia di `weather_code`), è già deserializzato in `ForecastHourlyDto` ed è già sul disco dentro `ReportDiskCache` come DTO grezzo. Il mapper semplicemente smette di scartarlo.
+- `cloud_cover` è in `HOURLY_VARIABLES` dalla Fase 13c (ripara la nebbia di `weather_code`), è già deserializzato in `HourlyDto` ed è già sul disco dentro `ReportDiskCache` come DTO grezzo. Il mapper semplicemente smette di scartarlo.
 - `forecast_days = 7` restituisce **168** valori orari, già parsati: l'app ne mappa 25 e ne getta 143. L'orizzonte di verdetto a 3 giorni non è una capacità nuova, è roba che l'app paga e butta.
 
-La metà rischiosa è allargare la finestra, perché tre renderer leggono `report.hourly`: `weather_data.json` fa `hourly.drop(1)` **senza cap** e stamperebbe 167 righe; il `README.md` fa già `take(HourlyRows)`; `RuleVariables` e `AlertEngine` sono già limitati nel tempo (`next_6h`/`next_12h`, `now.plusHours(...)`). Quindi il cap esplicito nel JSON, e il test che lo blocca **scritto prima** del cambio di finestra, così fallisce per il motivo giusto.
+La metà rischiosa è allargare la finestra, perché tre renderer leggono `report.hourly`: `weather_data.json` fa `hourly.drop(1)` **senza cap** e stamperebbe 167 righe; il `README.md` fa già `take(HourlyRows)`; `RuleVariables` e `AlertEngine` sono già limitati nel tempo (`next_6h`/`next_12h`, `now.plusHours(...)`). Quindi il cap esplicito nel JSON, e il test che lo blocca prima di tutto il resto.
 
-- [ ] Test di regressione **primo**: `hourly_forecast` rende esattamente 24 righe (oggi è vero per costruzione, domani per contratto)
-- [ ] `HourlyForecast.cloudCoverPct` + mapping in `WeatherReportMapper.mapHourly`
-- [ ] `HOURLY_WINDOW` 25 → 168; `.take(24)` esplicito in `WeatherJson.hourly_forecast` (che è ciò che la sua KDoc già dichiara)
-- [ ] Verifica che `RuleVariables`, `AlertEngine` e `WeatherSnapshots` non cambino comportamento (nessuno dei tre è indicizzato per posizione)
-- [ ] Nota memoria: 168 `HourlyForecast` in RAM invece di 25 — misurare, non stimare
+- [x] Test di regressione: `hourly forecast renders one day whatever the report carries` — costruisce una settimana di slot e pretende 24 righe. Verificato che **fallisce senza il cap** (167 righe) e passa con: una guardia che non si è vista fallire non è una guardia
+- [x] `HourlyForecast.cloudCoverPct` + mapping in `WeatherReportMapper.mapHourly`
+- [x] `HOURLY_WINDOW` 25 → 168; `.take(HourlyJsonRows)` esplicito in `WeatherJson.hourly_forecast` (che è ciò che la sua KDoc già dichiarava)
+- [x] Verificato che `RuleVariables`, `AlertEngine` e `WeatherSnapshots` non cambino comportamento: i primi due filtrano per **tempo** (`!isBefore(now) && !isAfter(end)`, `firstOrNull` con lo stesso predicato) e il terzo non tocca le orarie. Nessun consumatore di `report.hourly` indicizza per posizione — l'unico `hourly[...]` in `main/` sta dentro il mapper, sul DTO
+- [x] Suite verde (363 test, +3) e lint pulito. La guardia è stata vista fallire: senza il cap, `expected:<24> but was:<167>`
+
+**`FORECAST_DAYS` diventa una costante di `OpenMeteoForecastApi`**, e sia `HOURLY_WINDOW` (`× 24`) sia `DAILY_WINDOW` ne derivano. Il difetto che questa fase ripara è esattamente un 7 di qua e un 25 di là che non si parlavano: lasciare 168 scritto a mano nel mapper avrebbe ricreato lo stesso disallineamento un giro più in là. Ora i giorni di previsione si cambiano in un posto e la finestra segue.
+
+**La costante del JSON si chiama `HourlyJsonRows`, non `HourlyRows`.** `WeatherReadme.kt` ha già un `HourlyRows` privato che vale **14**, nello stesso package: due costanti private con un nome e due valori sono una trappola per chi legge, non un riuso.
+
+**Deviazione: `cloudCoverPct` era nullable, è finito non-null — e il test lo ha dimostrato.** La prima stesura lo aveva fatto `Int? = null` con un argomento che suonava bene: il verdetto del cielo ha uno stato `? unknown`, quindi serve un input capace di produrlo, e una nuvolosità mancante **non è un cielo sereno**. Il test scritto per coprire quel caso (array parallelo corto) è fallito con `IndexOutOfBoundsException` **prima di arrivare al mapping**: `repairedCodes()` legge la stessa colonna un passo prima, su tutti gli indici, e sarebbe esplosa comunque. Cioè il null era uno stato che il tipo permetteva e che il dato non può assumere.
+
+E un campo così non è neutro: ogni lettore in 16d avrebbe scritto `?: 0`, e 0% di nuvole significa "sereno". La versione nullable era la strada più breve verso esattamente la bugia che voleva impedire. Quindi campo **non-null, senza default**, letto come i suoi fratelli (`hourly.cloudCoverPct[i]`), e i quattro punti di costruzione aggiornati a mano — nel `SampleWeatherReport` con valori **coerenti con la condizione di ogni riga** (l'ora `sunny` è al 5%, non al 90%), perché il primo verdetto scritto contro quel sample lo leggerà davvero. L'assenza che la 16d dovrà gestire non è una colonna mancante, è un'**ora** mancante: un evento oltre la fine di `hourly`, che la lista esprime da sé.
+
+**La memoria, contata invece che stimata.** `hourlyTimes` e `hourlyCodes` erano già costruiti su **tutti** i 168 slot prima che la finestra si applicasse — quindi i `LocalDateTime` e i codici riparati non sono un costo nuovo. Il delta vero sono i soli oggetti mappati: 143 `HourlyForecast` (header + ref + `Double` + ref + due `Int` ≈ 40 B allineati) più 143 `WeatherCondition` (`WeatherCodes.condition` ne alloca uno per ora; le stringhe sono costanti condivise) ≈ 32 B → **~10 KB per report**. Per confronto, il `ForecastResponseDto` che il mapper ha in mano mentre lavora porta 168 stringhe di timestamp da ~56 B, cioè ~9,4 KB per la sola colonna `time`, più altre sei liste parallele: l'input era già più grande dell'aggiunta. La cache in RAM di `WeatherRepository` è però una `ConcurrentHashMap` per `cacheKey` **senza sfratto** (pre-esistente, e per la pseudo-città GPS c'è una chiave per cella da ~1,1 km): venti città in un processo sono ~200 KB in più. Nessun intervento qui, ma è la voce da guardare per prima se quella mappa diventerà un problema, perché adesso pesa quasi sei volte tanto per entrata.
+
+**Niente riga nel `CHANGELOG.md`.** Questa fase non ha nessun effetto visibile: la tabella oraria del JSON mostra le stesse 24 righe, il README le stesse 14, le notifiche le stesse cose. È infrastruttura per la 16d, e un changelog che annuncia un campo di dominio che nessuno vede è rumore. La riga arriva con la fase che si vede.
 
 
 ## Fase 16b — `AstronomyEngine`: il motore, il catalogo, gli sciami (nessuna UI)

@@ -125,13 +125,15 @@ class WeatherReportMapperTest {
     }
 
     @Test
-    fun `hourly window starts at current hour and spans 25 entries`() {
-        // 25, not 24: slot 0 is the current hour (current_conditions' rain chance,
-        // the engines' anchor), the views drop it and still show a full day.
+    fun `hourly window starts at the current hour and keeps every slot after it`() {
+        // Slot 0 is the current hour (current_conditions' rain chance, the engines'
+        // anchor); the views drop it and still show a full day. Since Fase 16a the
+        // window runs to the END of the response instead of stopping after 25: the
+        // fixture carries 48 slots and the current hour is index 14, so 34 remain.
         val hourly = map().hourly
-        assertEquals(25, hourly.size)
+        assertEquals(34, hourly.size)
         assertEquals(LocalDateTime.parse("2026-08-13T14:00"), hourly.first().time)
-        assertEquals(LocalDateTime.parse("2026-08-14T14:00"), hourly.last().time)
+        assertEquals(LocalDateTime.parse("2026-08-14T23:00"), hourly.last().time)
         assertEquals(24.0, hourly.first().tempC, 0.0)        // 10.0 + index 14
         assertEquals("Light Rain 🌧️", hourly.first().condition.label)
         assertEquals(40, hourly.first().precipChancePct)
@@ -142,10 +144,33 @@ class WeatherReportMapperTest {
     }
 
     @Test
+    fun `hourly window spans the whole response when it starts at midnight`() {
+        // The upper bound, and the one the constant is named after: at 00:00 nothing
+        // is behind the current hour, so a full week of hourly values survives the
+        // mapping instead of the single day the app used to keep.
+        val report = map(forecast = forecast(currentTime = "2026-08-13T00:12", hourlyCount = 24 * 7))
+        assertEquals(24 * 7, report.hourly.size)
+    }
+
+    @Test
     fun `hourly window is clipped when the API returns fewer slots`() {
         // 20 slots total, current hour at index 14 → only 6 remain.
         val report = map(forecast = forecast(hourlyCount = 20))
         assertEquals(6, report.hourly.size)
+    }
+
+    @Test
+    fun `hourly slots carry the cloud cover`() {
+        // Fetched since Fase 13c for the fog repair, carried into the domain since
+        // 16a for the sky module's verdicts. Same request, same bytes: the mapper
+        // simply stopped throwing the column away.
+        val base = forecast()
+        val n = base.hourly.time.size
+        val report = map(
+            forecast = base.copy(hourly = base.hourly.copy(cloudCoverPct = List(n) { it }))
+        )
+        assertEquals(14, report.hourly.first().cloudCoverPct)   // current hour = index 14
+        assertEquals(15, report.hourly[1].cloudCoverPct)
     }
 
     @Test

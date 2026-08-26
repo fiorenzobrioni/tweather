@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.data.mapper
 
+import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import com.callbackdev.tweather.data.remote.dto.AirQualityCurrentDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
 import com.callbackdev.tweather.data.remote.dto.HourlyDto
@@ -29,12 +30,31 @@ import kotlin.math.roundToInt
 
 /**
  * Hourly slots carried in the domain: the CURRENT hour first — slot 0 feeds
- * `current_conditions`' rain chance and anchors AlertEngine/rules — plus the full
- * day both tabs read from the hour after it (Fase 11f: the views drop slot 0, it
- * only repeats the current section; the JSON still shows 24 rows, `+1h..+24h`).
+ * `current_conditions`' rain chance and anchors AlertEngine/rules (Fase 11f: the
+ * views drop it, it only repeats the current section) — and then every remaining
+ * hour the response carries.
+ *
+ * `FORECAST_DAYS × 24` since Fase 16a, 25 before it. The old number was one day, and
+ * the other 143 hours of the response were deserialized into [HourlyDto], written to
+ * `ReportDiskCache` as part of the raw DTO, and then dropped on the floor by this
+ * function. So a sky verdict three days out is not a new capability that needs a new
+ * request: it is data the app has been paying for and discarding. Widening costs no
+ * network, no disk and no parsing — only the mapped objects, which is why the count
+ * is bounded here rather than left as "whatever arrived".
+ *
+ * The realized count is never the full 168: the window opens at the current hour, so
+ * it runs from ~168 at midnight down to ~145 at 23:00, and [mapHourly] clips it to
+ * what the response actually holds.
+ *
+ * **The views do not follow this window.** `weather_data.json` caps its table at 24
+ * rows and the README at 14; AlertEngine and RuleVariables bound themselves by time
+ * (`next_6h`, `next_12h`, `now.plusHours(…)`) rather than by position. Anything new
+ * reading `report.hourly` has to decide its own horizon — the list is a week now.
  */
-private const val HOURLY_WINDOW = 25
-private const val DAILY_WINDOW = 7
+private const val HOURLY_WINDOW = OpenMeteoForecastApi.FORECAST_DAYS * 24
+
+/** Days of daily forecast carried — the whole response, like [HOURLY_WINDOW]. */
+private const val DAILY_WINDOW = OpenMeteoForecastApi.FORECAST_DAYS
 
 /**
  * Below 51 the WMO scale carries only sky states and fog; from 51 up every code is a
@@ -135,7 +155,11 @@ object WeatherReportMapper {
                         codes[i],
                         isDay = hourly.isDay[i] == 1
                     ),
-                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0
+                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0,
+                    // Read like its siblings: the parallel arrays are the same length
+                    // in any response that deserialized, and `repairedCodes()` has
+                    // already indexed this very column over all of them.
+                    cloudCoverPct = hourly.cloudCoverPct[i]
                 )
             }
     }

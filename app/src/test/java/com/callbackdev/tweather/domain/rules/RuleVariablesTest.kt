@@ -71,7 +71,8 @@ class RuleVariablesTest {
                 time = LocalDateTime.of(2023, 10, 27, 20, 0),
                 tempC = 13.0,
                 condition = WeatherCondition(95, "Thunderstorm", "⛈️"),
-                precipChancePct = 90
+                precipChancePct = 90,
+                cloudCoverPct = 100
             )
         )
         val severe = RuleVariables.byId("next_12h.wmo_severe")!!.resolve(thunder, now)!!

@@ -348,9 +348,11 @@ Rules:
   (§8). Never phrase it as "you saw it".
 - **Verdicts are recomputed on read**, never frozen. A verdict shown for a future event is
   the current forecast's opinion and will change.
-- **A verdict needs data the app does not have today.** `HourlyForecast` carries no cloud
-  cover and stops at 25 hours. Both are fixed in §13.1, and no verdict is computable
-  before that lands.
+- **The input landed in Fase 16a** (§13.1): `HourlyForecast` carries `cloudCoverPct` and
+  the mapper keeps every hour of the response instead of one day of it. The absence a
+  verdict has to survive is therefore a missing *hour*, never a missing number — past
+  the end of `report.hourly` there is no bucket to average, and that is exactly where
+  `? unknown` comes from.
 
 ---
 
@@ -655,9 +657,9 @@ Decisions to record in `PLANNING.md`:
 - **Memoize per (city, local date)**; the maths is cheap but it is called on every
   recomposition of a long file.
 
-### 13.1 The data-layer prerequisite
+### 13.1 The data-layer prerequisite — **done, Fase 16a**
 
-Nothing in §7 is computable against the domain model as it stands. Two changes, both in
+Nothing in §7 was computable against the domain model as it stood. Two changes, both in
 `WeatherReportMapper`, both free at the network layer:
 
 1. **`HourlyForecast` gains `cloudCoverPct`.** Open-Meteo's `cloud_cover` is already in
@@ -669,16 +671,27 @@ Nothing in §7 is computable against the domain model as it stands. Two changes,
    them as raw DTOs. The app maps 25 and discards 143 — so a 3-day verdict horizon is not
    a new capability, it is data the app currently throws away.
 
-Widening the window is the risky half, because three renderers read `report.hourly`:
+Widening the window was the risky half, because three renderers read `report.hourly`:
 
-- **`weather_data.json`** does `hourly.drop(1)` with no cap and would print 167 rows.
-  It gains an explicit `.take(24)` — which is what its KDoc already claims it shows.
+- **`weather_data.json`** did `hourly.drop(1)` with no cap and would have printed 167
+  rows. It gained an explicit `.take(HourlyJsonRows)` — which is what its KDoc already
+  claimed it showed.
 - **`README.md`** already does `take(HourlyRows)`. Untouched.
 - **`RuleVariables`** windows filter by `time` (`next_6h`, `next_12h`) and **`AlertEngine`**
   bounds by `now.plusHours(…)`. Both are already time-bounded. Untouched.
 
 A test asserting `hourly_forecast` renders exactly 24 rows locks the first one down, and
-should be written *before* the window changes so it fails for the right reason.
+was verified to fail without the cap.
+
+**One decision reversed by its own test, worth carrying into 16d.** `cloudCoverPct` was
+drafted nullable, so that the verdict's `? unknown` would have an input able to produce
+it: a cloud cover the app does not have is not a clear sky. The test written for that
+case never reached the mapping — the fog repair reads the same column one step earlier,
+across every index, and throws first. The null was a state the type allowed and the data
+cannot hold, and a field like that gets `?: 0` written against it at every read site,
+where 0 % cloud means "clear". The nullable version was the shortest road to the exact
+lie it was meant to prevent. So the field is **non-null**, and 16d's `? unknown` comes
+from where it always really came from: an event with no hour behind it.
 
 ---
 
@@ -736,7 +749,7 @@ the decisions and every deviation, as it already does.
 
 | Phase | Content | Network |
 |---|---|---|
-| **16a** | `HourlyForecast.cloudCoverPct`, `HOURLY_WINDOW` 25 → 168, `.take(24)` in the JSON render, regression test first. No UI, no sky code. | none |
+| **16a** ✅ | `HourlyForecast.cloudCoverPct`, `HOURLY_WINDOW` 25 → `FORECAST_DAYS × 24`, an explicit cap in the JSON render, regression test first. No UI, no sky code. | none |
 | **16b** | `AstronomyEngine` + `SkyJobCatalog` + `SkyScheduler` + `MeteorShowerTable` + the full correctness suite. `MoonPhase` reconciled. No UI. | none |
 | **16c** | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
 | **16d** | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |

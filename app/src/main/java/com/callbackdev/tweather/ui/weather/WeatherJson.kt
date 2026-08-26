@@ -135,9 +135,14 @@ fun WeatherReport.toDisplayJson(
     }
     putJsonArray("hourly_forecast") {
         // From the hour AFTER the current one (Fase 11f, like the README's table):
-        // slot 0 only repeats `current_conditions` right above. Still 24 rows — the
-        // mapper carries 25 so a full day survives the drop.
-        hourly.drop(1).forEach { h ->
+        // slot 0 only repeats `current_conditions` right above.
+        //
+        // The `take` is explicit since Fase 16a. It used to be implicit — the mapper
+        // carried exactly 25 slots, so dropping one left exactly the day this table
+        // has always shown. The mapper now carries a week for the sky module, and an
+        // uncapped `forEach` here would have quietly turned a 24-row table into a
+        // 167-row one in a document the user scrolls by hand.
+        hourly.drop(1).take(HourlyJsonRows).forEach { h ->
             add(buildJsonObject {
                 put("time", h.time.format(ClockTime))
                 put("temp_$tempKey", temp(h.tempC).roundToInt())
@@ -188,6 +193,14 @@ internal fun WindSpeedUnit.convert(kph: Double): Double =
 
 internal val WindSpeedUnit.symbol: String
     get() = if (this == WindSpeedUnit.KMH) "km/h" else "mph"
+
+/**
+ * Rows of `hourly_forecast`: one full day, `+1h..+24h`. Deliberately not the same
+ * number as the README's table (14 rows, Fase 11e) — the JSON tab is the full data
+ * source and the README the curated glance, which is the whole difference between
+ * the two tabs.
+ */
+private const val HourlyJsonRows = 24
 
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")

@@ -2,6 +2,7 @@ package com.callbackdev.tweather.ui.weather
 
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.WindSpeedUnit
+import java.time.format.DateTimeFormatter
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -42,6 +43,31 @@ class WeatherJsonTest {
         val system = json.getValue("system_info").jsonObject
         assertEquals("\"1698413400\"", system.getValue("last_sync").toString()) // string, per sample
         assertEquals("HIT", system.getValue("cache_status").jsonPrimitive.content)
+    }
+
+    /**
+     * The guard for Fase 16a: the mapper now carries a week of hourly slots for the
+     * sky module, and this array is the one consumer that read it whole. Twenty-four
+     * is what the table has shown since Fase 11f and what its KDoc claims; without
+     * an explicit cap the widened window would have printed 167 rows into a document
+     * a user scrolls by hand. Written before the window changed, so it could fail
+     * for the right reason.
+     */
+    @Test
+    fun `hourly forecast renders one day whatever the report carries`() {
+        val base = sampleWeatherReport()
+        val hour = base.hourly.first()
+        val week = List(24 * 7) { i ->
+            hour.copy(time = hour.time.plusHours(i.toLong()))
+        }
+        val rows = base.copy(hourly = week).toDisplayJson()
+            .getValue("hourly_forecast").jsonArray
+        assertEquals(24, rows.size)
+        // Still `+1h..+24h`: the cap trims the tail, it does not move the start.
+        assertEquals(
+            hour.time.plusHours(1).format(DateTimeFormatter.ofPattern("HH:mm")),
+            rows.first().jsonObject.getValue("time").jsonPrimitive.content
+        )
     }
 
     @Test

@@ -117,7 +117,29 @@ data class HourlyForecast(
     val time: LocalDateTime,
     val tempC: Double,
     val condition: WeatherCondition,
-    val precipChancePct: Int
+    val precipChancePct: Int,
+    /**
+     * Total cloud cover, 0..100 (Fase 16a). Open-Meteo has been sending it since Fase
+     * 13c, where it repairs `weather_code`'s unreliable fog inside the mapper, but it
+     * never reached the domain: nothing rendered it and nothing reasoned about it. The
+     * sky module does — whether tonight's sunset is worth walking outside for is a
+     * statement about this number and almost nothing else — so it stops being a local
+     * variable of the fog repair and becomes part of the hour.
+     *
+     * Rendered nowhere still: `weather_data.json` has no `cloud_cover` key and gains
+     * none. The condition emoji already says what the sky looks like.
+     *
+     * Non-null, and deliberately so. The first draft made it nullable to give the sky
+     * verdict's `? unknown` an input that could produce it — but the mapper cannot
+     * produce an hour without a cloud cover (the fog repair reads the same column one
+     * step earlier and would fail first), so the null would have been a state the type
+     * allows and the data never holds. Every reader would then have written `?: 0`,
+     * and 0 % cloud is "clear sky": the nullable version was the shortest route to the
+     * exact lie it was meant to prevent. The absence 16d actually has to handle is a
+     * missing HOUR — an event past the end of [WeatherReport.hourly] — which the list
+     * expresses on its own.
+     */
+    val cloudCoverPct: Int
 )
 
 data class DailyForecast(

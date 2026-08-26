@@ -629,11 +629,12 @@ Same stack, same conventions. One test-only dependency (§14); no runtime depend
 
 ```
 domain/sky/
-  AstronomyEngine.kt      pure; injected clock; lat/lon/zone in, instants out
-  SkyJob.kt               id, kind, cron expression, arguments, catalog metadata
-  SkyJobCatalog.kt        the fixed set; versioned; no runtime registration
-  SkyScheduler.kt         resolves the next N occurrences of a subscription
-  MeteorShowerTable.kt    solar-longitude peaks
+  AstronomyMath.kt        Meeus's series; internal; degrees in, degrees out    ✅ 16b
+  AstronomyEngine.kt      pure; no clock; lat/lon/zone in, instants out        ✅ 16b
+  SkyJob.kt               id, kind, cron expression, catalog metadata          ✅ 16b
+  SkyJobCatalog.kt        the fixed set; versioned; no runtime registration    ✅ 16b
+  SkyScheduler.kt         resolves the next N occurrences of a subscription    ✅ 16b
+  MeteorShowerTable.kt    solar-longitude peaks                                ✅ 16b
   SkyVerdictEngine.kt     resolved event + hourly forecast + moon → verdict
 ui/sky/
   SkyCrontabScreen.kt     third tab of the Editor strip; reuses the gutter, tab bar,
@@ -654,8 +655,25 @@ Decisions to record in `PLANNING.md`:
   primitive, and they are inexact (§10).
 - **`AstronomyEngine` takes no Android and no clock**, like the alert and rule engines, so
   all of it is JVM-testable.
-- **Memoize per (city, local date)**; the maths is cheap but it is called on every
-  recomposition of a long file.
+- **One primitive, every event** (16b): rather than a formula per event, the engine finds
+  the instant a body's altitude crosses a threshold. Sunrise is that crossing at −0.833°,
+  civil dawn at −6°, golden hour between +6° and −0.833°. The event list can then grow
+  without the maths growing, and polar day, a moonless day and a ten-minute equatorial
+  twilight are one code path instead of three special cases.
+- **Solstices and equinoxes are the exception, and the reason is measured** (16b). The plan
+  was to root-find them on the same solar longitude the showers use. The low-accuracy solar
+  series is good to ~0.01°, the sun covers 0.01° in a quarter of an hour, and the 2026
+  March equinox came out **eight minutes** from the published instant — inside the model's
+  own error bar and outside what an `HH:mm` may claim. Seasons therefore come from the
+  series fitted to season instants (Meeus 27, within a minute across 2024–2030); the
+  root-find stays for shower peaks, where the answer is a nine-hour night. A test measures
+  the gap between the two and pins it, so a change in either is a red test rather than a
+  surprise.
+- **Positions run on TT, hour angles on UT** (16b). ΔT is ~75 s: passing UT to a position
+  series is a small error, passing TT to sidereal time is a large one.
+- **Memoize per (city, local date)**; measured at 1.7 ms per `solarDay` and 0.9 ms per
+  `lunarDay` on a development JVM, so on a phone this is a dropped frame if a long file
+  recomputes it per recomposition. The memo is required, not precautionary.
 
 ### 13.1 The data-layer prerequisite — **done, Fase 16a**
 
@@ -702,23 +720,35 @@ roughly 80–120.
 
 **Correctness**
 
-- Sunrise, sunset and all three twilights against published reference values for at least
-  eight sites spanning latitude −70 to +70, tolerance ±60 s.
-- Solstices and equinoxes against known instants, tolerance ±2 min.
-- Moon phase instants against reference quarters, tolerance ±5 min. `MoonPhase.at()` is
-  reconciled with the new engine, not left as a second implementation (§9.2).
-- **Contract test against Open-Meteo:** for a fixture response, the engine's sunrise and
-  sunset must agree with the API's daily values within 120 s. This is the test that
-  catches an algorithm bug before a user does, and the one that makes §9.2's "the engine
+- ✅ **Contract test against Open-Meteo** (16b): nine sites from −67.6° to +69.6°, three
+  days each, 54 sunrise/sunset comparisons against values captured from the live API and
+  frozen in the test. Tolerance **120 s**, and the limit is on the provider's side: its
+  values are truncated to the minute (every mid-latitude row lands 0–60 s after the
+  reference, never before) and past |lat| 60 a minute of clock is only ~0.07° of altitude,
+  so its own approximation shows through. This is the test that makes §9.2's "the engine
   wins" a defensible choice rather than a preference.
+- ✅ **Solver exactness** (16b): for every solar event, the sun really is at the altitude
+  that defines it, within 0.005° — one second of its motion, which is the resolution the
+  engine answers at. Paired with the contract test this covers the whole solar catalog
+  without a reference table per event: the first proves the sun's POSITION, the second
+  proves the SOLVER at any threshold, and twilight, golden hour and blue hour are then
+  correct by construction.
+- ✅ Solstices and equinoxes against seven published instants across 2024–2030, within
+  56 s (16b).
+- ✅ Moon quarter instants against reference quarters, within 5 min. `MoonPhase.at()` is
+  reconciled with the new engine, not left as a second implementation (§9.2) — its six
+  original assertions pass unchanged (16b).
 
 **The metaphor**
 
-- **Every cron expression the renderer emits parses under a real cron parser.**
-  `cron-utils` as a `testImplementation`-only dependency. The emitted set is finite and
-  enumerable, so this could be a hand-written check — the point of an outside parser is
-  that it is not our opinion of what a crontab is. If a line cannot be produced validly,
-  the job does not ship.
+- ✅ **Every cron expression the renderer emits parses under a real cron parser** (16b).
+  `cron-utils` as a `testImplementation`-only dependency: the app emits cron and never
+  reads any. The emitted set is finite and enumerable, so this could have been a
+  hand-written check — the point of an outside parser is that it is not our opinion of
+  what a crontab is. Worth noting what it cost to satisfy: `CronType.UNIX` alone answers
+  "Nicknames not supported!" to `@daily`, so the test builds the definition that a real
+  vixie crontab has, nicknames included. §3's whole argument rests on `@daily` being a
+  thing a crontab accepts, and that is now asserted rather than assumed.
 
 **Behaviour**
 
@@ -750,7 +780,7 @@ the decisions and every deviation, as it already does.
 | Phase | Content | Network |
 |---|---|---|
 | **16a** ✅ | `HourlyForecast.cloudCoverPct`, `HOURLY_WINDOW` 25 → `FORECAST_DAYS × 24`, an explicit cap in the JSON render, regression test first. No UI, no sky code. | none |
-| **16b** | `AstronomyEngine` + `SkyJobCatalog` + `SkyScheduler` + `MeteorShowerTable` + the full correctness suite. `MoonPhase` reconciled. No UI. | none |
+| **16b** ✅ | `AstronomyEngine` + `SkyJobCatalog` + `SkyScheduler` + `MeteorShowerTable` + the full correctness suite. `MoonPhase` reconciled. No UI. | none |
 | **16c** | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
 | **16d** | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |
 | **16e** | `sky_runs` column (Room v4) + check lines on the commit + `sky_runs.log` as the Logs strip's third tab. `## Astronomy` and `## Status` in the README. Optional widget line. README/CHANGELOG. | existing fetch |

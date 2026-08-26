@@ -1,12 +1,25 @@
 package com.callbackdev.tweather.domain.model
 
-import java.time.Duration
+import com.callbackdev.tweather.domain.sky.AstronomyEngine
 import java.time.Instant
 import kotlin.math.roundToInt
 
 /**
- * Moon phase, computed locally because Open-Meteo does not provide it. Mean synodic
- * cycle from a reference new moon — accuracy within ~1 day, plenty for an emoji.
+ * Moon phase, computed locally because Open-Meteo does not provide it.
+ *
+ * **A classifier, not a computation, since Fase 16b.** Until then this enum carried
+ * its own arithmetic: an eight-bucket average of a mean synodic month from a
+ * hardcoded reference new moon, accurate to about a day — which its own KDoc admitted
+ * was "plenty for an emoji". The sky module needs the real thing (a quarter's INSTANT
+ * is a line of `sky.crontab`), and the module rule is that one engine answers for the
+ * whole app: two moon models would be two answers to "what night is the full moon",
+ * one in the README and one in the crontab.
+ *
+ * So the arithmetic moved to [AstronomyEngine] and what stayed here is the naming:
+ * the eight names, their emoji, and the convention that each covers an eighth of the
+ * cycle centred on its own elongation. The rendered value is unchanged in kind and
+ * more accurate in fact — near a boundary it can now land on the other side, which is
+ * the improvement, not a regression.
  */
 enum class MoonPhase(val label: String, val emoji: String) {
     NEW_MOON("New Moon", "🌑"),
@@ -22,15 +35,17 @@ enum class MoonPhase(val label: String, val emoji: String) {
     val text: String get() = "$label $emoji"
 
     companion object {
-        private const val SYNODIC_MONTH_DAYS = 29.530588853
-        private val REFERENCE_NEW_MOON: Instant = Instant.parse("2000-01-06T18:14:00Z")
 
+        /**
+         * The phase name at [instant], from the moon's elongation from the sun: 0° is
+         * new, 90° first quarter, 180° full. Each name owns the eighth of the cycle
+         * centred on its own angle, so `NEW_MOON` covers ±22.5° — about a day and
+         * three quarters either side of the instant, which is the span over which a
+         * person would actually call the moon new.
+         */
         fun at(instant: Instant): MoonPhase {
-            val daysSinceReference =
-                Duration.between(REFERENCE_NEW_MOON, instant).seconds / 86_400.0
-            val age = ((daysSinceReference % SYNODIC_MONTH_DAYS) + SYNODIC_MONTH_DAYS) %
-                SYNODIC_MONTH_DAYS
-            val index = (age / SYNODIC_MONTH_DAYS * entries.size).roundToInt() % entries.size
+            val elongation = AstronomyEngine.moonIllumination(instant).elongation
+            val index = (elongation / 360.0 * entries.size).roundToInt() % entries.size
             return entries[index]
         }
     }

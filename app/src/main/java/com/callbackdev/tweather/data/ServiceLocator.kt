@@ -188,7 +188,11 @@ object ServiceLocator {
             TweatherDatabase::class.java,
             "tweather.db"
         )
-            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
+            .addMigrations(
+                TweatherDatabase.MIGRATION_1_2,
+                TweatherDatabase.MIGRATION_2_3,
+                TweatherDatabase.MIGRATION_3_4
+            )
             .build()
 
         return WeatherRepository(

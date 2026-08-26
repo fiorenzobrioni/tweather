@@ -79,7 +79,10 @@ class WidgetConfigScreenTest {
         compose.onNodeWithText("// Tweather Widget Configuration").assertExists()
         compose.onNodeWithText("{").assertExists()
         compose.onNodeWithText("\"available_sources\": [  // tap to pin").assertExists()
-        compose.onNodeWithText("]").assertExists()
+        // `],` since Fase 16e: the source list is no longer the file's last key.
+        compose.onNodeWithText("],").assertExists()
+        compose.onNodeWithText("\"sky_line\": false  // next sky job and its verdict")
+            .assertExists()
         // No "widget" wrapper block: the file is already widget.config
         compose.onNodeWithText("\"widget\": {").assertDoesNotExist()
     }

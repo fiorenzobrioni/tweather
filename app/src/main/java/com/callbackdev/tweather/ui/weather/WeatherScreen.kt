@@ -48,6 +48,7 @@ import com.callbackdev.tweather.ui.components.buildJsonLines
 import com.callbackdev.tweather.ui.components.buildMarkdownLines
 import com.callbackdev.tweather.ui.components.commentLine
 import com.callbackdev.tweather.ui.sky.SkyScreen
+import com.callbackdev.tweather.ui.sky.SkySummary
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import java.time.ZoneId
@@ -72,6 +73,7 @@ fun WeatherScreen(
     val activeFile by viewModel.activeFile.collectAsStateWithLifecycle()
     val skyEnabled by viewModel.skyEnabled.collectAsStateWithLifecycle()
     val showHelpHint by viewModel.showHelpHint.collectAsStateWithLifecycle()
+    val skySummary by viewModel.skySummary.collectAsStateWithLifecycle()
     val files = editorFiles(skyEnabled)
     val visible = activeFile.visible(skyEnabled)
     val onSelect: (Int) -> Unit = { viewModel.selectFile(editorFileAt(it, skyEnabled)) }
@@ -94,6 +96,7 @@ fun WeatherScreen(
         onRefresh = viewModel::refresh,
         onOpenCities = onOpenCities,
         activeFile = visible,
+        skySummary = skySummary,
         editorFiles = files,
         onSelectTab = onSelect,
         showHelpHint = showHelpHint,
@@ -111,6 +114,8 @@ fun WeatherScreen(
     onOpenCities: () -> Unit = {},
     displayOptions: DisplayOptions = DisplayOptions(),
     activeFile: MainEditorFile = MainEditorFile.JSON,
+    /** What the sky adds to `README.md` (Fase 16e); null when the module is off. */
+    skySummary: SkySummary? = null,
     /** The strip's names — two files, or three when `sky.enabled` (Fase 16c). */
     editorFiles: List<String> = editorFiles(skyEnabled = false),
     onSelectTab: (Int) -> Unit = {},
@@ -122,7 +127,7 @@ fun WeatherScreen(
     val resources = LocalContext.current.resources
     val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
     val hint = if (showHelpHint) stringResource(R.string.help_hint) else null
-    val lines = remember(state, syntax, locale, displayOptions, activeFile, hint) {
+    val lines = remember(state, syntax, locale, displayOptions, activeFile, hint, skySummary) {
         val head = hint?.let {
             listOf(
                 CodeLine(
@@ -137,7 +142,7 @@ fun WeatherScreen(
                 state, syntax, WeatherTranslations.translator(resources), locale, displayOptions
             )
             MainEditorFile.README -> buildReadmeLines(
-                state, syntax, resources, locale, displayOptions
+                state, syntax, resources, locale, displayOptions, skySummary
             )
             // Unreachable through the app: the stateful wrapper hands `SKY` to
             // SkyScreen before this body runs. It is spelled out rather than left to
@@ -311,7 +316,8 @@ private fun buildReadmeLines(
     syntax: SyntaxColors,
     resources: Resources,
     locale: Locale,
-    displayOptions: DisplayOptions
+    displayOptions: DisplayOptions,
+    skySummary: SkySummary? = null
 ): List<CodeLine> = buildList {
     if (state.noLocation) {
         add(commentLine("<!-- no location configured -->", syntax))
@@ -334,7 +340,8 @@ private fun buildReadmeLines(
                     resources = resources,
                     translate = WeatherTranslations.translator(resources),
                     locale = locale,
-                    options = displayOptions
+                    options = displayOptions,
+                    sky = skySummary
                 ),
                 syntax
             )

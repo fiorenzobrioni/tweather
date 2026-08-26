@@ -7,6 +7,8 @@ import com.callbackdev.tweather.domain.AlertEngine
 import com.callbackdev.tweather.domain.AlertKind
 import com.callbackdev.tweather.domain.AlertState
 import com.callbackdev.tweather.domain.model.WeatherReport
+import com.callbackdev.tweather.ui.sky.SkyDocumentBuilder
+import com.callbackdev.tweather.ui.sky.SkySummary
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -43,7 +45,14 @@ fun WeatherReport.toReadmeMarkdown(
     resources: Resources,
     translate: (String) -> String = { it },
     locale: Locale = Locale.ENGLISH,
-    options: DisplayOptions = DisplayOptions()
+    options: DisplayOptions = DisplayOptions(),
+    /**
+     * The sky module's contribution (Fase 16e), or null when `sky.enabled` is false.
+     * Null does not blank the section — `## Astronomy` is today's sky either way; it
+     * only drops the lines the module added to it and the `## Status` line that
+     * reports the reader's own subscriptions.
+     */
+    sky: SkySummary? = null
 ): List<String> = buildList {
     fun s(id: Int, vararg args: Any): String = resources.getString(id, *args)
     fun temp(celsius: Double) = "${decimal1(options.temperature.convert(celsius))}${options.temperature.symbol}"
@@ -103,8 +112,23 @@ fun WeatherReport.toReadmeMarkdown(
         now = location.localTime,
         cityKey = "readme"
     )
-    if (warnings.isEmpty()) {
+    // The sky's one line in this document's one badge (Fase 16e). It is raised only
+    // for a job the user actually subscribed to, so `## Status` reports THEIR file
+    // and never advertises a module they have not opened.
+    val skyWarning = sky?.warning?.let { warning ->
+        "> " + s(
+            R.string.readme_status_sky,
+            warning.jobId,
+            warning.at.atZone(
+                runCatching { ZoneId.of(location.timezone) }.getOrDefault(ZoneId.systemDefault())
+            ).format(ClockTime),
+            SkyDocumentBuilder.render(warning.verdict)
+        )
+    }
+    if (warnings.isEmpty() && skyWarning == null) {
         add(s(R.string.readme_status_ok))
+    } else if (warnings.isEmpty()) {
+        add(skyWarning!!)
     } else {
         warnings.forEach { alert ->
             val at = alert.at?.format(ClockTime) ?: ""
@@ -122,6 +146,7 @@ fun WeatherReport.toReadmeMarkdown(
                 AlertKind.DAILY_SUMMARY -> Unit // disabled above; not a warning
             }
         }
+        skyWarning?.let { add(it) }
     }
 
     // Both forecasts sit before every detail section: they are what a weather app is
@@ -224,14 +249,45 @@ fun WeatherReport.toReadmeMarkdown(
     add("🌡️ ${s(R.string.readme_pressure)}: ${decimal1(current.pressureMb)} mb")
     add("👁️ ${s(R.string.readme_visibility)}: ${decimal1(current.visibilityKm)} km")
 
+    // The sky's home in this document (Fase 16e). `VISION_SKY.md` first proposed a
+    // separate `## Tonight` block after `## Next hours`, which would have put sunset,
+    // phase and moonset there while THIS section, six lines below, reprinted sunrise,
+    // sunset, daylight and phase: one document, two sections, one subject. So the
+    // section that was already here grows instead, and stays where Fase 13d put it.
+    // It is always present — it is today, not an advertisement for a module — and
+    // the two middle lines appear only for someone who turned the module on.
     add("")
     add("## ${s(R.string.readme_h_astronomy)}")
     add(
-        "${s(R.string.readme_sunrise)}: ${astronomical.sunrise.format(ClockTime)} · " +
-            "${s(R.string.readme_sunset)}: ${astronomical.sunset.format(ClockTime)}"
+        "${s(R.string.readme_sunrise)}: ${clock(astronomical.sunrise)} · " +
+            "${s(R.string.readme_sunset)}: ${clock(astronomical.sunset)}"
     )
-    add("${s(R.string.readme_daylight)}: ${astronomical.daylightDuration.hhMm()}")
-    add("${s(R.string.readme_moon)}: ${status(astronomical.moonPhase.label, astronomical.moonPhase.emoji)}")
+    add("${s(R.string.readme_daylight)}: ${astronomical.daylightDuration?.hhMm() ?: Absent}")
+    sky?.let { summary ->
+        summary.goldenHourEvening?.let { golden ->
+            add(
+                "${s(R.string.readme_golden_hour)}: ${span(golden)}" +
+                    (summary.blueHourEvening?.let { " · ${s(R.string.readme_blue_hour)}: ${span(it)}" } ?: "")
+            )
+        }
+        summary.darkness?.let { dark ->
+            add(
+                "${s(R.string.readme_darkness)}: ${span(dark)}" + when {
+                    summary.moonlessFrom != null ->
+                        ", ${s(R.string.readme_moonless_from, clock(summary.moonlessFrom))}"
+                    summary.moonUpAllNight -> ", ${s(R.string.readme_moon_up_all_night)}"
+                    else -> ""
+                }
+            )
+        }
+    }
+    add(
+        "${s(R.string.readme_moon)}: " +
+            status(astronomical.moonPhase.label, astronomical.moonPhase.emoji) +
+            (sky?.let { " · ${s(R.string.readme_moon_lit, it.illuminationPct)}" } ?: "") +
+            (sky?.moonrise?.let { " · ${s(R.string.readme_moonrise)} ${clock(it)}" } ?: "") +
+            (sky?.moonset?.let { " · ${s(R.string.readme_moonset)} ${clock(it)}" } ?: "")
+    )
 
     add("")
     val lastSync = systemInfo.lastSync
@@ -254,6 +310,18 @@ fun WeatherReport.toReadmeMarkdown(
 private const val HourlyRows = 14
 
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
+
+/**
+ * What stands in for a time the sky does not have. Not `00:00` and not an empty
+ * cell: above the Arctic circle in June there is no sunrise, and the README says so
+ * with the same glyph `sky.crontab` uses for the same fact.
+ */
+private const val Absent = "∅"
+
+private fun clock(at: java.time.LocalTime?): String = at?.format(ClockTime) ?: Absent
+
+private fun span(range: ClosedRange<java.time.LocalTime>): String =
+    "${range.start.format(ClockTime)}–${range.endInclusive.format(ClockTime)}"
 
 /** `34.2` but `34` instead of `34.0` — a README wouldn't write trailing zeros. */
 private fun decimal1(value: Double): String {

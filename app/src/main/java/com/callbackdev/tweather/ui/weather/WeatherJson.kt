@@ -125,13 +125,17 @@ fun WeatherReport.toDisplayJson(
         put("pollen_report", JsonNull)
     }
     putJsonObject("astronomical") {
-        put("sunrise", astronomical.sunrise.format(ClockTime))
-        put("sunset", astronomical.sunset.format(ClockTime))
+        // `null` where the sun does not rise or set (Fase 16e): the polar day is a
+        // fact about the place, and a fake time would be the JSON's first invented
+        // value. `null` is also what this file already prints for a section the
+        // providers could not fill, so it is in character rather than an exception.
+        putNullable("sunrise", astronomical.sunrise?.format(ClockTime))
+        putNullable("sunset", astronomical.sunset?.format(ClockTime))
         put(
             "moon_phase",
             "${translate(astronomical.moonPhase.label)} ${astronomical.moonPhase.emoji}"
         )
-        put("daylight_duration", astronomical.daylightDuration.hhMm())
+        putNullable("daylight_duration", astronomical.daylightDuration?.hhMm())
     }
     putJsonArray("hourly_forecast") {
         // From the hour AFTER the current one (Fase 11f, like the README's table):
@@ -171,6 +175,11 @@ fun WeatherReport.toDisplayJson(
         put("cache_status", systemInfo.cacheStatus.name)
         put("response_time_ms", systemInfo.responseTimeMs)
     }
+}
+
+/** A string value, or an in-character `null` when the sky does not have one. */
+private fun JsonObjectBuilder.putNullable(key: String, value: String?) {
+    if (value == null) put(key, JsonNull) else put(key, value)
 }
 
 // internal: AlertNotifier keys its temperatures the same way (`high_c`/`high_f`)

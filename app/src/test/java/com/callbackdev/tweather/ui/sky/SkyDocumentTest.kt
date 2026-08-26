@@ -37,7 +37,7 @@ class SkyDocumentTest {
     @Test
     fun `the header names the city, its zone and what fires next`() {
         val document = SkyDocumentBuilder.build(subs("sun.set", "sun.rise"), context())
-        assertEquals("# sky.crontab — Milan, Lombardy (Europe/Rome)", document.header.first())
+        assertEquals("# sky.crontab · Milan, Lombardy (Europe/Rome)", document.header.first())
         assertTrue(document.header[1], document.header[1].startsWith("# 2 jobs · next: sun.set in "))
     }
 

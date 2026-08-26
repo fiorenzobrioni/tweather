@@ -21,10 +21,12 @@ import com.callbackdev.tweather.domain.model.Precipitation
 import com.callbackdev.tweather.domain.model.SystemInfo
 import com.callbackdev.tweather.domain.model.WeatherReport
 import com.callbackdev.tweather.domain.model.Wind
+import com.callbackdev.tweather.domain.sky.AstronomyEngine
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
@@ -127,7 +129,7 @@ object WeatherReportMapper {
             ),
             airQuality = airQuality?.toAirQuality(),
             pollen = airQuality?.toPollenReport(),
-            astronomical = mapAstronomical(forecast, fetchedAt),
+            astronomical = mapAstronomical(city, forecast, localTime, fetchedAt),
             hourly = mapHourly(forecast, hourlyTimes, hourlyCodes, currentHourIndex),
             daily = mapDaily(forecast, hourlyTimes, hourlyCodes),
             systemInfo = SystemInfo(
@@ -281,13 +283,47 @@ object WeatherReportMapper {
         else -> 3
     }
 
-    private fun mapAstronomical(forecast: ForecastResponseDto, fetchedAt: Instant): Astronomical {
-        val daily = forecast.daily
+    /**
+     * Sun and moon from [AstronomyEngine], not from the provider's daily block
+     * (Fase 16e).
+     *
+     * The provider's values are still fetched — `daily.sunrise` feeds nothing now,
+     * but it costs nothing and the contract test compares the two. The engine wins
+     * for the reason `VISION_SKY.md` §9.2 gives: the same figure appears in the JSON
+     * tab, in the README and on a `sky.crontab` line that is computed anyway, and a
+     * document showing 06:31 in one tab and 06:32 in another because one of them
+     * waited for the network is exactly what "one engine is the source of truth" was
+     * written against. It also means these times are right offline and past the
+     * seven-day horizon, which the provider's cannot be.
+     *
+     * Nulls are real answers here: above the Arctic circle in June there is no
+     * sunrise, and the old code could only put some other time in its place.
+     */
+    private fun mapAstronomical(
+        city: City,
+        forecast: ForecastResponseDto,
+        localTime: LocalDateTime,
+        fetchedAt: Instant
+    ): Astronomical {
+        val zone = runCatching { ZoneId.of(forecast.timezone) }.getOrDefault(ZoneId.systemDefault())
+        val day = AstronomyEngine.solarDay(localTime.toLocalDate(), zone, city.coordinates)
+        // Truncated to the minute, and not for tidiness. Every surface renders these
+        // as `HH:mm`, but `WeatherSnapshots.flatten` writes `sunrise.toString()` into
+        // the history — so a value carrying seconds would put a fresh
+        // `astronomical.sunrise` line in `weather_history.diff` on EVERY fetch, since
+        // the engine's answer moves by a fraction of a second between two of them.
+        // The provider's values were minute-precise and nothing noticed until they
+        // stopped being the source.
+        fun clock(at: Instant?) =
+            at?.atZone(zone)?.toLocalTime()?.truncatedTo(ChronoUnit.MINUTES)
         return Astronomical(
-            sunrise = LocalDateTime.parse(daily.sunrise.first()).toLocalTime(),
-            sunset = LocalDateTime.parse(daily.sunset.first()).toLocalTime(),
+            sunrise = clock(day.sunrise),
+            sunset = clock(day.sunset),
             moonPhase = MoonPhase.at(fetchedAt),
-            daylightDuration = Duration.ofSeconds(daily.daylightDurationSec.first().toLong())
+            // Derived from this engine's own two ends rather than read off
+            // `daily.daylight_duration`: three numbers that must agree are better as
+            // two numbers and a subtraction.
+            daylightDuration = day.daylight
         )
     }
 

@@ -432,7 +432,10 @@ Three reasons, and the first is not about cost:
    was a second retention policy that could disagree with the first about how far back the
    app remembers.
 
-Cost of the change: one migration, one column, one DAO update, zero new files in `data/`.
+Cost of the change, as built: one migration, one column, one DAO update, zero new files
+in `data/`. The `– skipped` state fell out for free — when the forecast in hand no longer
+carries the event's hour, the verdict engine already answers `? unknown`, so no ±90
+minute coverage rule had to be invented.
 
 Explicitly **not** in scope: a `stats.md` for the sky. tweather has no stats file and this
 module is not the reason to add one.
@@ -482,8 +485,14 @@ never opened `sky.crontab` never sees a sky warning. `## Status` is the correct 
 it on the merits, too: a compromised blue hour is a status of tonight, and the README
 should have exactly one place where it tells you something is off.
 
-Fully localized, headings included, since it is prose. There is a test asserting the
-numbers in `## Astronomy` equal the ones in `sky.crontab` for the same city and instant.
+Fully localized, headings included, since it is prose. There is a test asserting the numbers in `## Astronomy` are the ones `sky.crontab`
+resolved for the same city at the same instant — **with two deliberate divergences
+pinned by tests of their own**. `## Astronomy` describes TODAY and `sky.crontab`
+describes what is NEXT, so at six in the evening the README rightly says today's
+sunrise, already past, while the crontab rightly says tomorrow's. The moon is the same
+distinction magnified, since it rises about fifty minutes later each day. Two files
+answering two questions are not in disagreement, and the tests exist so nobody later
+"reconciles" one into the other.
 
 ### 9.2 One engine, three renders — including the JSON
 
@@ -505,7 +514,19 @@ behaviour change, not a refactor:
   engine's illumination value*. The enum, its labels and its emoji survive untouched;
   only the arithmetic behind them is replaced.
 - `daylightDuration` follows from the engine's own sunrise/sunset rather than the
-  provider's `daylight_duration`, for the same consistency reason.
+  provider's `daylight_duration`, for the same consistency reason: three numbers that
+  must agree are better as two numbers and a subtraction.
+- **`Astronomical` had to learn to say "it does not".** Its `sunrise` and `sunset` were
+  non-null because the provider always sent something; above the Arctic circle in June
+  there is no sunrise, and the old type could only put another time in its place. They
+  are nullable now — the JSON prints `null` (in character: it already does that for a
+  section the providers could not fill) and the README prints `∅`, the same glyph
+  `sky.crontab` uses for the same fact.
+- **One consequence worth naming**: the engine answers to the second and
+  `WeatherSnapshots.flatten` writes `sunrise.toString()` into the history, so without
+  truncating to the minute every single fetch would have added a fresh
+  `astronomical.sunrise` line to `weather_history.diff`. The provider's values were
+  minute-precise and nothing noticed until they stopped being the source.
 
 ---
 
@@ -675,7 +696,10 @@ ui/sky/
   SkyDocument.kt          the file as pure data, so it is asserted without Compose ✅ 16c
   SkyCrontabScreen.kt     the rows; reuses the gutter, canvas and token renderer   ✅ 16c
   SkyScreen.kt            third tab of the Editor strip                            ✅ 16c
-  SkyRunsLog.kt           third tab of the Logs strip; a grouped view over commits
+  SkyReadme.kt            the README's sky summary, as data, not words           ✅ 16e
+  SkyWidgetLine.kt        the widget's one optional line                          ✅ 16e
+ui/logs/
+  SkyRunsLog.kt           third tab of the Logs strip; a grouped view over commits ✅ 16e
 data/
   SkySubscriptionStore.kt DataStore `sky`, the subscribed jobs and their leads     ✅ 16c
 ```
@@ -819,7 +843,7 @@ the decisions and every deviation, as it already does.
 | **16b** ✅ | `AstronomyEngine` + `SkyJobCatalog` + `SkyScheduler` + `MeteorShowerTable` + the full correctness suite. `MoonPhase` reconciled. No UI. | none |
 | **16c** ✅ | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
 | **16d** ✅ | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |
-| **16e** | `sky_runs` column (Room v4) + check lines on the commit + `sky_runs.log` as the Logs strip's third tab. `## Astronomy` and `## Status` in the README. Optional widget line. README/CHANGELOG. | existing fetch |
+| **16e** ✅ | `sky_runs` column (Room v4) + check lines on the commit + `sky_runs.log` as the Logs strip's third tab. `## Astronomy` and `## Status` in the README. Optional widget line. README/CHANGELOG. | existing fetch |
 | **16f** | `--notify` leads, `AlarmManager.setAndAllowWhileIdle`, boot receiver, dedup. **Separate go/no-go**: everything above ships without it. | existing fetch |
 
 16c alone is already a shippable, genuinely useful feature: a correct, localized,

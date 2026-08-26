@@ -20,6 +20,19 @@ All notable changes to tweather are documented here. The format follows
   comments the line out, `[rm]` takes it out of the file, `+ add job` adds one back.
   `$ tweather run sky` lines every enabled job up under itself. Switched on and off
   by `sky.enabled` in `settings.config`.
+- `sky_runs.log`, a third file in the log: what the sky was actually seen to do, one
+  line per job, grouped by day with a count at the foot of each. It records outcomes
+  rather than changes, which is why it is a `.log` and not a `.diff`. Each line carries
+  how far the observing update was from the event, and a job no update came near enough
+  to judge is recorded as skipped rather than guessed at. The same runs appear as check
+  lines on the commit that observed them in `weather_history.diff`.
+- The city's `README.md` grew its `## Astronomy` section: the golden and blue hours,
+  the astronomical dark window and the part of it the moon leaves alone, and the moon's
+  own rise, set and illumination. If a job you subscribed to in `sky.crontab` is coming
+  in the next twelve hours under a sky that will not cooperate, `## Status` says so in
+  one line.
+- The home widget can show one optional line with the next sky job and its verdict.
+  Off by default, and the first line dropped when the widget has less room.
 - `$ tweather init`: the first run now asks where you are — your position, a city
   search, or skip — instead of assuming. Skipping lands on an editor that says
   `// no location configured` and offers the search, which is also what you get if
@@ -32,6 +45,11 @@ All notable changes to tweather are documented here. The format follows
 
 ### Changed
 
+- Sunrise, sunset and daylight are now computed on the phone rather than read off the
+  provider's response. They agree with it to within a minute, and they are now the same
+  numbers everywhere in the app, correct without a connection and correct past the
+  seven day forecast. Where the sun does not rise or set at all, the app says so
+  instead of printing another time in its place.
 - The bottom bar now ends on Settings, like every other Android app and like tsteps
   and thabit: Editor, Search, Logs, Settings. The Logs tab also swaps its terminal
   glyph for the commit one (a dot on a branch line), which is what

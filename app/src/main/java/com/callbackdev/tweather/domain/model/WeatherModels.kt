@@ -106,11 +106,21 @@ data class PollenReport(
     val weed: PollenLevel
 )
 
+/**
+ * The sun and the moon over the report's day.
+ *
+ * **Nullable since Fase 16e**, and not for tidiness: these values come from
+ * [com.callbackdev.tweather.domain.sky.AstronomyEngine] now rather than from the
+ * provider's daily block, and above the Arctic circle in June there is no sunrise to
+ * have. The old type could not say that — it could only carry some other time and
+ * let the reader assume it meant something.
+ */
 data class Astronomical(
-    val sunrise: LocalTime,
-    val sunset: LocalTime,
+    val sunrise: LocalTime?,
+    val sunset: LocalTime?,
     val moonPhase: MoonPhase,
-    val daylightDuration: Duration
+    /** Sunset − sunrise; null on the days one of them does not happen. */
+    val daylightDuration: Duration?
 )
 
 data class HourlyForecast(

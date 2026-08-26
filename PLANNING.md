@@ -583,7 +583,7 @@ Il costo che resta, dichiarato: la striscia dell'editor passa a tre nomi (39 car
 
 **La riga che tiene tutto insieme è la stessa delle altre fasi**: *il file può non sapere una cosa, non può inventarla*. Un verdetto che le previsioni non reggono è `? unknown`; una luna che quel giorno non sorge è `∅`, non `00:00`; una run che l'app non ha osservato è `– skipped` e non conta in nessuna statistica; un promemoria che l'app non sa consegnare in tempo non viene offerto come lead più corto.
 
-Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: le **16a-16d sono fatte** (ago 2026), restano la 16e e la 16f.
+Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: le **16a-16e sono fatte** (ago 2026), resta la 16f, che ha un go/no-go suo.
 
 
 ## Fase 16a — Il layer dati smette di buttare via ciò che ha già scaricato
@@ -784,26 +784,64 @@ $ tweather run sky
 
 **`sky_runs.log` non si porta dietro una tabella nuova.** La bozza prevedeva `SkyRunEntity`, `SkyRunDao`, `SkyRunRecorder` e un pruning proprio a 200. Qui le run vanno dove vanno già le regole scattate: **una colonna `sky_runs` TEXT nullable su `weather_history`** (Room v3 → v4), scritta dallo stesso `UPDATE` post-fetch di `setFiredRulesOnLatest`. Tre motivi, e il primo non è il costo:
 
-1. **È più onesto.** Una run del cielo non è un evento indipendente, è *qualcosa che un fetch ha notato*. `obs +12m` è la bozza che lo ammette dentro una stringa; attaccare la run al commit che l'ha osservata lo dice nello schema: il timestamp della riga meno l'istante dell'evento **è** `obs`, che smette di essere un numero calcolato dal recorder e diventa un numero implicato dalla struttura.
-2. **La schermata Log sa già renderlo.** `fired_rules` rende come check line `✓ rule "x" fired` sul commit; le run del cielo rendono come `✓ sun.set 20:22 cloud 8%` sullo stesso commit, gratis, e `sky_runs.log` è una **seconda vista** sulle stesse righe, raggruppata per giorno invece che per commit. Due file, una verità, nessun test di riconciliazione da scrivere.
-3. **Il pruning si risolve da sé.** Le run invecchiano con i 200 commit della storia, invece di avere una seconda politica di retention che può dissentire dalla prima su quanto indietro l'app ricorda.
+1. **È più onesto.** Una run del cielo non è un evento indipendente, è *qualcosa che un fetch ha notato*. `obs +12m` è la bozza che lo ammette dentro una stringa; attaccare la run al commit che l'ha osservata lo dice nello schema: il timestamp della riga meno l'istante dell'evento **è** `obs`.
+2. **La schermata Log sa già renderlo.** Le run rendono come check line `✓ sun.set ran clear` sul commit, gratis, e `sky_runs.log` è una **seconda vista** sulle stesse righe, raggruppata per giorno invece che per commit. Due file, una verità, nessun test di riconciliazione da scrivere.
+3. **Il pruning si risolve da sé.** Le run invecchiano con i 200 commit della storia, invece di avere una seconda politica di retention che può dissentire dalla prima.
 
-Le run si registrano **solo per i job abilitati**, nel momento in cui un fetch osserva per la prima volta che l'istante è passato; un job disabilitato prima di scattare non lascia traccia. `– skipped` è lo stato di copertura: se l'app non ha fetchato vicino all'evento, nessun verdetto viene inventato e quel giorno non conta in nessuna statistica. Divisori per giorno e una riga `# summary` giornaliera (`4 passed · 1 unstable · 1 skipped`). Niente `stats.md`: tweather non ha un file di statistiche e questo modulo non è il motivo per aggiungerlo.
+```
+# Aug 26
+20:12  sun.set          ✓ pass       cloud   8%  obs +12m
+20:43  blue_hour.pm     ✗ fail       cloud  92%  obs +6m
+06:37  sun.rise         – skipped                obs +95m
+# 1 passed · 1 failed · 1 skipped
+```
 
-**Il README: `## Astronomia` cresce, `## Stato` prende l'avviso — nessuna sezione nuova.** La bozza aggiungeva un `## Stanotte` dopo `## Prossime ore`, che avrebbe messo tramonto, fase e tramonto della luna lì e, sei righe sotto, `## Astronomia` avrebbe ristampato alba, tramonto, luce diurna e fase. Un documento, due sezioni, stesso soggetto: esattamente la duplicazione che la bozza vietava al *motore* e si dimenticava per il *documento*. Quindi `## Astronomia` resta dove l'ha messa la 13d e diventa la casa del cielo (alba/tramonto/luce diurna · ora d'oro e ora blu · buio astronomico con la sotto-finestra senza luna · fase con illuminazione e orari della luna), sempre presente perché è *oggi*, non la pubblicità di un modulo — le due righe in mezzo compaiono solo con `sky.enabled`. L'**avviso** va in `## Stato`, l'unica sezione del documento che parla già in blockquote `>`, e solo per un job **abilitato, dipendente dalla visibilità, nelle prossime 12 ore, con verdetto diverso da `✓ pass`**: così la sezione riporta le tue sottoscrizioni e chi non ha mai aperto `sky.crontab` non vede mai un avviso sul cielo.
+Le run si registrano **solo per i job osservabili e abilitati**, nella finestra `(commit precedente, adesso]` — che è precisamente l'ultimo momento in cui l'app ha guardato, quindi il vuoto fra i due è tutto quello che è successo mentre non guardava. Un job a intervallo conta come eseguito **quando la finestra si chiude**: l'ora d'oro non è successa alle 19:32, è successa fra le 19:32 e le 20:12. Sul primissimo commit non c'è un precedente e non c'è niente che si sia perso: un'installazione non acquisisce una storia di tramonti per cui non era installata.
 
-**Un solo motore, tre render — JSON compreso.** `astronomical.sunrise`/`sunset` smettono di essere i valori `daily` di Open-Meteo e diventano calcolati; `daylight_duration` segue. È un **cambio di comportamento visibile**, non un refactor: il contract test li tiene entro 120 s, quindi lo scarto è sotto il minuto, ma esiste e produrrà **una riga di diff** in `weather_history.diff` la prima volta che atterra — ed è il modo onesto perché si veda. Vince il motore e non il provider perché il file deve mostrare la stessa ora offline, oltre i 7 giorni, e in una riga di `sky.crontab` che è calcolata comunque: un documento che mostra 06:31 in un tab e 06:32 in un altro perché uno dei due ha aspettato la rete è precisamente ciò contro cui è scritta la regola del motore unico.
+**`– skipped` è lo stato di copertura, e viene da sé.** Se la previsione in mano non porta più l'ora dell'evento, `SkyVerdictEngine` risponde già `? unknown (no forecast hour covers it)`: la run si registra senza verdetto e non conta in nessuna statistica. Non è stato necessario inventare una regola dei ±90 minuti — il motore della 16d produceva esattamente la risposta giusta.
 
-**Widget**: nessun widget nuovo, **una riga opzionale** nella scala di ridimensionamento (`next: sun.set 20:22   ✓ clear`), opzione di `widget.config` **spenta di default** (un widget già piazzato non deve cambiare forma da solo a un aggiornamento) e **ultima nel budget di righe**, cioè la prima a cadere quando il launcher dà meno spazio: la temperatura è il motivo per cui il widget esiste, la riga del cielo no.
+**Il README: `## Astronomia` cresce, `## Stato` prende l'avviso — nessuna sezione nuova.** La bozza aggiungeva un `## Stanotte` dopo `## Prossime ore`, che avrebbe messo tramonto, fase e tramonto della luna lì e, sei righe sotto, `## Astronomia` avrebbe ristampato alba, tramonto, luce diurna e fase: un documento, due sezioni, stesso soggetto. Quindi `## Astronomia` resta dove l'ha messa la 13d e diventa la casa del cielo:
 
-- [ ] Room v3 → v4: colonna `sky_runs` + `MIGRATION_3_4` + `setSkyRunsOnLatest`
-- [ ] Check line sul commit in `weather_history.diff` + `ui/sky/SkyRunsLog.kt` come terzo tab della striscia Log
-- [ ] `## Astronomia` alimentata dal motore; avviso in `## Stato`; stringhe EN/IT
-- [ ] `astronomical` del JSON e `MoonPhase` dal motore; `daylight_duration` coerente
-- [ ] Riga widget opzionale, default off, ultima nel budget
-- [ ] **Test di accordo**: i numeri di `## Astronomia` uguali a quelli di `sky.crontab` per stessa città e stesso istante — la prima regola della serie, come assert
-- [ ] Accessibilità: ogni riga del crontab e del log annuncia il proprio stato **a parole**, EN e IT, verdetto e stato disabilitato compresi
-- [ ] `README.md` (sezione `### sky.crontab`, riga nella tabella dati, **senza trattini lunghi**), `HELP.md` (la parola *crontab*, e quale città riceve le notifiche), `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md` (tre ruoli token: espressione cron, nome job, glifo verdetto — riusando i colori esistenti, nessuna tinta nuova)
+```
+## Astronomia
+Alba: 06:37 · Tramonto: 20:12
+Luce diurna: 13h 34m
+Ora d'oro: 19:32–20:12 · Ora blu: 20:30–20:43
+Buio astronomico: 22:01–04:49, la luna resta alta tutta la notte
+Luna: Gibbosa crescente 🌔 · illuminata al 96% · sorge 19:34 · tramonta 05:36
+```
+
+Sempre presente, perché è *oggi* e non la pubblicità di un modulo; le due righe in mezzo compaiono solo con `sky.enabled`. L'**avviso** va in `## Stato`, l'unica sezione del documento che parla già in blockquote, e solo per un job **abilitato dall'utente**, nelle prossime 12 ore, con verdetto diverso da pass: la sezione riporta **le tue** sottoscrizioni e non fa pubblicità a chi `sky.crontab` non l'ha mai aperto. Uno solo, o `## Stato` smette di essere un badge.
+
+**Un solo motore, tre render — JSON compreso.** `astronomical.sunrise`/`sunset` non sono più i valori `daily` di Open-Meteo: li calcola il motore, e `daylight_duration` è la loro differenza invece di un terzo numero che deve essere d'accordo con gli altri due. È il **test di accordo** a tenere insieme il tutto: i tempi che il README stampa sono un sottoinsieme di quelli che `sky.crontab` risolve, per la stessa città allo stesso istante.
+
+- [x] Room v3 → v4: colonna `sky_runs` + `MIGRATION_3_4` + `setSkyRunsOnLatest`
+- [x] Check line sul commit in `weather_history.diff` + `ui/logs/SkyRunsLog.kt` come terzo tab della striscia Log
+- [x] `## Astronomia` alimentata dal motore; avviso in `## Stato`; stringhe EN/IT
+- [x] `astronomical` del JSON e `MoonPhase` dal motore; `daylight_duration` coerente
+- [x] Riga widget opzionale, default off, ultima nel budget (opzione per-widget in `widget.config`)
+- [x] **Test di accordo**: i tempi di `## Astronomia` sono quelli di `sky.crontab`, con le due divergenze *volute* fissate a loro volta (vedi sotto)
+- [x] Accessibilità: ogni riga del crontab e del log annuncia il proprio stato a parole, EN e IT
+- [x] `README.md` (sezioni `### sky.crontab` e `### sky_runs.log`, riga nella tabella dati, **senza trattini**), `HELP.md` (la parola *crontab*, il calcolo locale, quale città riceve le notifiche), `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md` (tre ruoli token, nessuna tinta nuova)
+- [x] Suite verde (521 test, +38) e lint pulito
+
+**Il modello non sapeva dire "non sorge".** `Astronomical.sunrise` era un `LocalTime` non-null perché i valori venivano dal provider; con il motore, sopra il circolo polare a giugno **non c'è un'alba**, e il vecchio tipo poteva solo metterci un altro orario e lasciare che il lettore lo prendesse per buono. Ora `sunrise`, `sunset` e `daylightDuration` sono nullable: il JSON stampa `null` (che è già quello che fa per una sezione che i provider non hanno riempito, quindi è in carattere e non un'eccezione), il README stampa `∅`, lo stesso glifo che `sky.crontab` usa per lo stesso fatto.
+
+**Un bug vero, e la sua onda.** Il motore risponde al secondo, e `WeatherSnapshots.flatten` scrive `sunrise.toString()` nello storico: senza troncare, **ogni singolo fetch** avrebbe messo una riga `astronomical.sunrise` fresca in `weather_history.diff`, perché la risposta si sposta di frazioni di secondo fra un fetch e l'altro. I valori del provider erano precisi al minuto e nessuno se n'era accorto finché non hanno smesso di essere la sorgente. Troncati al minuto — che è anche l'unica precisione che l'app renderizza. Nella `SkyRun`, invece, l'istante tiene i secondi: quel valore si scrive una volta e non si ridiffa mai, quindi non c'è niente che possa fare rumore.
+
+**`obs` si arrotonda, non si tronca.** È una distanza: 11m53s è più vicino a `+12m` che a `+11m`, e troncare avrebbe sotto-riportato in silenzio proprio la debolezza che quel numero esiste per dichiarare.
+
+**Due divergenze fra i due file, entrambe volute, entrambe fissate da un test.** `## Astronomia` descrive **oggi**, `sky.crontab` descrive **il prossimo**: alle sei di sera il README dice giustamente l'alba di oggi (06:37, già passata) e il crontab dice giustamente quella di domani (06:38). Lo stesso, amplificato, per la luna, che sorge ~50 minuti più tardi ogni giorno. Non sono in disaccordo: sono due file che rispondono a due domande. Fissato con due test apposta, così nessuno "ripara" l'uno nell'altro.
+
+**Il test di accordo ha trovato un bug nel test di accordo.** Il primo tentativo raccoglieva anche `*Last updated 18:30*`: `## Astronomia` è l'ultimo heading del documento, quindi la sezione "arrivava fino in fondo" e il piè di pagina veniva letto come uno degli orari del cielo. Riparato l'helper, non il codice — ma valeva la pena scriverlo, perché la stessa svista in un test più permissivo sarebbe passata.
+
+**La striscia dei Log a tre nomi è più larga di un telefono.** `weather_history.diff weather_forecast.diff sky_runs.log` sono 53 caratteri monospace: oltre il bordo di uno schermo da 360dp. La barra scorre da sempre e dalla 16c porta in vista il tab **attivo**, quindi il file si raggiunge con uno swipe e si vede una volta selezionato — ma a riposo non è sullo schermo. Due nomi `.diff` riempivano già quella striscia; il terzo file l'ha solo reso evidente. Il test lo dice con `assertExists` e non con `assertIsDisplayed`, e scrolla prima di toccare, che è quello che fa una persona: annotato qui invece di nasconderlo dietro un'asserzione più morbida. La scoperta si appoggia su `HELP.md`, che ora nomina `sky_runs.log`.
+
+**La regola dei trattini del README ha costretto due migliorie nell'app.** Il `README.md` non ha **mai** avuto un trattino lungo, nemmeno dentro un blocco di codice, e i miei blocchi citano output vero. Invece di piegare la regola o di far dire al README una cosa che l'app non dice, ho cambiato l'app: l'header del crontab separa con `·` (che è già il separatore della riga successiva — il trattino era l'unico segno tipografico che quel file prendeva in prestito per un uso solo) e la riga di piede usa un punto e virgola. Il glifo `–` di `skipped` resta nell'app, perché accanto a ✓ ✗ ~ ∅ un `-` ASCII sembrerebbe un refuso, e il README lo descrive a parole invece di citarlo.
+
+**La riga del widget è per-widget, non globale.** Due widget possono fissare due città, e uno dei due può essere quello che qualcuno ha messo su uno schermo per guardare il cielo. Spenta di default (un widget già piazzato non deve cambiare forma perché l'app si è aggiornata) e **ultima nel budget di righe**, cioè la prima a cadere quando il launcher dà meno spazio: la temperatura è il motivo per cui il widget esiste, questa riga no. Niente numero delle nuvole sulla riga: alla larghezza di un widget viene ellissata da destra, e il numero se ne porterebbe via la parola del verdetto.
+
+**La regola di staleness ha trovato casa in `domain/WeatherFreshness`** già in 16d; qui il modulo cielo è il suo secondo lettore, come previsto.
 
 
 ## Fase 16f — I promemoria (`--notify`) — **go/no-go separato**

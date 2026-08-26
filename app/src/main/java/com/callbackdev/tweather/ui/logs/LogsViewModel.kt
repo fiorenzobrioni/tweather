@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.callbackdev.tweather.data.ServiceLocator
+import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.data.local.ForecastDiff
 import com.callbackdev.tweather.data.local.SnapshotDiff
 import com.callbackdev.tweather.data.local.WeatherHistoryEntry
+import com.callbackdev.tweather.domain.sky.SkyRun
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -25,7 +27,9 @@ data class CommitUi(
     val timestampEpochSeconds: Long,
     val isInitial: Boolean,
     val lines: List<SnapshotDiff.Line>,
-    val firedRules: List<String> = emptyList()
+    val firedRules: List<String> = emptyList(),
+    /** Fase 16e: the sky jobs this fetch was the first to observe as past. */
+    val skyRuns: List<SkyRun> = emptyList()
 )
 
 /**
@@ -40,10 +44,36 @@ data class ForecastRevisionUi(
     val hunks: List<ForecastDiff.Hunk>
 )
 
-class LogsViewModel(repository: WeatherRepository, private val json: Json) : ViewModel() {
+class LogsViewModel(
+    repository: WeatherRepository,
+    settingsStore: SettingsStore,
+    private val json: Json
+) : ViewModel() {
+
+    /** `sky.enabled`: with the module off, the strip is two files again. */
+    val skyEnabled: StateFlow<Boolean> = settingsStore.settings
+        .map { it.skyEnabled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
 
     val commits: StateFlow<List<CommitUi>> = repository.observeHistory()
         .map(::buildCommits)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * `sky_runs.log` (Fase 16e): the same commits read for a different question —
+     * what the sky was observed to do, rather than what changed. One store, two
+     * views: nothing here can disagree with the check lines in the history file.
+     */
+    val skyRuns: StateFlow<List<SkyRunsLog.Row>> = repository.observeHistory()
+        .map { entries ->
+            entries.flatMap { entry ->
+                entry.skyRunsJson
+                    ?.let { runCatching { json.decodeFromString<List<SkyRun>>(it) }.getOrNull() }
+                    .orEmpty()
+                    .map { SkyRunsLog.Row(it, entry.timestampEpochSeconds) }
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val revisions: StateFlow<List<ForecastRevisionUi>> = repository.observeHistory()
@@ -66,6 +96,9 @@ class LogsViewModel(repository: WeatherRepository, private val json: Json) : Vie
                 lines = SnapshotDiff.compute(old, current),
                 firedRules = entry.firedRulesJson
                     ?.let { runCatching { json.decodeFromString<List<String>>(it) }.getOrNull() }
+                    ?: emptyList(),
+                skyRuns = entry.skyRunsJson
+                    ?.let { runCatching { json.decodeFromString<List<SkyRun>>(it) }.getOrNull() }
                     ?: emptyList()
             )
         }
@@ -76,6 +109,7 @@ class LogsViewModel(repository: WeatherRepository, private val json: Json) : Vie
                 val app = checkNotNull(this[AndroidViewModelFactory.APPLICATION_KEY])
                 LogsViewModel(
                     repository = ServiceLocator.weatherRepository(app),
+                    settingsStore = ServiceLocator.settingsStore(app),
                     json = Json
                 )
             }

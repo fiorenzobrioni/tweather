@@ -52,7 +52,11 @@ class TweatherDatabaseMigrationTest {
         }
 
         val db = Room.databaseBuilder(context, TweatherDatabase::class.java, dbName)
-            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
+            .addMigrations(
+                TweatherDatabase.MIGRATION_1_2,
+                TweatherDatabase.MIGRATION_2_3,
+                TweatherDatabase.MIGRATION_3_4
+            )
             .build()
             .also { database = it }
 
@@ -61,6 +65,7 @@ class TweatherDatabaseMigrationTest {
         assertEquals("a1b2c3d", old.hash)
         assertEquals("{\"current.temp_c\":\"31.0\"}", old.snapshotJson)
         assertNull(old.forecastJson)
+        assertNull("a v1 row has no sky runs either", old.skyRunsJson)
 
         // And the new column round-trips on fresh inserts
         runBlocking {
@@ -103,7 +108,11 @@ class TweatherDatabaseMigrationTest {
         }
 
         val db = Room.databaseBuilder(context, TweatherDatabase::class.java, dbName)
-            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
+            .addMigrations(
+                TweatherDatabase.MIGRATION_1_2,
+                TweatherDatabase.MIGRATION_2_3,
+                TweatherDatabase.MIGRATION_3_4
+            )
             .build()
             .also { database = it }
 

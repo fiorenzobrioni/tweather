@@ -75,7 +75,13 @@ object WidgetContentBuilder {
         translate: (String) -> String = { it },
         zone: ZoneId = ZoneId.systemDefault(),
         updateFrequencyMin: Int = DefaultUpdateFrequencyMin,
-        now: Instant? = null
+        now: Instant? = null,
+        /**
+         * The optional sky line (Fase 16e), already rendered. Off by default and
+         * LAST in the transcript, so it is the first line the budget drops: the
+         * temperature is why a weather widget exists and this line is not.
+         */
+        skyLine: String? = null
     ): WidgetContent {
         val prompt = TerminalLine(
             listOf(
@@ -125,6 +131,7 @@ object WidgetContentBuilder {
             snapshot["air_quality.aqi"]?.let { add(kvNumber("AQI", it)) }
             formatSun(snapshot)?.let { add(kvNumber("Sun", it)) }
             syncLine?.let { add(it) }
+            skyLine?.let { add(comment(it)) }
         }
 
         val lines = transcript.take(bodyLineBudget(tier)).toMutableList()

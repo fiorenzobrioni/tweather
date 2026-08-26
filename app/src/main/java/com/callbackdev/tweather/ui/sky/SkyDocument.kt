@@ -186,7 +186,11 @@ object SkyDocumentBuilder {
 
     private fun header(rows: List<SkyRow>, jobs: List<SkyJob>, context: SkyContext): List<String> =
         buildList {
-            add("# sky.crontab — ${context.cityLabel} (${context.zone.id})")
+            // `·` and not an em dash: the file already separates with `·` on the
+            // next line, and the dash was the one typographic mark it borrowed for a
+            // single use. It also keeps the README able to quote this line verbatim,
+            // which its house style forbids a dash from doing.
+            add("# sky.crontab · ${context.cityLabel} (${context.zone.id})")
             val disabled = rows.count { !it.enabled }
             val counts = buildString {
                 append("# ").append(rows.size).append(if (rows.size == 1) " job" else " jobs")
@@ -449,7 +453,7 @@ object SkyDocumentBuilder {
         "// a bright moon (≥ ${SkyVerdictEngine.MOON_WASH_PCT}%) unsettles a dark-sky job " +
             "under a clear sky",
         "// light pollution is not modelled: the app does not know your sky",
-        "// a verdict is the forecast's opinion, not an observation — it will change"
+        "// a verdict is the forecast's opinion, not an observation; it will change"
     )
 
     /** A commented-out line keeps its columns by moving the `#` into the padding. */

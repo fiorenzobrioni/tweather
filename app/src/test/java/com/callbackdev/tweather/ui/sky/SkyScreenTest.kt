@@ -92,7 +92,7 @@ class SkyScreenTest {
     @Test
     fun `the header names the city and its zone`() {
         setScreen()
-        compose.onNodeWithText("# sky.crontab — Milan, Lombardy (Europe/Rome)").assertIsDisplayed()
+        compose.onNodeWithText("# sky.crontab · Milan, Lombardy (Europe/Rome)").assertIsDisplayed()
     }
 
     /**

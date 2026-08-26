@@ -14,6 +14,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.temporal.ChronoUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -318,12 +319,63 @@ class WeatherReportMapperTest {
         assertEquals("Overcast ☁️", daily[2].condition.label)  // provider's code 3
     }
 
+    /**
+     * Since Fase 16e these come from [AstronomyEngine] and not from the provider's
+     * daily block — one engine answers for the JSON tab, the README and
+     * `sky.crontab`, so the app cannot show two sunrises for one city. The fixture's
+     * coordinates are New York's, and the values are the engine's own.
+     */
     @Test
-    fun `astronomical maps sunrise sunset and daylight duration`() {
+    fun `astronomical is computed rather than read off the provider`() {
+        // New York on 13 Aug 2026. The fixture's own `daily.sunrise` says 06:07 and
+        // 19:52 — numbers a test author typed, not measured ones — and the engine's
+        // 06:04/19:56 is what the sky actually does there that day.
         val astro = map().astronomical
-        assertEquals(LocalTime.of(6, 7), astro.sunrise)
-        assertEquals(LocalTime.of(19, 52), astro.sunset)
-        assertEquals(Duration.ofSeconds(49_500), astro.daylightDuration)
+        assertEquals(LocalTime.of(6, 4), astro.sunrise)
+        assertEquals(LocalTime.of(19, 56), astro.sunset)
+        assertEquals(
+            Duration.between(astro.sunrise, astro.sunset),
+            astro.daylightDuration?.truncatedTo(ChronoUnit.MINUTES)
+        )
+    }
+
+    /**
+     * Truncated to the minute, and not for tidiness: `WeatherSnapshots.flatten`
+     * writes `sunrise.toString()` into the history, so a value carrying seconds would
+     * put a fresh `astronomical.sunrise` line in `weather_history.diff` on every
+     * single fetch. The provider's values were minute-precise and nothing noticed
+     * until they stopped being the source.
+     */
+    @Test
+    fun `astronomical times carry no seconds into the history`() {
+        val astro = map().astronomical
+        assertEquals(0, astro.sunrise!!.second)
+        assertEquals(0, astro.sunrise!!.nano)
+        assertEquals(0, astro.sunset!!.second)
+    }
+
+    /**
+     * Above the Arctic circle in June there is no sunrise, and the model can now say
+     * so. The old type could only carry some other time and let the reader assume it
+     * meant something.
+     */
+    @Test
+    fun `a polar day maps to no sunrise rather than to a fabricated one`() {
+        val tromso = City(
+            id = 3133880, name = "Tromso", region = "Troms", country = "Norway",
+            coordinates = Coordinates(69.6492, 18.9553), timezone = "Europe/Oslo"
+        )
+        val astro = WeatherReportMapper.map(
+            city = tromso,
+            forecast = forecast(currentTime = "2026-06-21T12:00"),
+            airQuality = null,
+            fetchedAt = fetchedAt,
+            responseTimeMs = 1,
+            cacheStatus = CacheStatus.MISS
+        ).astronomical
+        assertNull(astro.sunrise)
+        assertNull(astro.sunset)
+        assertNull(astro.daylightDuration)
     }
 
     @Test

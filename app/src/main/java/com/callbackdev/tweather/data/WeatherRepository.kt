@@ -14,6 +14,7 @@ import com.callbackdev.tweather.domain.model.CacheStatus
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.domain.model.WeatherReport
+import com.callbackdev.tweather.domain.sky.SkyRun
 import java.io.IOException
 import java.time.Clock
 import java.time.Duration
@@ -190,6 +191,16 @@ class WeatherRepository(
         )
         recordHistory(city, report)
         report
+    }
+
+    /**
+     * Fase 16e: attaches the sky jobs this fetch observed as run to [city]'s newest
+     * commit — the same after-the-fact UPDATE [recordFiredRules] uses, for the same
+     * reason. A run belongs to the fetch that noticed it.
+     */
+    suspend fun recordSkyRuns(city: City, runs: List<SkyRun>) {
+        if (runs.isEmpty()) return
+        historyDao.setSkyRunsOnLatest(city.cacheKey, json.encodeToString(runs))
     }
 
     private suspend fun recordHistory(city: City, report: WeatherReport) {

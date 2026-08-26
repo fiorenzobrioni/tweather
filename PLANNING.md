@@ -545,6 +545,24 @@ La hint appare anche a chi aggiorna, non solo alle installazioni nuove: `HELP.md
 **Corretto insieme un refuso ortografico**: nel testo italiano `perché` era finito con l'accento grave (`perchè`), nell'heading e due volte nella riga finale. Colpa di una sostituzione automatica scritta male in fase 14d (`e' ` → `è ` applicata prima della regola specifica, che ha morso dentro `perche' `). tsteps non era affetto, perché lì gli accenti erano stati scritti direttamente.
 
 
+## Fase 15 — Allineamento della nav bar alla serie (post-1.0)
+
+Rilievo del committente confrontando le tre app: tweather era l'unica con **Impostazioni non in ultima posizione** e l'unica col glifo **terminal** sui Log. Entrambe le differenze sono eredità del mockup, non decisioni prese contro i gemelli: quando tweather è stata disegnata non c'era ancora una serie con cui essere coerenti.
+
+**Impostazioni va in fondo.** L'ordine diventa Editor / Cerca / Log / Impostazioni. È la convenzione della piattaforma (l'ultimo slot di una bottom bar è il cassetto delle opzioni, non un contenuto) ed è già l'ordine di tsteps e thabit: i tab che contengono *il meteo* stanno insieme, e i Log — che sono la storia di quei dati — smettono di essere separati dall'editor da una schermata di opzioni. Costo zero: `EditorNavItems.All` è l'unica sede dell'ordine, la rotta `"explorer"` e gli stack salvati non cambiano.
+
+**I Log prendono il glifo `commit`.** Il file è `weather_history.diff`, un log git con hash, autore e hunk `+`/`-`: il punto sulla linea di branch *è* quel file, mentre `terminal` nominava la pelle dell'app e non il suo contenuto. Doppiamente fuori posto perché i veri terminali di tweather stanno altrove (i comandi `$`, la status bar, il widget "terminal window"), e chi ha due app della serie installate vedeva lo stesso file dietro due icone diverse. tsteps e thabit avevano già scelto `commit`: qui vince il gemello, come previsto dalla regola per cui il kit si allinea sull'implementazione più recente.
+
+**Non toccato: il glifo Editor di thabit.** Nella stessa revisione è emerso che thabit usa `checklist` dove i gemelli usano `{ }` (`DataObject`). Resta com'è: `habits.test` è una lista di checkbox, `{ }` prometterebbe JSON, e "il file non deve mentire" batte l'uniformità del glifo. L'uniformità della serie sta sul sistema (forma della barra, indicatore 2px, tint, label-sm, Impostazioni in fondo, `commit` sui log), non sull'obbligare ogni app a indossare l'icona sbagliata per il proprio file di identità.
+
+- [x] `EditorNavItems`: ordine `Editor, Search, Logs, Settings`, `Logs` da `Icons.Filled.Terminal` a `Icons.Filled.Commit`; kdoc riscritta con le tre deviazioni (Explorer→Editor, terminal→commit, Impostazioni in fondo)
+- [x] `Routes` e le `composable()` del NavHost riordinate a seguire — non cambia comportamento (la start destination è esplicita), ma la shell si legge nell'ordine in cui i tab appaiono
+- [x] `HELP.md` EN/IT: l'elenco "le quattro schede" segue il nuovo ordine — è una guida alla barra, e una guida che elenca in un ordine diverso da quello che si vede è una guida sbagliata
+- [x] Suite verde (360 test) e lint pulito. Nessun test asserisce l'ordine: `bottomBarSwitchesBetweenTheFourFiles` clicca per etichetta
+
+**Nota su una flakiness pre-esistente**: durante la verifica `TweatherNavigationTest` è fallito due volte su quattro esecuzioni della suite completa, con test diversi ogni volta (`aFreshInstallLandsOnTweatherInit`, poi `skippingInitOpensTheWorkspaceAnyway`) e sempre sull'attesa della schermata di init. È una corsa fra la scrittura DataStore della migrazione (su `Dispatchers.IO`) e la prima composizione, non una conseguenza di questa fase: la classe passa isolata e la suite completa passa pulita nelle altre esecuzioni. Annotata qui perché prima o poi tingerà di rosso una CI senza colpa del commit che la fa girare.
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

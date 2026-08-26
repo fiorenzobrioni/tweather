@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Commit
 import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -113,18 +113,26 @@ fun EditorNavBar(
 }
 
 /**
- * The app's four tabs, in mockup order and with the mockup's glyph choices — with
- * one deliberate deviation (pre-v1): the first tab was "Explorer" behind a file-tree
- * glyph, which since Fase 10b promised a tree that no longer exists (`cities/` moved
- * into the Cerca tab). It is an open editor, so it says so, behind the `{ }` of the
- * file it opens. Its route stays "explorer" — that string is state, not a label.
+ * The app's four tabs, with two deliberate deviations from the mockup (pre-v1) and
+ * one alignment on the series (post-v1):
+ *
+ * - the first tab was "Explorer" behind a file-tree glyph, which since Fase 10b
+ *   promised a tree that no longer exists (`cities/` moved into the Cerca tab). It
+ *   is an open editor, so it says so, behind the `{ }` of the file it opens. Its
+ *   route stays "explorer" — that string is state, not a label.
+ * - Logs opens `weather_history.diff`, a git log: it wears the **commit** glyph (a
+ *   dot on a branch line), like tsteps and thabit. The terminal glyph it used to
+ *   wear named the app's skin, not this file — and every actual terminal in the app
+ *   (the `$` commands, the status bar, the widget) is somewhere else.
+ * - **Settings is last**, as in tsteps, thabit and every Android bottom bar: the
+ *   three tabs that hold the weather come first, the drawer of options after them.
  */
 object EditorNavItems {
     val Editor = EditorNavItem("explorer", R.string.nav_editor, Icons.Filled.DataObject)
     val Search = EditorNavItem("search", R.string.nav_search, Icons.Filled.Search)
+    val Logs = EditorNavItem("logs", R.string.nav_logs, Icons.Filled.Commit)
     val Settings = EditorNavItem("settings", R.string.nav_settings, Icons.Filled.Code)
-    val Logs = EditorNavItem("logs", R.string.nav_logs, Icons.Filled.Terminal)
-    val All = listOf(Editor, Search, Settings, Logs)
+    val All = listOf(Editor, Search, Logs, Settings)
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)

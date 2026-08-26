@@ -93,8 +93,8 @@
         <item></item>
         <item>- **Editor** - `weather_data.json` and `README.md`: the weather of the active city. The first is the technical version, every field of it; the second is the same thing told in words.</item>
         <item>- **Search** - `cities.json`: look up a city and add it to the list. The active one is marked `// active`, and `[rm]` removes a line.</item>
-        <item>- **Settings** - `settings.config` and `alerts.rules`: options change by tapping the value itself. There is no switch to hunt for.</item>
         <item>- **Logs** - `weather_history.diff`: every update the app has made.</item>
+        <item>- **Settings** - `settings.config` and `alerts.rules`: options change by tapping the value itself. There is no switch to hunt for.</item>
         <item></item>
         <item>## The borrowed words</item>
         <item></item>

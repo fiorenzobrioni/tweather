@@ -81,8 +81,8 @@
         <item></item>
         <item>- **Editor** - `weather_data.json` e `README.md`: il meteo della città attiva. Il primo è la versione tecnica, con tutti i campi; il secondo è la stessa cosa raccontata a parole.</item>
         <item>- **Cerca** - `cities.json`: cerchi una città e la aggiungi all\'elenco. Quella attiva è marcata `// active`, e `[rm]` toglie una riga.</item>
-        <item>- **Impostazioni** - `settings.config` e `alerts.rules`: le opzioni si cambiano toccando il valore. Non c\'è nessun interruttore da cercare.</item>
         <item>- **Log** - `weather_history.diff`: tutti gli aggiornamenti che l\'app ha fatto.</item>
+        <item>- **Impostazioni** - `settings.config` e `alerts.rules`: le opzioni si cambiano toccando il valore. Non c\'è nessun interruttore da cercare.</item>
         <item></item>
         <item>## Le parole prese in prestito</item>
         <item></item>

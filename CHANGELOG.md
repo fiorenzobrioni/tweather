@@ -20,6 +20,10 @@ All notable changes to tweather are documented here. The format follows
 
 ### Changed
 
+- The bottom bar now ends on Settings, like every other Android app and like tsteps
+  and thabit: Editor, Search, Logs, Settings. The Logs tab also swaps its terminal
+  glyph for the commit one (a dot on a branch line), which is what
+  `weather_history.diff` actually is.
 - A fresh install no longer comes with Milan already saved. `cities.json` listing a
   city you never chose was the one thing left in the app that the file could not
   honestly claim, and on an Italian phone it arrived in English on top of that. An

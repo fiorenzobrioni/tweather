@@ -54,8 +54,8 @@ import kotlinx.coroutines.launch
 object Routes {
     const val Editor = "explorer"
     const val Search = "search"
-    const val Settings = "settings"
     const val Logs = "logs"
+    const val Settings = "settings"
 }
 
 /**
@@ -174,14 +174,14 @@ private fun Workspace(openCities: Boolean, onCitiesOpened: () -> Unit) {
                         onCitySelected = { navController.navigateToTab(Routes.Editor) }
                     )
                 }
+                composable(Routes.Logs) {
+                    LogsScreen()
+                }
                 composable(Routes.Settings) {
                     SettingsScreen(
                         openHelp = openHelp,
                         onHelpOpened = { openHelp = false }
                     )
-                }
-                composable(Routes.Logs) {
-                    LogsScreen()
                 }
             }
         }

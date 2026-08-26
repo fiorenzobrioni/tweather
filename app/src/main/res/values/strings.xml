@@ -227,4 +227,13 @@
     <string name="moon_waning_gibbous">Waning Gibbous</string>
     <string name="moon_last_quarter">Last Quarter</string>
     <string name="moon_waning_crescent">Waning Crescent</string>
+
+    <!-- Fase 16c: sky.crontab -->
+    <string name="status_sky_jobs">%1$d jobs</string>
+    <string name="cd_sky_add_job">Add a job from the catalog</string>
+    <string name="cd_sky_pick_job">Add %1$s</string>
+    <string name="cd_sky_enable">Enable %1$s</string>
+    <string name="cd_sky_disable">Comment out %1$s</string>
+    <string name="cd_sky_remove">Remove %1$s from the file</string>
+    <string name="cd_sky_confirm_remove">Confirm removing %1$s</string>
 </resources>

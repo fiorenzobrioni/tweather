@@ -75,6 +75,15 @@ class WeatherViewModel(
     val activeFile: StateFlow<MainEditorFile> = workspaceStore.mainActiveFile
         .stateIn(viewModelScope, SharingStarted.Eagerly, MainEditorFile.JSON)
 
+    /**
+     * `sky.enabled` from `settings.config` (Fase 16c): whether the strip draws a
+     * third tab at all. Eagerly like [activeFile] — a tab that appears one frame
+     * after the others reads as a glitch, and the strip's width jumping is worse.
+     */
+    val skyEnabled: StateFlow<Boolean> = settingsStore.settings
+        .map { it.skyEnabled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     fun selectFile(file: MainEditorFile) {
         viewModelScope.launch { workspaceStore.setMainActiveFile(file) }
     }

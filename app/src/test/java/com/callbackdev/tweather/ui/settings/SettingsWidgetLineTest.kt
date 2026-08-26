@@ -34,6 +34,7 @@ class SettingsWidgetLineTest {
         onDailySummary = {},
         onPrecipWarning = {},
         onUserRules = {},
+        onSkyEnabled = {},
         onCycleFrequency = {},
         onCycleWidgetOpacity = onCycleWidgetOpacity,
         onOpenUrl = {},

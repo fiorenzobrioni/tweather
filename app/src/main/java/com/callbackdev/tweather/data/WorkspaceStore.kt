@@ -13,8 +13,13 @@ import kotlinx.coroutines.flow.map
 
 private val Context.workspaceDataStore by preferencesDataStore(name = "workspace")
 
-/** The two files open in the main editor's tab bar (Fase 10). */
-enum class MainEditorFile { JSON, README }
+/**
+ * The files open in the main editor's tab bar: two since Fase 10, three since 16c.
+ * [SKY] is only reachable while `sky.enabled` is true — the enum keeps the value
+ * either way, because a user who switches the module off and back on should find the
+ * tab they left open, not the one the app picked for them.
+ */
+enum class MainEditorFile { JSON, README, SKY }
 
 /**
  * Editor workspace state — what a real editor keeps in its session, not in its

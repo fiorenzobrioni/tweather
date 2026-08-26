@@ -121,6 +121,31 @@ class TweatherNavigationTest {
         compose.onNodeWithText("tweather init", substring = true).assertDoesNotExist()
     }
 
+    /**
+     * Fase 16c: `sky.crontab` is the editor strip's third tab, not a fifth
+     * destination in the bottom bar. The bar keeps its four items and the file
+     * arrives beside the two that already belong to the city.
+     */
+    @Test
+    fun theSkyFileIsAThirdEditorTabAndNotAFifthDestination() {
+        setApp()
+
+        compose.onNodeWithText("sky.crontab").assertExists()
+        // Four destinations, still.
+        listOf("Editor", "Search", "Logs", "Settings").forEach {
+            compose.onNodeWithText(it).assertExists()
+        }
+        compose.onNodeWithText("Sky").assertDoesNotExist()
+
+        compose.onNodeWithText("sky.crontab").performClick()
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithText("# sky.crontab", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        // The strip is still there, so the way back is one tap and not a back press.
+        compose.onNodeWithText("weather_data.json").assertExists()
+    }
+
     /** Fase 14d: the hint reaches HELP.md, which lives behind the Settings tab. */
     @Test
     fun theHelpHintOpensTheHelpFile() {

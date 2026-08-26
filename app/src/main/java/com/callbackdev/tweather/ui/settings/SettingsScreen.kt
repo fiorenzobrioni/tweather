@@ -85,6 +85,7 @@ class SettingsActions(
     val onDailySummary: (Boolean) -> Unit,
     val onPrecipWarning: (Boolean) -> Unit,
     val onUserRules: (Boolean) -> Unit,
+    val onSkyEnabled: (Boolean) -> Unit,
     val onCycleFrequency: () -> Unit,
     val onCycleWidgetOpacity: () -> Unit,
     val onOpenUrl: (String) -> Unit,
@@ -334,6 +335,7 @@ fun SettingsScreen(
             onDailySummary = gated(viewModel::setDailySummary),
             onPrecipWarning = gated(viewModel::setPrecipitationWarning),
             onUserRules = gated(viewModel::setUserRules),
+            onSkyEnabled = viewModel::setSkyEnabled,
             onCycleFrequency = viewModel::cycleUpdateFrequency,
             onCycleWidgetOpacity = viewModel::cycleWidgetOpacity,
             onOpenUrl = uriHandler::openUri,
@@ -543,6 +545,18 @@ private fun buildSettingsLines(
         comma = false, hint = "// alerts.rules", syntax = syntax,
         onClickLabel = changeLabel("user_rules")) {
         actions.onUserRules(!settings.notifications.userRules)
+    })
+    add(punctLine("},", 1, syntax))
+
+    // One key, not the three `VISION_SKY.md` §10 sketched: `notify_default` and
+    // `notify_on_fail` govern reminders that Fase 16f will send, and a setting for a
+    // notification the app cannot deliver yet would be the first thing this module
+    // promises and does not do.
+    add(keyOpenLine("sky", 1, syntax))
+    add(boolLine("enabled", settings.skyEnabled, comma = false,
+        hint = "// sky.crontab in the editor", syntax = syntax,
+        onClickLabel = changeLabel("enabled")) {
+        actions.onSkyEnabled(!settings.skyEnabled)
     })
     add(punctLine("},", 1, syntax))
 
@@ -765,7 +779,7 @@ private fun SettingsScreenPreview() {
     TweatherTheme {
         SettingsScreen(
             settings = AppSettings(),
-            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         )
     }
 }

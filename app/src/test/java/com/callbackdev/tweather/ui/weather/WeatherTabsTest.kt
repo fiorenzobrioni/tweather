@@ -37,11 +37,13 @@ class WeatherTabsTest {
         compose.setContent {
             TweatherTheme {
                 var active by remember { mutableStateOf(initial) }
+                val files = editorFiles(skyEnabled = false)
                 WeatherScreen(
                     state = WeatherUiState(report = sampleWeatherReport(), isLoading = false),
                     onRefresh = {},
                     activeFile = active,
-                    onSelectFile = { active = it },
+                    editorFiles = files,
+                    onSelectTab = { active = editorFileAt(it, skyEnabled = false) },
                     showHelpHint = showHelpHint,
                     onOpenHelp = { helpOpened++ }
                 )

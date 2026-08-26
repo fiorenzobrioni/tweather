@@ -57,6 +57,10 @@ sealed interface SkyOccurrence {
  * The daily jobs walk forward one local calendar day at a time — `date.plusDays(1)`,
  * not "+24 hours" — so a DST switch shortens or lengthens the day the way the clock
  * really does instead of leaving an hour unsearched.
+ *
+ * Solar and lunar days come through [SkyAlmanac] rather than straight from the
+ * engine: `sky.crontab` resolves every subscribed job against the same date, and
+ * without the memo one screen would recompute one day thirty-two times.
  */
 object SkyScheduler {
 
@@ -72,7 +76,7 @@ object SkyScheduler {
             SkyJobCatalog.SunRise.id -> solar(job, date, zone, coords) { it.sunrise }
             SkyJobCatalog.SunSet.id -> solar(job, date, zone, coords) { it.sunset }
             SkyJobCatalog.SolarNoon.id -> SkyOccurrence.At(
-                job, AstronomyEngine.solarDay(date, zone, coords).solarNoon
+                job, SkyAlmanac.solarDay(date, zone, coords).solarNoon
             )
             SkyJobCatalog.CivilAm.id -> solar(job, date, zone, coords) { it.civilDawn }
             SkyJobCatalog.CivilPm.id -> solar(job, date, zone, coords) { it.civilDusk }
@@ -157,7 +161,7 @@ object SkyScheduler {
         coords: Coordinates,
         pick: (SolarDay) -> Instant?
     ): SkyOccurrence {
-        val day = AstronomyEngine.solarDay(date, zone, coords)
+        val day = SkyAlmanac.solarDay(date, zone, coords)
         val instant = pick(day) ?: return SkyOccurrence.None(job, polarReason(day))
         return SkyOccurrence.At(job, instant)
     }
@@ -169,7 +173,7 @@ object SkyScheduler {
         coords: Coordinates,
         pick: (SolarDay) -> ClosedRange<Instant>?
     ): SkyOccurrence {
-        val day = AstronomyEngine.solarDay(date, zone, coords)
+        val day = SkyAlmanac.solarDay(date, zone, coords)
         val range = pick(day) ?: return SkyOccurrence.None(job, polarReason(day))
         return SkyOccurrence.At(job, range.start, range.endInclusive)
     }
@@ -181,7 +185,7 @@ object SkyScheduler {
         coords: Coordinates,
         pick: (LunarDay) -> Instant?
     ): SkyOccurrence {
-        val instant = pick(AstronomyEngine.lunarDay(date, zone, coords))
+        val instant = pick(SkyAlmanac.lunarDay(date, zone, coords))
             ?: return SkyOccurrence.None(job, SkyNotScheduled.MOON_ABSENT)
         return SkyOccurrence.At(job, instant)
     }
@@ -198,8 +202,8 @@ object SkyScheduler {
         zone: ZoneId,
         coords: Coordinates
     ): SkyOccurrence {
-        val tonight = AstronomyEngine.solarDay(date, zone, coords)
-        val tomorrow = AstronomyEngine.solarDay(date.plusDays(1), zone, coords)
+        val tonight = SkyAlmanac.solarDay(date, zone, coords)
+        val tomorrow = SkyAlmanac.solarDay(date.plusDays(1), zone, coords)
         val dusk = tonight.astronomicalDusk
         val dawn = tomorrow.astronomicalDawn
         if (dusk == null || dawn == null) return SkyOccurrence.None(job, SkyNotScheduled.NO_DARKNESS)
@@ -226,8 +230,8 @@ object SkyScheduler {
         // The peak can fall in the small hours, which belong to the PREVIOUS evening's
         // night: dusk then lies on the day before.
         val eveningOf = if (peak.atZone(zone).hour < NIGHT_ENDS_HOUR) night.minusDays(1) else night
-        val dusk = AstronomyEngine.solarDay(eveningOf, zone, coords).astronomicalDusk
-        val dawn = AstronomyEngine.solarDay(eveningOf.plusDays(1), zone, coords).astronomicalDawn
+        val dusk = SkyAlmanac.solarDay(eveningOf, zone, coords).astronomicalDusk
+        val dawn = SkyAlmanac.solarDay(eveningOf.plusDays(1), zone, coords).astronomicalDawn
         if (dusk == null || dawn == null) return SkyOccurrence.None(job, SkyNotScheduled.NO_DARKNESS)
         return SkyOccurrence.At(job, maxOf(dusk, peak.coerceAtMost(dawn)), dawn)
     }

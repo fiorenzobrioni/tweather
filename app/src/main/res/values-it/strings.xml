@@ -212,4 +212,13 @@
     <string name="moon_waning_gibbous">Gibbosa calante</string>
     <string name="moon_last_quarter">Ultimo quarto</string>
     <string name="moon_waning_crescent">Luna calante</string>
+
+    <!-- Fase 16c: sky.crontab -->
+    <string name="status_sky_jobs">%1$d job</string>
+    <string name="cd_sky_add_job">Aggiungi un job dal catalogo</string>
+    <string name="cd_sky_pick_job">Aggiungi %1$s</string>
+    <string name="cd_sky_enable">Attiva %1$s</string>
+    <string name="cd_sky_disable">Commenta %1$s</string>
+    <string name="cd_sky_remove">Togli %1$s dal file</string>
+    <string name="cd_sky_confirm_remove">Conferma la rimozione di %1$s</string>
 </resources>

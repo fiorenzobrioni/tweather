@@ -11,6 +11,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +51,13 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
  * where the open file had no indicator under it, which read as a different kind of
  * chrome on every switch into them. A one-element strip also means those screens
  * grow a second file without touching their layout.
+ *
+ * **The active tab is scrolled into view** (Fase 16c). The strip has scrolled since
+ * it was written, but nothing ever brought the selection back: with three names —
+ * which the editor strip now has — a tab could be selected with its 2px indicator
+ * sitting off-screen, so the bar showed no active file at all. It is fixed in the
+ * component rather than at the one call site that exposed it, because the Settings
+ * and Logs strips have the same three-name shape and the same latent bug.
  */
 @Composable
 fun EditorTabs(
@@ -57,6 +70,26 @@ fun EditorTabs(
     val syntax = TweatherTheme.syntax
     val borderColor = syntax.border
     val indicatorColor = MaterialTheme.colorScheme.primary
+    val scrollState = rememberScrollState()
+    // Where each tab starts and ends inside the scrolling row, filled in as the tabs
+    // are laid out. Positions rather than an index arithmetic: the names have
+    // different widths, so there is nothing to compute them from.
+    val bounds = remember { mutableStateMapOf<Int, IntRange>() }
+    val viewportWidth = remember { mutableIntStateOf(0) }
+    LaunchedEffect(activeIndex, bounds[activeIndex], scrollState.maxValue) {
+        val tab = bounds[activeIndex] ?: return@LaunchedEffect
+        val viewportEnd = scrollState.value + viewportWidth.intValue
+        val target = when {
+            viewportWidth.intValue == 0 -> null
+            // Off the left edge: bring its start to the edge.
+            tab.first < scrollState.value -> tab.first
+            // Off the right edge: bring its end to the edge, so the indicator lands
+            // inside the viewport rather than one pixel past it.
+            tab.last > viewportEnd -> tab.last - viewportWidth.intValue
+            else -> null
+        }
+        target?.let { scrollState.animateScrollTo(it.coerceIn(0, scrollState.maxValue)) }
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -83,13 +116,18 @@ fun EditorTabs(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .horizontalScroll(rememberScrollState()),
+                .onGloballyPositioned { viewportWidth.intValue = it.size.width }
+                .horizontalScroll(scrollState),
             verticalAlignment = Alignment.CenterVertically
         ) {
             fileNames.forEachIndexed { index, fileName ->
                 val active = index == activeIndex
                 Box(
                     modifier = Modifier
+                        .onGloballyPositioned { coordinates ->
+                            val start = coordinates.positionInParent().x.toInt()
+                            bounds[index] = start..(start + coordinates.size.width)
+                        }
                         // Tab height = bar height, so the 2px indicator lands on
                         // the bar's bottom edge (and keeps growing with font scale)
                         .heightIn(min = 48.dp)

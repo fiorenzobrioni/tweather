@@ -221,8 +221,8 @@ No text field, no parser. Tokens are tapped, as in `alerts.rules`:
 | Tap target | Behaviour |
 |---|---|
 | the job name | toggles the leading `#` — enable / disable |
-| `--notify=30m` | cycles `off · 15m · 30m · 1h · 3h · 1d` |
-| `[rm]` | removes the line from the file (two-tap confirm), job returns to the catalog |
+| `--notify=30m` | cycles `off · 15m · 30m · 1h · 3h · 1d` — **not rendered until 16f**, because a token promising a reminder the app cannot send is the first thing this module would lie about |
+| `[rm]` | removes the line, job returns to the catalog. Two-tap, and the confirm is the token itself (`[rm]` → `[rm?]`): appended after the line as `// tap again`, it landed off the right edge of a phone. It also sits BEFORE the comment, for the same reason Fase 11d moved the README's status column last — a comment can afford to clip, a tap target cannot |
 | `+ add job` | opens the catalog as an IDE-style autocomplete list of jobs not in the file |
 | `$ tweather run sky` | dry run, two-tap confirm |
 
@@ -488,9 +488,13 @@ behaviour change, not a refactor:
 ```
 [sky]
 enabled          = true    # false removes the sky.crontab tab and the README's sky lines
-notify_default   = 30m     # applied to a job added from the catalog
-notify_on_fail   = false   # send the reminder anyway when it will not be visible
+notify_default   = 30m     # applied to a job added from the catalog       (16f)
+notify_on_fail   = false   # send the reminder anyway when it will not be visible (16f)
 ```
+
+Only `enabled` ships in 16c. The other two govern reminders 16f sends, and a setting
+for a notification the app cannot deliver yet is the same lie as a `--notify` token
+that does nothing.
 
 The draft had eight keys. Five are gone and each for a reason:
 
@@ -579,16 +583,18 @@ test.
 | **GPS pseudo-city** (id `-1`) | Renders like any other city, off the last persisted fix. Run history keys off `cacheKey`, so it partitions per ~1.1 km cell exactly as the weather history already does. |
 | Polar day / polar night | `∅ not scheduled`, comment naming the cause. Never a fabricated time. |
 | Moon does not rise on a given day (happens ~monthly) | `∅ not scheduled`, comment. Not an error, not 00:00. |
-| DST transition | Instants computed in UTC, rendered in the city's zone. On the switch day the comment says so: `# DST +1h on Oct 25`. Golden showcase for the `@daily` choice: the recurrence stays true while the time jumps. |
+| DST transition ✅ 16c | Instants computed in UTC, rendered in the city's zone. On the switch day the header says so — but spelled out, not signed: this spec sketched `# DST +1h on Oct 25`, and on that date the offset goes DOWN an hour while the day gets an hour LONGER, so a `+` is right twice and wrong twice depending on which the reader meant. It reads `# DST: the clock falls back 1h on Oct 25`. Golden showcase for the `@daily` choice: the recurrence stays true while the time jumps. |
 | Active city in another timezone | The whole file renders in **the city's** local time, and the header names the zone. A sunrise in Tokyo shown in Rome time is the file lying. |
 | City switched while the tab is open | Recompute, clear nothing. Run history is per city; subscriptions are not. |
 | Event exactly at the forecast boundary | `? unknown`, never extrapolated. |
 | Stale data | Reuse the existing staleness signal; a verdict older than the staleness threshold prints `? unknown`, not the last known verdict. |
 | Fetch failure | Same `//` channel as the rest of the app. The schedule still renders: it needs no network. |
-| First run after install | Schedule renders immediately from computation; verdicts fill in after the first fetch. The tab is never empty (unless there is no city, above). |
+| First run after install ✅ 16c | Schedule renders immediately from computation; verdicts fill in after the first fetch. The tab is never empty (unless there is no city, above). Four lines are seeded, and the seeding is marked with its own flag: without it, removing the last job looks exactly like a fresh install and the defaults grow back over an emptied file. |
+| `moon.today` ✅ 16c | Not an event the sky has scheduled but a statement about the day you are in. Resolved as "the next occurrence" it read `Aug 27 12:00` from six in the evening — a line called `today` naming tomorrow. It answers for today, and without a clock time, because a phase does not happen at noon. |
 | Equator | Golden and blue hour are genuinely short. Render the real numbers, do not floor them. |
 | Two jobs at the same instant | Stable order from the catalog, no collapsing. |
-| **Three tabs in the strip** | `EditorTabs` scrolls horizontally but does not bring the selected tab into view. With three names the third can be selected while its indicator sits off-screen. Fix it in the component (a `BringIntoViewRequester` on the active tab), which also repays the Settings and Logs strips. |
+| **Three tabs in the strip** ✅ 16c | `EditorTabs` scrolled horizontally but never brought the selected tab into view: with three names the third could be selected with its 2px indicator off-screen, so the bar showed no active file at all. Fixed in the component — measured tab bounds and an animated scroll, no experimental API — which also repays the Settings and Logs strips. |
+| **Column widths** ✅ 16c | The file pads to its OWN longest name, not to the catalog's. Padded to `meteor.eta_aquariids.peak` a two-line file pushed its own `[rm]` past the edge of a 360dp screen. A crontab is aligned with `column -t`, which measures the file in front of it. |
 
 ---
 
@@ -636,12 +642,14 @@ domain/sky/
   SkyScheduler.kt         resolves the next N occurrences of a subscription    ✅ 16b
   MeteorShowerTable.kt    solar-longitude peaks                                ✅ 16b
   SkyVerdictEngine.kt     resolved event + hourly forecast + moon → verdict
+  SkyAlmanac.kt           the engine with a memo; bounded, per (city, local date)  ✅ 16c
 ui/sky/
-  SkyCrontabScreen.kt     third tab of the Editor strip; reuses the gutter, tab bar,
-                          token renderer and terminal input wholesale
+  SkyDocument.kt          the file as pure data, so it is asserted without Compose ✅ 16c
+  SkyCrontabScreen.kt     the rows; reuses the gutter, canvas and token renderer   ✅ 16c
+  SkyScreen.kt            third tab of the Editor strip                            ✅ 16c
   SkyRunsLog.kt           third tab of the Logs strip; a grouped view over commits
 data/
-  SkySubscriptionStore.kt DataStore `sky`, the subscribed jobs and their --notify leads
+  SkySubscriptionStore.kt DataStore `sky`, the subscribed jobs and their leads     ✅ 16c
 ```
 
 No `SkyRunDao`, no `SkyRunEntity`, no `SkyRunRecorder`: §8.1.
@@ -781,7 +789,7 @@ the decisions and every deviation, as it already does.
 |---|---|---|
 | **16a** ✅ | `HourlyForecast.cloudCoverPct`, `HOURLY_WINDOW` 25 → `FORECAST_DAYS × 24`, an explicit cap in the JSON render, regression test first. No UI, no sky code. | none |
 | **16b** ✅ | `AstronomyEngine` + `SkyJobCatalog` + `SkyScheduler` + `MeteorShowerTable` + the full correctness suite. `MoonPhase` reconciled. No UI. | none |
-| **16c** | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
+| **16c** ✅ | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
 | **16d** | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |
 | **16e** | `sky_runs` column (Room v4) + check lines on the commit + `sky_runs.log` as the Logs strip's third tab. `## Astronomy` and `## Status` in the README. Optional widget line. README/CHANGELOG. | existing fetch |
 | **16f** | `--notify` leads, `AlarmManager.setAndAllowWhileIdle`, boot receiver, dedup. **Separate go/no-go**: everything above ships without it. | existing fetch |

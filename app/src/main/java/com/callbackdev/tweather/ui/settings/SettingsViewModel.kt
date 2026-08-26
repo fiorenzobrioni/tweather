@@ -53,6 +53,7 @@ class SettingsViewModel(
     fun setDailySummary(enabled: Boolean) = save { setDailySummary(enabled) }
     fun setPrecipitationWarning(enabled: Boolean) = save { setPrecipitationWarning(enabled) }
     fun setUserRules(enabled: Boolean) = save { setUserRules(enabled) }
+    fun setSkyEnabled(enabled: Boolean) = save { setSkyEnabled(enabled) }
     fun setThemeProfile(name: String) = save { setThemeProfile(name) }
 
     /** `$ git restore settings.config` — also turns gps back off (its default). */

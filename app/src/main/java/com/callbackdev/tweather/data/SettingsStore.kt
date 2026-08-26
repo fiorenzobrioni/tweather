@@ -56,6 +56,13 @@ data class AppSettings(
     val units: UnitSettings = UnitSettings(),
     val notifications: NotificationSettings = NotificationSettings(),
     val themeProfileName: String = "Obsidian",
+    /**
+     * The sky module (Fase 16c). False removes `sky.crontab` from the editor strip
+     * and, from 16e, the sky lines of the README. Default true: the module is four
+     * subscribed lines on a fresh install, and a feature that ships switched off is
+     * a feature nobody finds.
+     */
+    val skyEnabled: Boolean = true,
     val updateFrequencyMin: Int = DefaultUpdateFrequencyMin,
     val widgetOpacityPct: Int = DefaultWidgetOpacityPct,
     /** Epoch seconds of the last edit; null until the user changes something. */
@@ -95,6 +102,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
                     userRules = prefs[UserRules] ?: true
                 ),
                 themeProfileName = prefs[ThemeProfileName] ?: "Obsidian",
+                skyEnabled = prefs[SkyEnabled] ?: true,
                 updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: DefaultUpdateFrequencyMin)
                     .takeIf { it in UpdateFrequencies } ?: DefaultUpdateFrequencyMin,
                 widgetOpacityPct = (prefs[WidgetOpacity] ?: DefaultWidgetOpacityPct)
@@ -114,6 +122,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun setPrecipitationWarning(enabled: Boolean) = set(PrecipWarning, enabled)
     suspend fun setUserRules(enabled: Boolean) = set(UserRules, enabled)
     suspend fun setThemeProfile(name: String) = set(ThemeProfileName, name)
+    suspend fun setSkyEnabled(enabled: Boolean) = set(SkyEnabled, enabled)
     suspend fun setUpdateFrequency(minutes: Int) = set(UpdateFrequencyMin, minutes)
     suspend fun setWidgetOpacity(pct: Int) = set(WidgetOpacity, pct)
 
@@ -147,6 +156,7 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         private val PrecipWarning = booleanPreferencesKey("notif_precip_warning")
         private val UserRules = booleanPreferencesKey("notif_user_rules")
         private val ThemeProfileName = stringPreferencesKey("theme_profile")
+        private val SkyEnabled = booleanPreferencesKey("sky_enabled")
         private val UpdateFrequencyMin = intPreferencesKey("sync_update_frequency_min")
         private val WidgetOpacity = intPreferencesKey("widget_bg_opacity_pct")
         private val LastModified = longPreferencesKey("last_modified_epoch")

@@ -583,7 +583,7 @@ Il costo che resta, dichiarato: la striscia dell'editor passa a tre nomi (39 car
 
 **La riga che tiene tutto insieme è la stessa delle altre fasi**: *il file può non sapere una cosa, non può inventarla*. Un verdetto che le previsioni non reggono è `? unknown`; una luna che quel giorno non sorge è `∅`, non `00:00`; una run che l'app non ha osservato è `– skipped` e non conta in nessuna statistica; un promemoria che l'app non sa consegnare in tempo non viene offerto come lead più corto.
 
-Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: la **16a e la 16b sono fatte** (ago 2026), le altre quattro sono da fare.
+Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: la **16a, la 16b e la 16c sono fatte** (ago 2026), le altre tre sono da fare.
 
 
 ## Fase 16a — Il layer dati smette di buttare via ciò che ha già scaricato
@@ -656,21 +656,68 @@ Tutto puro, tutto JVM-testabile, come `AlertEngine` e `RuleEngine`: niente Andro
 
 Il file si legge e si modifica **token per token**, come `alerts.rules`: nessun campo di testo, nessun parser, un errore di sintassi non è scrivibile. Tap sul nome del job = commenta/decommenta (che è **come si disabilita davvero** un cron job: la riga resta nel file, grigia, in colore commento, e non viene valutata); `[rm]` toglie la riga dal file con conferma a due tap e il job torna nel catalogo; `+ add job` apre il catalogo come una lista di autocomplete in stile IDE. `#` e `[rm]` sono diversi apposta e la differenza è reale: un job commentato si riaccende con un tap, uno rimosso va ripescato dal catalogo. Nessuno dei due manda mai una notifica.
 
-**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e parole dei verdetti sono codice. Il registro localizzato vive nel `README.md` (16e) e negli annunci di accessibilità. Stessa regola di `weather_data.json` e `alerts.rules`.
+Ecco il file, com'è uscito (Milano, 26 ago 2026, 18:30 locali):
 
-**Le soglie sono stampate nel file**, non promosse a impostazioni: `// pass ≤ 25% cloud · unstable ≤ 65% · fail above, or rain at the event`. Il requisito della bozza era che non fossero "costanti che l'utente non può vedere", e il canale dei commenti — dove tweather mette già i fatti che conosce — lo soddisfa a un decimo della superficie di `settings.config`. Se il committente le vorrà regolabili, promuovere una costante a chiave è mezz'ora; togliere tre chiavi già spedite no.
+```
+# sky.crontab — Milan, Lombardy (Europe/Rome)
+# 10 jobs · 1 disabled · next: golden_hour.pm in 1h 2m
+# times are computed per occurrence, not fixed; see each line
 
-**Stato "nessuna città" (Fase 14b)**: senza latitudine non è calcolabile niente, quindi il tab rende `// no location configured` + il suggerimento, come gli altri due file dell'editor. Uno schedule vuoto sarebbe la prima cosa inventata del modulo.
+@daily         sun.rise               [rm]  # Aug 27 06:38   +1m15s vs yesterday
+@daily         sun.set                [rm]  # 20:12   −1m46s vs yesterday
+#@daily        golden_hour.am         [rm]
+@daily         golden_hour.pm         [rm]  # 19:32..20:12
+@daily         blue_hour.pm           [rm]  # 20:30..20:43
+@daily         darkness.window        [rm]  # 22:01..04:49   moon up all night
+@daily         moon.today             [rm]  # 🌕 full moon, 96% lit
+*/30 * * * *   moon.phase             [rm]  # Aug 28 06:18   🌕 full moon
+@yearly        solstice.winter        [rm]  # 2026-12-21 21:50   in 117d
+@yearly        meteor.perseids.peak   [rm]  # 2027-08-13 00:32..04:22   in 351d
 
-**Bug latente da riparare qui**: `EditorTabs` scrolla in orizzontale ma **non porta in vista il tab selezionato**. Con tre nomi il terzo può risultare attivo con il suo indicatore fuori schermo. Si ripara nel componente (`BringIntoViewRequester` sul tab attivo) e la riparazione ripaga anche le strisce di Impostazioni e Log.
++ add job
 
-- [ ] `ui/sky/SkyCrontabScreen.kt`: gutter, striscia tab, renderer a token e input terminale riusati di peso
-- [ ] `data/SkySubscriptionStore.kt` (DataStore `sky`): job sottoscritti + lead `--notify` (memorizzati ora, usati in 16f)
-- [ ] Sottoscrizioni **globali, non per città** — chi tiene all'ora d'oro ci tiene in ogni città; la storia delle run invece è per città
-- [ ] `sky.enabled` in `settings.config` (`false` toglie il tab e le righe cielo del README)
-- [ ] `EditorTabs`: il tab attivo entra in vista
-- [ ] Memoizzazione per `(città, data locale)`: la matematica è economica ma viene chiamata a ogni ricomposizione di un file lungo
-- [ ] Test: fuso della città (un'alba di Tokyo mostrata con l'ora di Roma è il file che mente), giorno/notte polare `∅`, luna che non sorge `∅`, cambio ora legale avanti e indietro con il commento `# DST +1h on Oct 25`, crepuscolo equatoriale corto reso com'è, due job allo stesso istante in ordine stabile, "nessuna città", pseudo-città GPS
+// light pollution is not modelled: the app does not know your sky
+// this file is the schedule; whether the clouds allow it comes next
+```
+
+**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e canale dei commenti sono codice. Il registro localizzato del cielo vive nel `README.md` (16e); qui sono localizzate solo le etichette di accessibilità.
+
+**Le soglie non ci sono ancora** perché non ci sono ancora i verdetti (16d). Il piede del file lo dice invece di tacerlo: *this file is the schedule; whether the clouds allow it comes next*.
+
+**Stato "nessuna città" (Fase 14b)**: senza latitudine non è calcolabile niente, quindi il tab rende `# no location configured` + il suggerimento, come gli altri due file dell'editor — ma nel canale commenti che *questo* file usa, cioè `#`, perché è con quello che commenta un crontab.
+
+- [x] `ui/sky/SkyCrontabScreen.kt` + `SkyScreen.kt` + `SkyDocument.kt`: gutter, striscia tab, renderer a token e canvas riusati di peso; **`SkyDocument` è puro**, così l'intero file si asserisce in un test JVM senza comporre niente
+- [x] `data/SkySubscriptionStore.kt` (DataStore `sky`): job sottoscritti + lead `--notify` (scritti ora, letti in 16f)
+- [x] Sottoscrizioni **globali, non per città**; per città è lo *schedule* che risolvono, che è calcolato e mai memorizzato
+- [x] `sky.enabled` in `settings.config` (`false` toglie il tab; le righe cielo del README arrivano in 16e)
+- [x] `EditorTabs`: il tab attivo entra in vista
+- [x] `SkyAlmanac`: memoizzazione per `(città, data locale)`, LRU limitata
+- [x] Test: fuso della città, giorno/notte polare `∅` con la causa, luna che non sorge `∅`, DST, crepuscolo equatoriale, due job allo stesso istante in ordine stabile, "nessuna città", ordine di catalogo, riga commentata senza commento
+- [x] Suite verde (445 test, +42) e lint pulito
+
+**Il `--notify` non si vede, e non è una dimenticanza.** Lo store porta già `notifyLeadMinutes` e c'è un test che lo verifica, ma il file non rende nessun token `--notify=30m`: un token che promette un promemoria che l'app non sa ancora mandare sarebbe **la prima cosa che questo modulo mente**. Stessa ragione per cui il blocco `[sky]` di `settings.config` ha **una** chiave e non le tre della spec: `notify_default` e `notify_on_fail` governano promemoria che spedisce la 16f.
+
+**Un bug vero, trovato dal test dello store.** `edit()` scriveva `Seeded = true` **prima** di leggere la lista corrente. Sembra equivalente e non lo è: `decode` restituisce i quattro default solo finché il flag è falso, quindi la **prima modifica di un'installazione nuova** decodificava un file vuoto e ci salvava sopra — un tap su una riga e le altre tre sparivano. Ora si legge prima e si marca dopo, e c'è un test che si chiama esattamente così.
+
+**Tre correzioni di resa, ognuna trovata renderizzando il file e guardandolo.**
+
+1. **`moon.today` nominava domani.** Risolto come "prossima occorrenza", alle sei di sera stampava `Aug 27 12:00`: una riga che si chiama `today` che nomina il giorno dopo. Non è un evento che il cielo ha in programma, è un'affermazione sul giorno in cui sei: adesso risponde per oggi e risponde **senza orologio**, perché una fase non "succede" a mezzogiorno.
+2. **La causa polare era scritta per il job sbagliato.** «polar day: the sun does not set here today» compariva anche sotto `sun.rise`, dove non vuol dire niente. Riscritta in modo che valga per chiunque la chieda: «the sun stays above the horizon here».
+3. **Il segno del DST era ambiguo.** La spec suggeriva `# DST +1h on Oct 25`; quel giorno l'offset **scende** di un'ora e la giornata **si allunga** di un'ora, quindi un `+` è giusto o sbagliato a seconda di quale delle due cose intendeva chi legge. Adesso il file dice cosa fa l'orologio: `# DST: the clock falls back 1h on Oct 25`.
+
+**Due decisioni di layout prese contro la spec, e la ragione è la stessa della Fase 11d.**
+
+`VISION_SKY.md` §4 metteva `[rm]` **in fondo alla riga**. In una riga di crontab risolta finiva **oltre il bordo destro di uno schermo da 360dp**, raggiungibile solo pannando: che non è un controllo, è la diceria di un controllo. La 11d aveva già chiuso questa discussione per le tabelle del README — il commento è a lunghezza variabile e si può permettere di clippare, un bersaglio da toccare no — quindi `[rm]` sta **prima** del commento.
+
+E la conferma **è il token stesso**, `[rm]` → `[rm?]` in rosso, non un `// tap again to confirm` appeso in coda: cambia sotto il dito che l'ha appena toccato, non costa larghezza alla riga, e le parole stanno nella click label dove le legge lo screen reader. Un `// tap again` in fondo a una riga larga è una conferma che nessuno vede.
+
+**La colonna dei nomi si allinea al file, non al catalogo.** Prima era paddata all'id più lungo del catalogo (`meteor.eta_aquariids.peak`, 25 caratteri): un file di due righe spingeva così il proprio `[rm]` fuori schermo. Un crontab vero si allinea a sé stesso — è quello che fa `column -t` — e qui è anche l'unica versione usabile.
+
+**`EditorTabs` scrollava ma non riportava in vista il tab attivo.** Bug latente da sempre, che la terza voce dell'editor rendeva visibile: il tab selezionato poteva stare fuori schermo col suo indicatore da 2px, e la barra sembrava non avere nessun file attivo. Riparato **nel componente** e non nella sola chiamata che lo ha esposto, perché le strisce di Impostazioni e Log hanno la stessa forma a tre nomi e lo stesso difetto.
+
+**La memoizzazione era obbligatoria, non prudente.** `SkyScheduler.resolve` chiama `solarDay` per ogni job: con 32 job sulla stessa data sono ~55 ms di matematica per ricomposizione, misurati in 16b. `SkyAlmanac` è la memoria di `AstronomyEngine`, che resta un calcolatore senza stato — referenzialmente trasparente, LRU limitata a 400 voci (la chiave contiene una data e il file può chiederne un anno: una mappa che cresce e basta sarebbe una perdita lenta che non si annuncia mai), e le coordinate arrotondate a ~10 m così stare fermi è **una** chiave.
+
+**Niente riga nel `CHANGELOG.md` nemmeno qui.** Il tab si vede, ma senza verdetti è metà della cosa promessa: la voce di changelog arriva con la 16d/16e, quando `sky.crontab` dice anche se vale la pena uscire.
 
 
 ## Fase 16d — `SkyVerdictEngine`: le nuvole danno il verdetto

@@ -221,4 +221,6 @@
     <string name="cd_sky_disable">Commenta %1$s</string>
     <string name="cd_sky_remove">Togli %1$s dal file</string>
     <string name="cd_sky_confirm_remove">Conferma la rimozione di %1$s</string>
+    <string name="cd_run_sky">Esegui tutti i job del cielo sulle previsioni</string>
+    <string name="cd_confirm_run_sky">Conferma: esegui i job del cielo</string>
 </resources>

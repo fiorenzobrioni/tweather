@@ -8,6 +8,18 @@ All notable changes to tweather are documented here. The format follows
 
 ### Added
 
+- `sky.crontab`, a third file in the editor's tab bar: what the sky above the active
+  city has scheduled next — sunrise and sunset, the golden and blue hours, the three
+  twilights, moonrise and moonset, solstices, the major meteor showers — written as a
+  real crontab, with the recurrence in the cron field and the computed instant in the
+  comment beside it. Every line that is a sight to go outside for also carries a
+  verdict from the forecast the app already has: `✓ pass  cloud 8%`, `~ unstable`,
+  `✗ fail  rain 80%`, and `? unknown` when there is nothing recent enough to say.
+  Nothing here needs the network: the schedule is computed on the device, so it is
+  right in airplane mode. Edited by tapping, like `alerts.rules`: the job name
+  comments the line out, `[rm]` takes it out of the file, `+ add job` adds one back.
+  `$ tweather run sky` lines every enabled job up under itself. Switched on and off
+  by `sky.enabled` in `settings.config`.
 - `$ tweather init`: the first run now asks where you are — your position, a city
   search, or skip — instead of assuming. Skipping lands on an editor that says
   `// no location configured` and offers the search, which is also what you get if

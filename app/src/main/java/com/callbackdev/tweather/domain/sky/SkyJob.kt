@@ -43,10 +43,24 @@ data class SkyJob(
     val kind: SkyJobKind,
     val shape: SkyJobShape,
     /**
-     * True when clouds decide whether the event is worth anything. A sunset happens
-     * whether or not you can see it; the Perseids peak is only an event if the sky
-     * is clear. Fase 16f suppresses reminders for the second kind on a `✗ fail`, and
-     * 16d gives them the moon condition on top of the cloud one.
+     * True when the job resolves to something you would go outside and LOOK at, and
+     * therefore something the clouds can have an opinion about (Fase 16d).
+     *
+     * Almost everything in the catalog is: a sunset, a golden hour, a moonrise, a
+     * shower's peak. The exceptions are the moments of pure geometry — the solstice,
+     * the instant of a quarter moon, solar noon — which happen at a computed time and
+     * are not a sight. A `✗ fail` on a first quarter would be the file inventing a
+     * stake nobody has.
+     */
+    val observable: Boolean = true,
+    /**
+     * True when clouds decide whether the event is worth ANY of your attention.
+     *
+     * Not the same as [observable], and the difference is the whole of Fase 16f's
+     * notification rule: a sunset is observable but happens regardless, so its
+     * reminder goes out even under a `✗ fail` — you may have somewhere to be at dusk.
+     * The Perseids peak is only an event if the sky is clear, so a reminder for a
+     * failed one is noise and is suppressed.
      */
     val visibilityDependent: Boolean = false,
     /** True when the darkness of the sky, not just its clearness, is the point. */

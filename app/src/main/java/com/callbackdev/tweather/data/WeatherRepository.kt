@@ -114,6 +114,33 @@ class WeatherRepository(
         return fetch(city, now)
     }
 
+    /**
+     * The freshest report the app ALREADY has for [city], or null — never a fetch
+     * (Fase 16d).
+     *
+     * `sky.crontab` reads the sky from whatever the last sync brought back and must
+     * not go to the network on its own: opening a tab is not a reason to spend two
+     * HTTP GETs, and the schedule it renders needs no network at all. No TTL gate
+     * either, unlike [getWeather]: this returns what exists and lets the caller judge
+     * its age from `systemInfo.lastSync`, which is exactly the judgement the verdict
+     * has to make out loud.
+     */
+    suspend fun cachedReport(city: City): WeatherReport? {
+        cache[city.cacheKey]?.let { return it.report }
+        val entry = diskCache?.read(city.cacheKey) ?: return null
+        val fetchedAt = Instant.ofEpochMilli(entry.fetchedAtEpochMs)
+        return runCatching {
+            WeatherReportMapper.map(
+                city = city,
+                forecast = entry.forecast,
+                airQuality = entry.airQuality,
+                fetchedAt = fetchedAt,
+                responseTimeMs = entry.responseTimeMs,
+                cacheStatus = CacheStatus.HIT
+            )
+        }.getOrNull()?.also { cache[city.cacheKey] = CacheEntry(it, fetchedAt) }
+    }
+
     fun observeHistory(limit: Int = HISTORY_RETENTION) = historyDao.observeLatest(limit)
 
     /**

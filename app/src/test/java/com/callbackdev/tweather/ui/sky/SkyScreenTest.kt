@@ -39,10 +39,12 @@ class SkyScreenTest {
         var toggled: SkySubscription? = null
         var removed: String? = null
         var added: String? = null
+        var ran = 0
         val actions = SkyActions(
             onToggleEnabled = { toggled = it },
             onRemove = { removed = it },
-            onAdd = { added = it }
+            onAdd = { added = it },
+            onRunSky = { ran++ }
         )
     }
 
@@ -58,12 +60,13 @@ class SkyScreenTest {
             SkySubscription("sun.rise"), SkySubscription("sun.set")
         ),
         context: SkyContext? = context(),
+        dryRun: List<String>? = null,
         recorder: Recorder = Recorder()
     ): Recorder {
         compose.setContent {
             TweatherTheme {
                 SkyScreen(
-                    state = SkyUiState(subscriptions, context),
+                    state = SkyUiState(subscriptions, context, dryRun),
                     editorFiles = editorFiles(skyEnabled = true),
                     activeIndex = 2,
                     onSelectFile = {},
@@ -165,6 +168,40 @@ class SkyScreenTest {
         scrollTo("light pollution")
         compose.onNodeWithText("// light pollution is not modelled: the app does not know your sky")
             .assertIsDisplayed()
+    }
+
+    /**
+     * The dry run is destructive of nothing, but it is a `$` command, and every `$`
+     * command in this app confirms twice.
+     */
+    @Test
+    fun `the dry run takes two taps and then prints its block`() {
+        val recorder = setScreen()
+        scrollTo("tweather run sky")
+        compose.onNodeWithText("$ tweather run sky").performClick()
+        assertEquals("one tap must not run anything", 0, recorder.ran)
+        compose.onNodeWithText("// tap again to confirm", substring = true).assertExists()
+
+        compose.onNodeWithText("tweather run sky", substring = true).performClick()
+        assertEquals(1, recorder.ran)
+    }
+
+    @Test
+    fun `the dry run block renders under the command`() {
+        setScreen(dryRun = listOf("// sun.rise  06:38  ✓ pass  cloud 8%"))
+        scrollTo("sun.rise  06:38")
+        compose.onNodeWithText("// sun.rise  06:38  ✓ pass  cloud 8%").assertExists()
+    }
+
+    @Test
+    fun `a file with every line commented out offers no dry run`() {
+        setScreen(
+            subscriptions = listOf(
+                SkySubscription("sun.rise", enabled = false),
+                SkySubscription("sun.set", enabled = false)
+            )
+        )
+        compose.onAllNodesWithTextCount("tweather run sky", expected = 0)
     }
 
     @Test

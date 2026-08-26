@@ -3,6 +3,7 @@ package com.callbackdev.tweather.widget
 import com.callbackdev.tweather.data.DefaultUpdateFrequencyMin
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.WindSpeedUnit
+import com.callbackdev.tweather.domain.WeatherFreshness
 import com.callbackdev.tweather.ui.weather.convert
 import com.callbackdev.tweather.ui.weather.symbol
 import java.time.Duration
@@ -170,14 +171,16 @@ object WidgetContentBuilder {
      * network, job throttled, permission revoked) — the widget has to say so
      * instead of presenting hours-old numbers as current.
      */
+    /** The rule moved to [WeatherFreshness] in Fase 16d; the sky module reads it too. */
     private fun isStale(
         timestampEpochSeconds: Long?,
         updateFrequencyMin: Int,
         now: Instant?
     ): Boolean {
         if (timestampEpochSeconds == null || now == null) return false
-        val age = Duration.between(Instant.ofEpochSecond(timestampEpochSeconds), now)
-        return age > Duration.ofMinutes(2L * updateFrequencyMin)
+        return WeatherFreshness.isStale(
+            Instant.ofEpochSecond(timestampEpochSeconds), updateFrequencyMin, now
+        )
     }
 
     /**

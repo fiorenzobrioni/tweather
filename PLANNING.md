@@ -583,7 +583,7 @@ Il costo che resta, dichiarato: la striscia dell'editor passa a tre nomi (39 car
 
 **La riga che tiene tutto insieme è la stessa delle altre fasi**: *il file può non sapere una cosa, non può inventarla*. Un verdetto che le previsioni non reggono è `? unknown`; una luna che quel giorno non sorge è `∅`, non `00:00`; una run che l'app non ha osservato è `– skipped` e non conta in nessuna statistica; un promemoria che l'app non sa consegnare in tempo non viene offerto come lead più corto.
 
-Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: la **16a, la 16b e la 16c sono fatte** (ago 2026), le altre tre sono da fare.
+Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: le **16a-16d sono fatte** (ago 2026), restano la 16e e la 16f.
 
 
 ## Fase 16a — Il layer dati smette di buttare via ciò che ha già scaricato
@@ -722,22 +722,62 @@ E la conferma **è il token stesso**, `[rm]` → `[rm?]` in rosso, non un `// ta
 
 ## Fase 16d — `SkyVerdictEngine`: le nuvole danno il verdetto
 
-`SkyVerdictEngine.kt`: evento risolto + previsione oraria + luna → verdetto, nel canale dei commenti di ogni riga.
+`SkyVerdictEngine.kt`: evento risolto + previsione oraria + luna → verdetto, nel canale dei commenti di ogni riga. Puro come tutti gli altri motori: niente clock, niente Android, niente repository.
 
-- `✓ pass` = nuvolosità ≤ 25% sulla finestra dell'evento e nessuna precipitazione; `~ unstable` = 25–65% oppure probabilità di precipitazione ≥ 40%; `✗ fail` = oltre 65% o pioggia sull'evento; `? unknown` = oltre l'orizzonte delle previsioni o nessun fetch che lo copra; `∅ not scheduled` = l'evento lì quel giorno non avviene.
-- **La finestra, non l'istante**: per un job a intervallo si fa la media dei bucket orari che attraversa, per un job puntuale si prende il bucket che lo contiene — e si dichiara il numero usato.
-- I job di buio astronomico hanno **in più la condizione lunare**: sopra il 60% di illuminazione con la luna alta, un cielo sereno resta `~ unstable`, e il commento nomina **la luna, non le nuvole**.
-- **Oltre l'orizzonte non c'è verdetto**: non una stima ottimista, non una cella vuota — `? unknown` con il commento che dice perché.
-- **Un verdetto è una previsione, non un'osservazione.** L'app il cielo non lo vede mai. Un `✓ pass` registrato significa che la nuvolosità *prevista* per quell'ora era l'8%, e il log lo dice. Mai formularlo come "l'hai visto".
-- I verdetti si **ricalcolano in lettura**, mai congelati: quello mostrato per un evento futuro è l'opinione di adesso e cambierà.
+Ecco il file con e senza previsioni utili (Milano, 26 ago 2026):
 
-`$ tweather run sky` rispecchia esattamente `$ tweather run rules`: valuta ogni job abilitato sulle previsioni correnti, stampa istante risolto e verdetto inline sotto il comando, non manda niente, non tocca stato, non scrive nessuna run.
+```
+# sky.crontab — Milan, Lombardy (Europe/Rome)
+# 7 jobs · next: golden_hour.pm in 1h 2m ✓
 
-- [ ] `SkyVerdictEngine` + tabella verdetti con tutti i confini di soglia, l'override precipitazioni e l'override luna
-- [ ] `$ tweather run sky` (conferma a due tap), verdetti nella riga e nell'header (`# next: sun.set in 2h 14m ✓`)
-- [ ] Dati stantii: sopra la soglia di staleness esistente il verdetto è `? unknown`, non l'ultimo noto
-- [ ] Fetch fallito: stesso canale `//` del resto dell'app — **lo schedule si rende lo stesso**, non gli serve la rete
-- [ ] Test: confini di soglia, evento esattamente sul bordo dell'orizzonte (`? unknown`, mai estrapolato), copertura mancante
+@daily   sun.set              [rm]  # 20:12   ✓ pass  cloud 8%   −1m46s vs yesterday
+@daily   golden_hour.pm       [rm]  # 19:32..20:12   ✓ pass  cloud 8%
+@daily   darkness.window      [rm]  # 22:01..04:49   ~ unstable  moon 99% and up
+@yearly  meteor.perseids.peak [rm]  # 2027-08-13 00:32..04:22   in 351d   ? unknown (past the forecast horizon)
+
+$ tweather run sky
+// sun.set              20:12         ✓ pass  cloud 8%
+// golden_hour.pm       19:32..20:12  ✓ pass  cloud 8%
+// darkness.window      22:01..04:49  ~ unstable  moon 99% and up
+// moon.today           🌕 full moon, 96% lit
+// meteor.perseids.peak 2027-08-13    ? unknown (past the forecast horizon)
+
+// pass ≤ 25% cloud · fail above 65% · rain ≥ 70% fails it whatever the sky does
+// a bright moon (≥ 60%) unsettles a dark-sky job under a clear sky
+// light pollution is not modelled: the app does not know your sky
+// a verdict is the forecast's opinion, not an observation — it will change
+```
+
+- La **finestra, non l'istante**: per un job a intervallo si media sui bucket orari che attraversa, per uno puntuale si prende il bucket che lo contiene. La pioggia però si prende al **massimo** e non in media: un'ora di pioggia dentro una finestra di due non si media via, è la cosa che rovina l'evento.
+- **Il numero usato si stampa.** Un verdetto la cui prova è invisibile è un'opinione, e questa app non renderizza opinioni.
+- I job di buio hanno **in più la condizione lunare**: sopra il 60% di illuminazione con la luna alta, un cielo sereno resta `~ unstable`, e il commento nomina **la luna, non le nuvole**. La luna può solo peggiorare un verdetto, mai migliorarlo.
+- **Oltre l'orizzonte non c'è verdetto**: `? unknown` con la ragione fra parentesi, mai una stima.
+- **I dati stantii non hanno diritto a un'opinione.** Sopra la soglia esistente (due volte l'intervallo di polling) il verdetto è `? unknown (no recent data)`, non l'ultimo noto: stampare quello sarebbe rispondere a una domanda su stasera con quello che l'app pensava ieri, con le stesse parole che usa quando sa.
+
+- [x] `SkyVerdictEngine` + tabella verdetti con tutti i confini di soglia, l'override precipitazioni e l'override luna
+- [x] `$ tweather run sky` (conferma a due tap), verdetti nella riga e nell'header (`# next: golden_hour.pm in 1h 2m ✓`)
+- [x] Dati stantii: sopra la soglia di staleness il verdetto è `? unknown`, non l'ultimo noto
+- [x] Fetch fallito: **lo schedule si rende lo stesso** — non gli serve la rete, ed è testato che ogni riga e ogni finestra compaiono anche senza nessun report. La *causa* del fallimento resta della scheda che ha provato a fetchare: questo tab non fetcha, quindi riporta la conseguenza (`? unknown (no recent data)`) e non un errore che non è suo
+- [x] Test: confini di soglia, evento esattamente sul bordo dell'orizzonte (`? unknown`, mai estrapolato), copertura mancante, buco *dentro* la previsione (che è una cosa diversa dalla sua fine, e il file dice quale)
+- [x] Suite verde (483 test, +38) e lint pulito
+
+**Il bug più grosso della fase: `sun.set` non aveva verdetto.** Avevo agganciato il verdetto a `visibilityDependent`, il flag introdotto in 16b — e quel flag risponde a un'**altra** domanda. `visibilityDependent` governa se un *promemoria* va soppresso quando l'evento non si vedrà (16f): un tramonto **avviene comunque** e magari alle 20:12 hai un appuntamento, quindi il suo promemoria parte lo stesso; il picco delle Perseidi senza cielo sereno non è un evento, quindi il suo si sopprime. Ma se le nuvole *contano* per guardarlo è un'altra cosa ancora — e vale per il tramonto più che per qualunque altra riga, visto che **"stasera vale la pena uscire?" è la domanda per cui esiste tutto il modulo**. Aggiunto `SkyJob.observable`, vero per tutto tranne i momenti di pura geometria (solstizio, istante del quarto, mezzogiorno solare): quelli avvengono a un orario calcolato che nessuno va a guardare, e un `✗ fail` su un primo quarto sarebbe il file che si inventa una posta in gioco che nessuno ha.
+
+**La soglia di pioggia che fa fallire un evento è quella che l'app già aveva** (`AlertEngine.PRECIP_THRESHOLD_PCT`, 70%). «Piove» deve voler dire una cosa sola dentro l'app: un job del cielo in disaccordo con una notifica sulla stessa ora sarebbe l'app che litiga con sé stessa. C'è un test che tiene le due costanti legate.
+
+**La regola di staleness ha cambiato casa.** Viveva dentro `WidgetContent`, che è dove era stata scritta ma non dove appartiene: quanto vecchio è troppo vecchio è un fatto sui **dati**, non su una delle superfici che li disegna. Ora è `domain/WeatherFreshness`, letta dal widget e dal cielo. Due volte l'intervallo di polling: un sync saltato è ordinario, due di fila vogliono dire che i numeri a schermo non sono più un'affermazione sull'adesso.
+
+**`WeatherRepository.cachedReport()`: legge, non fetcha.** Aprire un tab non è un motivo per spendere due GET, e lo schedule che questo file rende non ha bisogno di rete. Nessun cancello TTL, a differenza di `getWeather`: restituisce quello che c'è e lascia al chiamante il giudizio sull'età — che è esattamente il giudizio che il verdetto deve dare ad alta voce. Il tab si aggiorna sul **feed dei commit** che già esiste (ogni fetch che atterra committa nello storico), lo stesso segnale su cui si ridisegna il widget.
+
+**Tre correzioni di resa, di nuovo trovate guardando il file.**
+
+1. **La luna veniva nominata due volte.** `# 22:01..04:49   moon up all night   ~ unstable  moon 99% and up`: il suffisso dice *quando* la luna se ne va, il verdetto *quanto* è luminosa, ma insieme sono la stessa frase due volte. Quando il verdetto ha già nominato la luna, il suffisso si fa da parte.
+2. **Il verdetto arrivava terzo.** Sulla riga dell'alba stava dopo la deriva in secondi: `# 06:38   +1m15s vs yesterday   ✓ pass`. La deriva è curiosità, il verdetto è la risposta alla domanda con cui si apre il file. Adesso viene subito dopo il *quando*.
+3. **`// no fetch yet` con altre parole dopo.** Un `//` apre una spiegazione e quindi vive a fine riga; ma su una riga il verdetto può essere seguito dalle curiosità del job, e `? unknown // no fetch yet −1m46s vs yesterday` è un commento che non è riuscito a commentare. Le ragioni del verdetto stanno fra **parentesi**; il `//` resta sulle righe `∅`, dove non segue mai niente.
+
+**`$ tweather run sky` è una seconda vista degli stessi fatti, e va bene così.** Senza registro delle run e senza notifiche (16e e 16f), non c'è niente che il dry run *eviti* di fare — quindi la sua ragione d'essere qui è un'altra: una riga di crontab risolta è larga abbastanza da doverla pannare, quindi il blocco è **l'unico posto in cui i verdetti stanno incolonnati uno sotto l'altro**, con la finestra su cui ognuno è stato calcolato scritta per intero invece che abbreviata per stare in colonna. Un job senza verdetto ci stampa il **fatto** a cui si è risolto invece di una finestra e un trattino (`moon.today` stampava `12:00`, che è l'istante a cui si misura la sua fase e non vuol dire niente per chi legge). Ogni modifica al file azzera il blocco: un dry run è un'istantanea, e una lasciata lì sopra un file cambiato è una risposta vecchia coi vestiti di una nuova.
+
+**Questa volta il `CHANGELOG.md` la riga ce l'ha.** Le fasi 16a–16c non avevano niente che un utente potesse vedere e la voce è stata rimandata due volte dicendolo; adesso il tab risponde alla domanda per cui esiste, quindi la voce copre 16a–16d insieme — che è anche come le leggerà chi la legge, cioè come una cosa sola.
 
 
 ## Fase 16e — La storia delle run, e il cielo nel `README.md`

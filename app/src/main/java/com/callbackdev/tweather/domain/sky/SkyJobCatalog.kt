@@ -16,7 +16,9 @@ object SkyJobCatalog {
     // Sun ---------------------------------------------------------------------
     val SunRise = SkyJob("sun.rise", SkyJobKind.DAILY, SkyJobShape.INSTANT)
     val SunSet = SkyJob("sun.set", SkyJobKind.DAILY, SkyJobShape.INSTANT)
-    val SolarNoon = SkyJob("solar.noon", SkyJobKind.DAILY, SkyJobShape.INSTANT)
+    // A moment of geometry, not a sight: the sun is at its highest whether or not
+    // anybody could tell by looking.
+    val SolarNoon = SkyJob("solar.noon", SkyJobKind.DAILY, SkyJobShape.INSTANT, observable = false)
 
     // Twilight ----------------------------------------------------------------
     val CivilAm = twilight("twilight.civil.am")
@@ -49,8 +51,12 @@ object SkyJobCatalog {
     // Moon --------------------------------------------------------------------
     val MoonRise = SkyJob("moon.rise", SkyJobKind.DAILY, SkyJobShape.INSTANT)
     val MoonSet = SkyJob("moon.set", SkyJobKind.DAILY, SkyJobShape.INSTANT)
-    val MoonToday = SkyJob("moon.today", SkyJobKind.DAILY, SkyJobShape.INSTANT)
-    val MoonPhase = SkyJob("moon.phase", SkyJobKind.POLLING, SkyJobShape.INSTANT)
+    // The phase is a statement about the day and the quarter is an instant of
+    // geometry: neither is a thing the clouds can spoil.
+    val MoonToday = SkyJob("moon.today", SkyJobKind.DAILY, SkyJobShape.INSTANT, observable = false)
+    val MoonPhase = SkyJob(
+        "moon.phase", SkyJobKind.POLLING, SkyJobShape.INSTANT, observable = false
+    )
 
     // Seasons -----------------------------------------------------------------
     val EquinoxSpring = season("equinox.spring")
@@ -100,6 +106,7 @@ object SkyJobCatalog {
     private fun visibleRange(id: String) =
         SkyJob(id, SkyJobKind.DAILY, SkyJobShape.RANGE, visibilityDependent = true)
 
+    // A season is a date on the calendar, not an evening out.
     private fun season(id: String) =
-        SkyJob(id, SkyJobKind.ANNUAL, SkyJobShape.INSTANT)
+        SkyJob(id, SkyJobKind.ANNUAL, SkyJobShape.INSTANT, observable = false)
 }

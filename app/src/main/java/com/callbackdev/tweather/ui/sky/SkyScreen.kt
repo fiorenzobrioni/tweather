@@ -45,9 +45,13 @@ fun SkyScreen(
         activeIndex = activeIndex,
         onSelectFile = onSelectFile,
         actions = SkyActions(
-            onToggleEnabled = viewModel::toggleEnabled,
-            onRemove = viewModel::remove,
-            onAdd = viewModel::add
+            // Every edit clears the block: a dry run is a snapshot of one moment's
+            // answer, and one left standing over a file that has changed underneath
+            // it is a stale answer wearing a fresh one's clothes.
+            onToggleEnabled = { viewModel.clearDryRun(); viewModel.toggleEnabled(it) },
+            onRemove = { viewModel.clearDryRun(); viewModel.remove(it) },
+            onAdd = { viewModel.clearDryRun(); viewModel.add(it) },
+            onRunSky = viewModel::runSky
         ),
         canvasState = canvasState
     )

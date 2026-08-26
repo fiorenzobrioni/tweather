@@ -34,15 +34,19 @@ import kotlinx.coroutines.delay
 class SkyActions(
     val onToggleEnabled: (SkySubscription) -> Unit,
     val onRemove: (String) -> Unit,
-    val onAdd: (String) -> Unit
+    val onAdd: (String) -> Unit,
+    val onRunSky: () -> Unit = {}
 )
 
-/** Which line is mid-interaction: the catalog picker, or an armed `[rm]`. */
+/** Which line is mid-interaction: the catalog picker, an armed `[rm]`, an armed run. */
 sealed interface SkyEdit {
     data object Catalog : SkyEdit
 
     /** `[rm]` tapped once; a second tap inside the window removes the line. */
     data class ConfirmRemove(val jobId: String) : SkyEdit
+
+    /** `$ tweather run sky` tapped once — two-tap, like every `$` in the app. */
+    data object ConfirmRun : SkyEdit
 }
 
 /**
@@ -67,6 +71,7 @@ fun buildSkyLines(
     labels: SkyLabels,
     onStartEdit: (SkyEdit?) -> Unit
 ): List<CanvasLine> = buildList {
+    val runArmed = editing == SkyEdit.ConfirmRun
     val document = state.document
     if (document == null) {
         // Same surface as the editor's other two files with no city (Fase 14b), in
@@ -143,6 +148,38 @@ fun buildSkyLines(
                 )
             }
         }
+    }
+
+    // The dry run: evaluate everything against the forecast in hand, notify nothing,
+    // record nothing. A second view of facts the rows already carry, and that is the
+    // point — a resolved crontab row is wide enough to pan sideways, so this is the
+    // one place the verdicts line up under each other.
+    if (document.rows.any { it.enabled }) {
+        add(CodeLine(AnnotatedString("")))
+        add(commentLine("// evaluate every enabled job against the forecast in hand:", syntax))
+        add(
+            CodeLine(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
+                    append("tweather run sky")
+                    if (runArmed) {
+                        withStyle(SpanStyle(color = syntax.diffDel)) {
+                            append("  // tap again to confirm")
+                        }
+                    }
+                },
+                onClick = {
+                    if (runArmed) {
+                        onStartEdit(null)
+                        actions.onRunSky()
+                    } else {
+                        onStartEdit(SkyEdit.ConfirmRun)
+                    }
+                },
+                onClickLabel = if (runArmed) labels.confirmRun else labels.runSky
+            )
+        )
+        state.dryRun?.forEach { add(commentLine(it, syntax)) }
     }
 
     add(CodeLine(AnnotatedString("")))
@@ -239,7 +276,9 @@ class SkyLabels(
     val addJob: String,
     val pickJob: (SkyJob) -> String,
     val toggle: (SkyRow) -> String,
-    val remove: (SkyRow, Boolean) -> String
+    val remove: (SkyRow, Boolean) -> String,
+    val runSky: String,
+    val confirmRun: String
 )
 
 @Composable
@@ -260,7 +299,9 @@ fun rememberSkyLabels(): SkyLabels {
                     if (armed) R.string.cd_sky_confirm_remove else R.string.cd_sky_remove,
                     row.job.id
                 )
-            }
+            },
+            runSky = resources.getString(R.string.cd_run_sky),
+            confirmRun = resources.getString(R.string.cd_confirm_run_sky)
         )
     }
 }
@@ -269,7 +310,7 @@ fun rememberSkyLabels(): SkyLabels {
 @Composable
 fun rememberSkyEdit(): androidx.compose.runtime.MutableState<SkyEdit?> {
     val state = remember { mutableStateOf<SkyEdit?>(null) }
-    val armed = state.value as? SkyEdit.ConfirmRemove
+    val armed = state.value.takeIf { it is SkyEdit.ConfirmRemove || it is SkyEdit.ConfirmRun }
     // The confirm disarms itself, like every other two-tap in the app: an armed
     // `[rm]` left sitting behind a tab switch is a trap for the next tap.
     LaunchedEffect(armed) {

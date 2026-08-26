@@ -1,8 +1,11 @@
 package com.callbackdev.tweather.ui.sky
 
+import com.callbackdev.tweather.data.DefaultUpdateFrequencyMin
 import com.callbackdev.tweather.data.SkySubscription
 import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.domain.model.MoonPhase
+import com.callbackdev.tweather.domain.WeatherFreshness
+import com.callbackdev.tweather.domain.model.WeatherReport
 import com.callbackdev.tweather.domain.sky.AstronomyEngine
 import com.callbackdev.tweather.domain.sky.SkyAlmanac
 import com.callbackdev.tweather.domain.sky.SkyJob
@@ -10,6 +13,10 @@ import com.callbackdev.tweather.domain.sky.SkyJobCatalog
 import com.callbackdev.tweather.domain.sky.SkyNotScheduled
 import com.callbackdev.tweather.domain.sky.SkyOccurrence
 import com.callbackdev.tweather.domain.sky.SkyScheduler
+import com.callbackdev.tweather.domain.sky.SkyVerdict
+import com.callbackdev.tweather.domain.sky.SkyVerdictEngine
+import com.callbackdev.tweather.domain.sky.SkyVerdictKind
+import com.callbackdev.tweather.domain.sky.SkyVerdictNote
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -60,7 +67,16 @@ data class SkyRow(
     /** The cron field: a nickname or the polling expression. Padded by the renderer. */
     val expression: String,
     /** The comment channel: resolved instant, window, `∅` reason. Empty when disabled. */
-    val comment: String
+    val comment: String,
+    /**
+     * Whether the sky will let it run (Fase 16d). Null for a disabled line and for a
+     * `∅` one: there is nothing to have an opinion about.
+     */
+    val verdict: SkyVerdict? = null,
+    /** The resolved start, kept so the dry run can print it beside the verdict. */
+    val at: Instant? = null,
+    /** The resolved end of a window job. */
+    val until: Instant? = null
 )
 
 /** Everything [SkyDocumentBuilder] needs to resolve a file; no Android, no clock. */
@@ -68,10 +84,64 @@ data class SkyContext(
     val cityLabel: String,
     val coordinates: Coordinates,
     val zone: ZoneId,
-    val now: Instant
-)
+    val now: Instant,
+    /**
+     * The last report the app already has (Fase 16d), or null when none has landed.
+     * Never fetched for this file's sake: the schedule needs no network, and the
+     * verdicts read whatever the last sync brought back.
+     */
+    val report: WeatherReport? = null,
+    /** Polling interval from `settings.config`; twice it is when data goes stale. */
+    val updateFrequencyMin: Int = DefaultUpdateFrequencyMin
+) {
+    val dataAge: Duration? = report?.let { Duration.between(it.systemInfo.lastSync, now) }
+
+    val staleAfter: Duration = WeatherFreshness.staleAfter(updateFrequencyMin)
+}
 
 object SkyDocumentBuilder {
+
+    /**
+     * `$ tweather run sky` — every enabled job, its instant and its verdict, in one
+     * aligned block. It sends nothing, touches no state and writes no run record,
+     * exactly like `$ tweather run rules`.
+     *
+     * It is a SECOND VIEW of facts the rows already carry, and that is the point: a
+     * resolved crontab row is wide enough to pan sideways, so the verdicts are the
+     * one thing you cannot take in at a glance from the file itself. Here they line
+     * up under each other, with the window each one was computed over spelled out
+     * rather than abbreviated to fit a column.
+     */
+    fun dryRun(document: SkyDocument, context: SkyContext): List<String> =
+        document.rows.filter { it.enabled }.map { row ->
+            buildString {
+                append("// ").append(row.job.id.padEnd(document.nameColumnWidth + 1))
+                // A job with no verdict prints the FACT it resolved to instead of a
+                // window and a dash. `moon.today` used to print `12:00` here, which is
+                // the instant its phase is measured at and means nothing to a reader.
+                if (row.verdict == null) {
+                    append(row.comment)
+                    return@buildString
+                }
+                append(window(row, context).padEnd(WINDOW_COLUMN))
+                append(render(row.verdict))
+            }
+        }
+
+    /** `19:32..20:12`, or `2027-08-13` when the event is not in the next day or two. */
+    private fun window(row: SkyRow, context: SkyContext): String {
+        val at = row.at ?: return ""
+        val far = Duration.between(context.now, at).toDays() >= 2
+        if (far) return at.atZone(context.zone).format(IsoDate)
+        val start = clock(at, context)
+        return row.until?.let { "$start..${clock(it, context)}" } ?: start
+    }
+
+    private fun clock(at: Instant, context: SkyContext): String =
+        at.atZone(context.zone).format(ClockTime)
+
+    /** Wide enough for `00:32..04:22`, so the verdict column lines up under itself. */
+    private const val WINDOW_COLUMN = 14
 
     private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
     private val DayAndClock = DateTimeFormatter.ofPattern("MMM d HH:mm")
@@ -85,14 +155,25 @@ object SkyDocumentBuilder {
         // fires next": a crontab is a file. The next job to fire is the header's job.
         val ordered = known.sortedBy { (job, _) -> SkyJobCatalog.orderOf(job) }
         val rows = ordered.map { (job, subscription) ->
+            // A commented-out line is not evaluated. That is not an optimization: a
+            // disabled job that still printed a resolved time would be a line
+            // claiming to be off while doing the work of being on.
+            if (!subscription.enabled) {
+                return@map SkyRow(job, enabled = false, expression = job.expression, comment = "")
+            }
+            val occurrence = SkyScheduler
+                .next(job, context.now, context.zone, context.coordinates, limit = 1)
+                .firstOrNull()
+            val at = occurrence as? SkyOccurrence.At
+            val verdict = at?.let { verdictOf(job, it, context) }
             SkyRow(
                 job = job,
-                enabled = subscription.enabled,
+                enabled = true,
                 expression = job.expression,
-                // A commented-out line is not evaluated. That is not an optimization:
-                // a disabled job that still printed a resolved time would be a line
-                // claiming to be off while doing the work of being on.
-                comment = if (subscription.enabled) comment(job, context) else ""
+                comment = comment(job, occurrence, verdict, context),
+                verdict = verdict,
+                at = at?.start,
+                until = at?.end
             )
         }
         return SkyDocument(
@@ -117,13 +198,21 @@ object SkyDocumentBuilder {
             dstNote(context)?.let { add(it) }
         }
 
-    /** `sun.set in 2h 14m` — the header's one concession to being a queue. */
+    /** `sun.set in 2h 14m ✓` — the header's one concession to being a queue. */
     private fun nextToFire(jobs: List<SkyJob>, rows: List<SkyRow>, context: SkyContext): String? {
         val enabled = rows.filter { it.enabled }.map { it.job.id }.toSet()
         val next = SkyScheduler.nextToFire(
             jobs.filter { it.id in enabled }, context.now, context.zone, context.coordinates
         ) ?: return null
-        return "${next.job.id} in ${humanGap(Duration.between(context.now, next.start))}"
+        return buildString {
+            append(next.job.id)
+            append(" in ").append(humanGap(Duration.between(context.now, next.start)))
+            // The glyph alone up here, not the whole verdict: the header is one line
+            // and the reasoning belongs on the job's own row, where its numbers are.
+            rows.firstOrNull { it.job.id == next.job.id }?.verdict
+                ?.takeIf { it.isKnown }
+                ?.let { append(" ").append(it.kind.glyph) }
+        }
     }
 
     /**
@@ -155,8 +244,41 @@ object SkyDocumentBuilder {
 
     private val MonthDay = DateTimeFormatter.ofPattern("MMM d")
 
-    /** The comment channel of one line: what the job resolves to, and when. */
-    private fun comment(job: SkyJob, context: SkyContext): String {
+    /**
+     * The verdict on a resolved occurrence, or null when the job cannot have one.
+     *
+     * The moments of pure geometry are excluded — the solstice, the instant of a
+     * quarter, solar noon. They happen at a computed time whether or not anybody can
+     * see them, so "will the clouds allow it" is not a question about them, and a
+     * `✗ fail` on a first quarter would be the file inventing a stake nobody has.
+     *
+     * Everything else gets one, `sun.set` first among them: whether tonight's sunset
+     * is worth walking outside for is the question this whole module exists to
+     * answer. (An earlier cut keyed this off `visibilityDependent`, which is a
+     * different predicate — it governs whether a REMINDER is suppressed on a fail —
+     * and it silently left the headline case without a verdict.)
+     */
+    private fun verdictOf(job: SkyJob, at: SkyOccurrence.At, context: SkyContext): SkyVerdict? {
+        if (!job.observable) return null
+        return SkyVerdictEngine.evaluate(
+            job = job,
+            start = at.start,
+            end = at.end,
+            hours = context.report?.hourly.orEmpty(),
+            zone = context.zone,
+            coordinates = context.coordinates,
+            dataAge = context.dataAge,
+            staleAfter = context.staleAfter
+        )
+    }
+
+    /** The comment channel of one line: what the job resolves to, when, and whether. */
+    private fun comment(
+        job: SkyJob,
+        occurrence: SkyOccurrence?,
+        verdict: SkyVerdict?,
+        context: SkyContext
+    ): String {
         // `moon.today` is the odd one: it is not an EVENT the sky has scheduled, it
         // is a statement about the day you are in. Resolved as "the next occurrence"
         // it read `Aug 27 12:00` from six in the evening — a line called `today`
@@ -165,18 +287,44 @@ object SkyDocumentBuilder {
         if (job.id == SkyJobCatalog.MoonToday.id) {
             return moonSummary(context.now, context)
         }
-        val occurrence = SkyScheduler
-            .next(job, context.now, context.zone, context.coordinates, limit = 1)
-            .firstOrNull() ?: return "?"
         return when (occurrence) {
+            null -> "?"
             is SkyOccurrence.None -> "∅ not scheduled  // ${reason(occurrence.reason)}"
-            is SkyOccurrence.At -> instant(job, occurrence, context)
+            is SkyOccurrence.At -> instant(job, occurrence, verdict, context)
+        }
+    }
+
+    /**
+     * `✓ pass  cloud 8%` — the glyph, the word, and the NUMBER the verdict was built
+     * from. §7 of `VISION_SKY.md` asks for the number by name: a verdict whose
+     * evidence is invisible is an opinion, and this app does not print opinions.
+     */
+    fun render(verdict: SkyVerdict): String = buildString {
+        append(verdict.kind.glyph).append(" ").append(verdict.kind.word)
+        // Parentheses, not a `//`: on a row the verdict can be followed by the job's
+        // own trivia (the sunrise drift, the moonless hour), and `// no fetch yet`
+        // with three more words after it reads as a comment that failed to comment.
+        // `//` stays for the `∅` lines, where nothing ever follows.
+        when (verdict.note) {
+            SkyVerdictNote.BEYOND_HORIZON -> append(" (past the forecast horizon)")
+            SkyVerdictNote.NO_DATA -> append(" (no fetch yet)")
+            SkyVerdictNote.STALE_DATA -> append(" (no recent data)")
+            SkyVerdictNote.NO_COVERAGE -> append(" (no forecast hour covers it)")
+            // Naming the clouds for a night the MOON ruined would be a different lie
+            // of the same size.
+            SkyVerdictNote.MOONLIGHT -> append("  moon ${verdict.moonPct}% and up")
+            SkyVerdictNote.PRECIPITATION -> append("  rain ${verdict.precipPct}%")
+            null -> Unit
+        }
+        if (verdict.isKnown && verdict.note != SkyVerdictNote.MOONLIGHT) {
+            verdict.cloudPct?.let { append("  cloud ").append(it).append("%") }
         }
     }
 
     private fun instant(
         job: SkyJob,
         occurrence: SkyOccurrence.At,
+        verdict: SkyVerdict?,
         context: SkyContext
     ): String = buildString {
         val zone = context.zone
@@ -196,6 +344,12 @@ object SkyDocumentBuilder {
         if (far) append("   in ").append(Duration.between(context.now, occurrence.start).toDays())
             .append("d")
 
+        // The verdict comes straight after the WHEN, before any per-job trivia: it is
+        // the answer to the question the file is opened with. The sunrise drift used
+        // to sit between them, so `✓ pass` arrived third on the line behind a figure
+        // in seconds that nobody came for.
+        verdict?.let { append("   ").append(render(it)) }
+
         when (job.id) {
             // How much later the sun comes up than it did yesterday. The one number
             // in the file that is about the schedule DRIFTING, which is the whole
@@ -204,8 +358,13 @@ object SkyDocumentBuilder {
                 driftVsYesterday(job, occurrence.start, context)?.let { append("   ").append(it) }
             SkyJobCatalog.MoonPhase.id ->
                 append("   ").append(quarterName(occurrence.start))
+            // The `moonless from 23:11` suffix and a MOONLIGHT verdict are the same
+            // sentence twice: one says when the moon goes, the other how bright it
+            // is. When the verdict has already named the moon, the suffix stands down.
             SkyJobCatalog.DarknessWindow.id ->
-                moonlessFrom(occurrence, context)?.let { append("   ").append(it) }
+                if (verdict?.note != SkyVerdictNote.MOONLIGHT) {
+                    moonlessFrom(occurrence, context)?.let { append("   ").append(it) }
+                }
         }
     }
 
@@ -275,10 +434,22 @@ object SkyDocumentBuilder {
         }
     }
 
-    /** The two things the file must say about itself, every time it is opened. */
+    /**
+     * What the file must say about itself every time it is opened.
+     *
+     * The thresholds are HERE rather than in `settings.config` (`VISION_SKY.md` §7
+     * asked that they not be invisible, not that they be adjustable), and the last
+     * line is the module's whole epistemic position in nine words: the app never
+     * looks at the sky, it reads a forecast.
+     */
     private val FOOTER = listOf(
+        "// pass ≤ ${SkyVerdictEngine.CLOUD_PASS_PCT}% cloud · " +
+            "fail above ${SkyVerdictEngine.CLOUD_FAIL_PCT}% · " +
+            "rain ≥ ${SkyVerdictEngine.PRECIP_FAIL_PCT}% fails it whatever the sky does",
+        "// a bright moon (≥ ${SkyVerdictEngine.MOON_WASH_PCT}%) unsettles a dark-sky job " +
+            "under a clear sky",
         "// light pollution is not modelled: the app does not know your sky",
-        "// this file is the schedule; whether the clouds allow it comes next"
+        "// a verdict is the forecast's opinion, not an observation — it will change"
     )
 
     /** A commented-out line keeps its columns by moving the `#` into the padding. */

@@ -240,6 +240,13 @@ Mirrors `$ tweather run rules` exactly: evaluates every enabled job against the 
 forecast, prints the resolved instant and verdict inline under the command, sends nothing,
 touches no state, writes no run record.
 
+Worth being straight about what it is in 16d, before the log and the reminders exist:
+there is nothing it *avoids* doing yet, so it is a second view of facts the rows already
+carry. It earns its place anyway — a resolved crontab row is wide enough to pan sideways,
+so this block is the one place the verdicts stand in a column under each other, with the
+window each was computed over written out rather than abbreviated to fit. A job with no
+verdict prints the fact it resolved to instead of a window and a dash.
+
 ```
 $ tweather run sky
 // sun.set          20:22        ✓ pass      cloud 8%
@@ -326,16 +333,31 @@ Verdict vocabulary is **shared with the series**, so the three apps speak one gr
 
 | Verdict | Condition |
 |---|---|
-| `✓ pass` | cloud cover ≤ 25 % over the event window, no precipitation |
-| `~ unstable` | 25–65 %, or precipitation probability ≥ 40 % |
-| `✗ fail` | > 65 % cloud, or precipitation at the event |
-| `? unknown` | event lies beyond the forecast horizon, or no fetch covers it |
+| `✓ pass` | cloud cover ≤ 25 % over the event window, rain below 40 % |
+| `~ unstable` | 26–65 % cloud, or rain ≥ 40 %, or a bright moon on a dark-sky job |
+| `✗ fail` | > 65 % cloud, or rain ≥ 70 % |
+| `? unknown` | beyond the forecast horizon, no fetch yet, data gone stale, or a gap in the hours |
 | `∅ not scheduled` | the event does not occur here today (polar day, moonless day) |
+
+"Precipitation at the event" became a probability threshold in 16d, because a
+probability is what the hourly data actually carries. 70 % is deliberately the same
+number the builtin precipitation alert already uses: "it is going to rain" should mean
+one thing across the app, and a sky job disagreeing with a notification about the same
+hour would be the app arguing with itself.
 
 Rules:
 
-- **The window, not the instant.** For a range job take the mean of the hourly buckets it
-  spans; for an instant job take the bucket containing it. State the number used.
+- **The window, not the instant** ✅ 16d. For a range job take the mean of the hourly
+  buckets it spans; for an instant job take the bucket containing it. State the number
+  used. Rain is the exception and takes the MAX over the window — an hour of it inside
+  a two-hour event is not averaged away, it is the thing that ruins the event.
+- **A verdict belongs to a SIGHT, not to a moment** ✅ 16d. `SkyJob.observable` is
+  false for the solstice, the instant of a quarter moon and solar noon: they happen at
+  a computed time nobody goes outside to watch, and a `✗ fail` on a first quarter
+  would be the file inventing a stake nobody has. This is a different predicate from
+  `visibilityDependent`, which governs whether a REMINDER is suppressed (§10) — an
+  earlier cut of 16d conflated them and left `sun.set`, the module's headline case,
+  without a verdict at all.
 - **Thresholds are engine constants, printed in the file's comment channel** (§4). They
   are not `settings.config` keys — see §10 for the reasoning and the reversal.
 - **Astronomical-darkness jobs additionally require the moon condition** (§6): above 60 %
@@ -348,6 +370,12 @@ Rules:
   (§8). Never phrase it as "you saw it".
 - **Verdicts are recomputed on read**, never frozen. A verdict shown for a future event is
   the current forecast's opinion and will change.
+- **Stale data holds no opinion** ✅ 16d. Past the app's existing staleness threshold
+  (twice the polling interval) the verdict is `? unknown`, never the last known
+  answer: printing that would be answering a question about tonight with what the app
+  thought yesterday, in the same words it uses when it knows. The rule moved out of
+  the widget into `domain/WeatherFreshness` on the way — how old is too old is a fact
+  about the data, not about one surface that draws it.
 - **The input landed in Fase 16a** (§13.1): `HourlyForecast` carries `cloudCoverPct` and
   the mapper keeps every hour of the response instead of one day of it. The absence a
   verdict has to survive is therefore a missing *hour*, never a missing number — past
@@ -790,7 +818,7 @@ the decisions and every deviation, as it already does.
 | **16a** ✅ | `HourlyForecast.cloudCoverPct`, `HOURLY_WINDOW` 25 → `FORECAST_DAYS × 24`, an explicit cap in the JSON render, regression test first. No UI, no sky code. | none |
 | **16b** ✅ | `AstronomyEngine` + `SkyJobCatalog` + `SkyScheduler` + `MeteorShowerTable` + the full correctness suite. `MoonPhase` reconciled. No UI. | none |
 | **16c** ✅ | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
-| **16d** | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |
+| **16d** ✅ | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |
 | **16e** | `sky_runs` column (Room v4) + check lines on the commit + `sky_runs.log` as the Logs strip's third tab. `## Astronomy` and `## Status` in the README. Optional widget line. README/CHANGELOG. | existing fetch |
 | **16f** | `--notify` leads, `AlarmManager.setAndAllowWhileIdle`, boot receiver, dedup. **Separate go/no-go**: everything above ships without it. | existing fetch |
 

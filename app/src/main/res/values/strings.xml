@@ -236,4 +236,6 @@
     <string name="cd_sky_disable">Comment out %1$s</string>
     <string name="cd_sky_remove">Remove %1$s from the file</string>
     <string name="cd_sky_confirm_remove">Confirm removing %1$s</string>
+    <string name="cd_run_sky">Run every enabled sky job against the forecast</string>
+    <string name="cd_confirm_run_sky">Confirm running the sky jobs</string>
 </resources>

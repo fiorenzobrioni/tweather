@@ -215,6 +215,13 @@ $ tweather run sky
   accessibility announcements (§14). Same rule as `weather_data.json` and `alerts.rules`.
   The README does not print the id at all: it looks the job up by name (§9.1), which is
   the only direction this translation ever goes — nothing localized reaches the file.
+  **Amended by the register rule** (`PLANNING.md` Fase 18, Aug 2026): what stays English
+  is what is *code*, not what sits behind a `#`. So the job ids, the cron fields, the
+  verdict words, the resolved instants and the numbers beside them are unchanged — the
+  per-line comment channel carries nothing else — while the **whole-sentence** lines
+  localize like any other prose: the file header (`# times are computed per occurrence,
+  not fixed`), the `// evaluate every enabled job …` line above the command, and the four
+  notes at the foot. Decided, not yet implemented.
 
 ### Editing it
 

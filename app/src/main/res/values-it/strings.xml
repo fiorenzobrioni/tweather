@@ -1,6 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Italiano. Le parti "codice" del finto editor (chiavi JSON, nomi file, errori
-     terminale, commenti //) restano volutamente in inglese. -->
+<!-- Italiano. Regola dei tre registri (PLANNING Fase 18): decide il REGISTRO,
+     non la punteggiatura che lo circonda.
+
+       CODICE -> sempre inglese: chiavi JSON, nomi file, id dei job, variabili e
+                 operatori delle regole, campi cron, comandi $, chrome git (commit,
+                 Author:, @@, hash), verdetti, livelli (ERROR:, WARN:), codici
+                 net::ERR_*, licenze, URL, marcatori di una parola (# stale) e le
+                 intestazioni dei file (// Tweather Configuration File).
+       DATI   -> localizzati: valori meteo, nomi città, giorni, fasi lunari.
+       PROSA  -> localizzata ovunque si trovi: README.md, HELP.md, primo avvio,
+                 notifiche, accessibilità E le righe di commento che sono frasi.
+
+     Una riga può contenere due registri: si tengono i token e si traduce intorno
+     (// ERROR: permesso negato, il gps resta spento). Decisa, NON ancora
+     implementata: i commenti sono ancora inglesi hardcoded nei sorgenti. -->
 <resources>
     <!-- Bottom navigation -->
     <!-- "Editor" anche in italiano: è il termine che usa qualunque IDE localizzato -->

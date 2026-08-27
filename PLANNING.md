@@ -680,7 +680,7 @@ Ecco il file, com'è uscito (Milano, 26 ago 2026, 18:30 locali):
 // this file is the schedule; whether the clouds allow it comes next
 ```
 
-**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e canale dei commenti sono codice. Il registro localizzato del cielo vive nel `README.md` (16e); qui sono localizzate solo le etichette di accessibilità.
+**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e canale dei commenti sono codice. Il registro localizzato del cielo vive nel `README.md` (16e); qui sono localizzate solo le etichette di accessibilità. *(Corretto dalla **Fase 18**: "canale dei commenti" era la formulazione sbagliata, il canale non è una categoria. Restano codice i job, il cron, i verdetti, gli istanti e i numeri — cioè tutto quello che la colonna commento di una riga contiene davvero; le righe intere che sono frasi passano alla lingua del lettore.)*
 
 **Le soglie non ci sono ancora** perché non ci sono ancora i verdetti (16d). Il piede del file lo dice invece di tacerlo: *this file is the schedule; whether the clouds allow it comes next*.
 
@@ -1004,6 +1004,84 @@ Tre righe, tre fatti, una per riga: cos'è andato storto, cosa stai guardando, c
 
 **Quello che ho deciso di NON fare, e perché.** `## Attuale` resta `## Attuale` anche su un documento di tre ore: è l'unica sezione che è una *rilevazione passata* e non una previsione, e la tentazione era di riempirla con la riga oraria corrispondente presa dalle previsioni. Sarebbe stato inventare un'osservazione da una previsione — esattamente la bugia che questo progetto non si concede — quindi la sezione resta quella del fetch e sono le tre righe in cima a dire di quando è. Per lo stesso motivo `## Astronomia` di un documento di ieri stampa l'alba di ieri (uno o due minuti di differenza): è un dato del fetch, e correggerlo di soppiatto sarebbe stato riscrivere il documento invece di datarlo.
 
+
+## Fase 18 — I registri: la lingua segue la frase, non le barre
+
+Domanda del committente (27 ago 2026), con davanti uno screenshot di `sky.crontab` su un telefono italiano: la regola "il codice resta inglese" si può ammorbidire almeno sui commenti, per non lasciare fuori chi non legge l'inglese, senza affogare la filosofia terminal/git del progetto?
+
+**Sì, e non come concessione: la regola scritta in Fase 6b contiene un errore di categoria.** Dice `commenti // → inglese`, ma `//` non è una categoria semantica, è punteggiatura. Sotto quel simbolo l'app ha sempre messo due cose diverse:
+
+```
+// GET https://api.open-meteo.com/v1/forecast                        ← la macchina che parla
+// light pollution is not modelled: the app does not know your sky   ← l'app che parla al lettore
+```
+
+La prima riga è **contenuto del file**: un identificatore, la stessa stringa che esiste altrove nel codice. La seconda è una frase che ha per unico scopo essere capita, e nella lingua sbagliata non fa niente. Stanno nello stesso canale per accidente tipografico, non per parentela.
+
+### L'argomento vero: git è localizzato
+
+Con `LANG=it_IT`, `git status` scrive "Sul branch main", "non c'è nulla di cui eseguire il commit": traduce le frasi e tiene i sostantivi, `branch`, `commit`, `HEAD`, `origin/main` restano. `gcc` fa lo stesso con le diagnostiche. **Gli strumenti su cui è costruita la metafora fanno già esattamente questo split**, quindi un `sky.crontab` con i job in inglese e le note in italiano non è un finto editor tradotto male: è com'è fatto un vero terminale italiano. La finzione non si indebolisce, diventa più fedele — oggi l'app è più inglese di git stesso, e non c'è nessun principio che lo giustifichi.
+
+Il progetto ci era già arrivato tre volte, senza generalizzare: il messaggio di una regola in `alerts.rules` non è localizzato perché "è contenuto dell'utente, nella sua lingua per definizione" (Fase 11), `$ tweather init` lo è perché "è l'unica schermata il cui scopo è farsi capire da chi non legge `git` per mestiere" (14c), `README.md` (10) e `HELP.md` (14d) idem. Il canale dei commenti era l'ultima superficie in cui l'app si rivolge al lettore in una lingua che il lettore potrebbe non leggere.
+
+### La regola nuova
+
+> **La sintassi è la finzione, la lingua è del lettore.** Il codice resta inglese perché è codice, non perché sta dentro un commento.
+
+Tre registri, e il registro decide la lingua — non il canale che lo circonda:
+
+| registro | cos'è | lingua |
+| --- | --- | --- |
+| **Codice** | chiavi, nomi file, id dei job, variabili e operatori delle regole, campi cron, comandi `$`, chrome git (`commit`, `Author:`, `@@`, hash), verdetti (`✓ pass`, `~ unstable`, `✗ fail`), livelli (`ERROR:`, `WARN:`), codici (`net::ERR_*`), licenze, URL | inglese, sempre |
+| **Dati** | valori meteo, nomi città, giorni della settimana, fasi lunari | localizzati (invariato dalla 6b) |
+| **Prosa** | frasi rivolte al lettore, **ovunque si trovino**: `README.md`, `HELP.md`, first run, notifiche, accessibilità **e le righe di commento che sono frasi** | localizzate |
+
+Due test operativi, in quest'ordine:
+
+1. **Tradurlo romperebbe qualcosa?** Un lookup, un nome file, un copia-incolla, l'allineamento con una chiave stampata altrove → è codice, resta inglese.
+2. **git lo tradurrebbe?** git traduce "nothing to commit, working tree clean" e non traduce `commit`. È l'intuizione giusta per ogni caso futuro.
+
+E la **regola della cucitura**, che serve perché quasi nessuna riga è pura: una riga può contenere due registri, e allora si tengono i token e si traduce intorno.
+
+```
+// ERROR: permission denied — gps stays off
+// ERROR: permesso negato — il gps resta spento
+
+// refresh weather_data.json to record the first one
+// aggiorna weather_data.json per registrare il primo
+```
+
+### Cosa cambia in `sky.crontab`, che è la schermata da cui è partita
+
+Cambiano solo le righe intere: l'intestazione `# times are computed per occurrence, not fixed; see each line`, il `// evaluate every enabled job against the forecast in hand:` sopra il comando, e i quattro `//` del blocco finale (soglie, luna, inquinamento luminoso, "un verdetto è l'opinione della previsione, non un'osservazione"). Numeri e simboli dentro quelle righe restano come sono: `≤ 25%`, `≥ 60%`, `≥ 70%`.
+
+Non cambia niente di quello che sta in colonna: `@daily`, `*/30 * * * *`, `@yearly`, `sun.rise`, `golden_hour.am`, `solstice.summer`, `[rm]`, `+ add job`, `$ tweather run sky`, e nel canale dei commenti `~ unstable`, `✓ pass`, `cloud 47%`, `+1m07s vs yesterday`, `in 297d`. `full moon` è un valore meteo, quindi si localizzava già dalla 6b.
+
+**Non è una coincidenza fortunata, è una conseguenza del criterio**: i commenti in colonna sono quasi sempre dati, quelli a riga intera quasi sempre prosa. Il che protegge l'allineamento, che è il costo reale di questa fase — l'italiano è più lungo del 15-20%, e questo repo ha già pagato quel prezzo una volta (`Giorno` → `Gg` nella tabella giornaliera, Fase 11c: tre caratteri erano la differenza tra vedere la colonna Stato e inseguirla in pan).
+
+### I casi di confine, decisi
+
+- **`# stale`, `# amended`** (marcatori di una parola): **inglesi**. Sono della famiglia dei verdetti, e `README.md` dice già la stessa cosa in prosa (Fase 17).
+- **`// ERROR:` / `// WARN:`**: il livello è un token e resta, la frase dopo si traduce. `net::ERR_*` e le righe `GET https://…` restano intere: lì il codice d'errore è la forma *utile* del fatto, dentro un file che è codice.
+- **Intestazioni di file** (`// Tweather Configuration File`, `// Tweather CI — user-defined notification rules`, `// tweather editor canvas`): **inglesi**. Sono la firma dell'artefatto, non un messaggio al lettore: la stessa cosa di uno shebang o di un header di licenza.
+- **`// hint:`**: si traduce anche l'etichetta. Non è un livello di log, è una parola che l'app si è inventata.
+- **`// polling every 60 min`**: parole tradotte, unità no.
+
+### Quello che questa fase NON è
+
+**Non è "rendere l'app amichevole a chi non è tecnico", e sarebbe disonesto scriverlo qui.** Un lettore italiano che non programma continua a vedere `weather_data.json`, `precip_chance`, `cloud_cover`, `solstice.summer`, `@daily`: i commenti sono una frazione di quello che c'è a schermo. Lo strato in lingua piana esiste già ed è progettato apposta — `README.md`, `HELP.md`, le notifiche, l'accessibilità — e thabit lo mette per iscritto (`VISION.md §3.3.7`: nessun termine CI è mai l'unico posto dove un fatto esiste).
+
+La motivazione giusta è un'altra, e regge da sola: **quando l'app parla al lettore, gli parla nella sua lingua.** Va tenuta stretta, perché con la motivazione sbagliata fra sei mesi lo stesso argomento chiederà di tradurre `precip_chance`, e lì la filosofia muore davvero.
+
+**E si applica al 100% o non si applica**: una regola smarcata all'80% non sembra una scelta, sembra una traduzione lasciata a metà. Per questo l'implementazione è una fase chiusa per app, non una rifinitura opportunistica.
+
+- [x] Regola dei tre registri in `CLAUDE.md`, con i due test e la regola della cucitura
+- [x] Intestazioni di `values/strings.xml` e `values-it/strings.xml` riscritte: enunciavano la vecchia regola parola per parola, ed erano il posto in cui la si legge scrivendo una stringa nuova
+- [x] Propagata a `tsteps` e `thabit` (`VISION.md §1.3`, `CLAUDE.md`, intestazioni delle risorse): è una regola di serie, non di questa app
+- [x] Corrette le due formulazioni che dicevano il contrario: `VISION_SKY.md` §4 ("English, like every other code surface") e la 16c qui sopra, che chiamavano codice il *canale* invece dei token che ci passano dentro
+- [x] `README.md` di root e `CHANGELOG.md` **non toccati, deliberatamente**: descrivono l'app spedita, e nel codice i commenti sono ancora inglesi. Aggiornarli adesso sarebbe il file che mente, che è la regola che questo progetto rispetta prima di tutte le altre; si aggiornano con l'implementazione
+- [ ] Implementazione: fase a sé, una per app. **thabit per prima**, perché è quella che ci guadagna di più — i suoi commenti sono già quasi tutti frasi rivolte al lettore (`# tap the command to confirm`, `# a reminder is a nudge — it can arrive a few minutes late`, `# empty to turn it off`, `# how often?`)
+- [ ] Da mettere in conto quando si implementa qui: ~86 letterali di commento e ~70 asserzioni di test che ne congelano il testo inglese. Il pattern per ripararle esiste già (`WeatherReadmeTest` con `@Config(qualifiers="it")`), quindi è lavoro noioso e non lavoro difficile; e ogni riga tradotta va riguardata a 360dp prima di considerarla fatta
 
 ## Note trasversali
 

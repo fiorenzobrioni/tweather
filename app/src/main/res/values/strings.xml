@@ -1,8 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Default locale = English: automatic fallback for unsupported device languages.
-     Rule of the fake-editor design: "code" (JSON keys, filenames, terminal errors,
-     // comments) stays English everywhere; only chrome, accessibility text and
-     user-facing weather DATA values are localized. -->
+
+     L10n rule of the fake-editor design, three registers (PLANNING Fase 18). The
+     REGISTER decides the language, not the punctuation around it:
+
+       CODE  -> always English: JSON keys, filenames, job ids, rule variables and
+                operators, cron fields, $ commands, git chrome (commit, Author:, @@,
+                hashes), verdicts (pass / unstable / fail), levels (ERROR:, WARN:),
+                net::ERR_* codes, licenses, URLs, one-word markers (# stale) and the
+                file banners (// Tweather Configuration File).
+       DATA  -> localized: weather values, city names, day names, moon phases.
+       PROSE -> localized wherever it appears: README.md, HELP.md, first run,
+                notifications, accessibility text, AND the comment lines that are
+                sentences (// tap to enable, // hint: ..., the sky.crontab notes).
+
+     Two tests, in order: would translating it break a lookup, a filename, a
+     copy-paste or the alignment with a key printed elsewhere (then it is code)?
+     would git translate it (git translates "nothing to commit, working tree clean"
+     and never "commit")? One line may hold both registers: keep the tokens and
+     translate around them.
+
+     This replaces the old wording ("// comments stay English"), which mistook the
+     channel for the register. Decided, NOT yet implemented: the comment strings are
+     still hardcoded English in the Kotlin sources. -->
 <resources>
     <string name="app_name" translatable="false">tweather</string>
 

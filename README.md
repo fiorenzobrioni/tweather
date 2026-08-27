@@ -338,6 +338,15 @@ Location is optional and **coarse only** (`ACCESS_COARSE_LOCATION`): city-level 
 is all a forecast needs. There is no background location: the alert worker uses the
 last position you acquired while the app was open, and nothing else.
 
+When an update fails, the files do not go blank. The editor shows the last fetch that
+worked and says so before printing a number: what time it is from and how old it is,
+in each file's own register (a sentence in `README.md`, `// stale: last good fetch 3h
+ago` in the JSON). The hours and days that have already passed are dropped first, so
+what is left is what that fetch always said about the time ahead: a response carries a
+week of forecast, which is why yesterday's is still worth reading today. Past that
+horizon nothing in it is about the present any more, and the app says only that.
+
+
 ---
 
 ## Install

@@ -98,6 +98,8 @@
         <item></item>
         <item>L\'alba, la luna e il resto non si chiedono a nessuno: l\'app li calcola sul telefono, ed è per questo che sono giusti anche senza connessione. Le notifiche riguardano sempre e solo la città attiva, mai una città fissata su un widget.</item>
         <item></item>
+        <item>Quando un aggiornamento non riesce non si svuota niente: i file mostrano l\'ultimo riuscito e dicono in cima di che ora è e quanto tempo è passato. Le ore già trascorse spariscono, così quello che resta è ciò che quell\'aggiornamento diceva delle ore a venire.</item>
+        <item></item>
         <item>## Perché ha questo aspetto</item>
         <item></item>
         <item>Perché un file si legge tutto insieme, e perché ci piace così. E se qualche parola qui sopra resta oscura, non importa: il meteo te lo dice lo stesso.</item>
@@ -283,4 +285,35 @@
     <string name="readme_status_sky_rain_possible">potrebbe piovere (%1$d%%)</string>
     <string name="readme_status_sky_moonlight">la luna sarà alta e illuminata al %1$d%%</string>
     <string name="readme_status_sky_uncertain">le previsioni non promettono un cielo sereno</string>
+
+    <!-- Fase 17: quello che README.md dice di sé stesso -->
+    <string name="readme_note_no_location">Nessuna posizione configurata.</string>
+    <string name="readme_note_search_city">Apri cities.json e cerca una città.</string>
+    <string name="readme_note_gps">Sto cercando la posizione…</string>
+    <string name="readme_note_loading">Aggiornamento in corso…</string>
+    <string name="readme_note_retry">Tocca ( ↻ ) per riprovare.</string>
+    <string name="readme_note_stale">Qui sotto l\'ultimo aggiornamento riuscito, delle %1$s (%2$s).</string>
+    <string name="readme_err_offline">Nessuna connessione: il meteo non si è aggiornato.</string>
+    <string name="readme_err_service">Il servizio meteo non ha risposto (errore %1$d).</string>
+    <string name="readme_err_city">Quella città non è nell\'indice di ricerca.</string>
+    <string name="readme_err_unknown">Qualcosa è andato storto durante l\'aggiornamento.</string>
+    <string name="readme_err_gps_permission">Manca il permesso di posizione: concedilo per usare la tua posizione.</string>
+    <string name="readme_err_gps_off">La localizzazione è spenta su questo dispositivo.</string>
+    <string name="readme_err_gps_timeout">Non è stato possibile determinare la tua posizione.</string>
+    <string name="readme_err_gps_unavailable">La tua posizione non è disponibile in questo momento.</string>
+    <plurals name="age_minutes">
+        <item quantity="one">un minuto fa</item>
+        <item quantity="many">%1$d minuti fa</item>
+        <item quantity="other">%1$d minuti fa</item>
+    </plurals>
+    <plurals name="age_hours">
+        <item quantity="one">un\'ora fa</item>
+        <item quantity="many">%1$d ore fa</item>
+        <item quantity="other">%1$d ore fa</item>
+    </plurals>
+    <plurals name="age_days">
+        <item quantity="one">ieri</item>
+        <item quantity="many">%1$d giorni fa</item>
+        <item quantity="other">%1$d giorni fa</item>
+    </plurals>
 </resources>

@@ -57,7 +57,20 @@ fun WeatherReport.toReadmeMarkdown(
      * only drops the lines the module added to it and the `## Status` line that
      * reports the reader's own subscriptions.
      */
-    sky: SkySummary? = null
+    sky: SkySummary? = null,
+    /**
+     * The moment the document describes, in the city's own time. Defaults to the
+     * report's own `location.localTime` — the clock of the fetch that produced it,
+     * which is the right answer for data that just landed and is what every caller
+     * wanted until Fase 17.
+     *
+     * A document recovered from a fetch the app could not refresh passes the REAL
+     * now: `## Status` asks "is anything coming", and asking it with a clock three
+     * hours slow searches a window that has closed and answers "everything looks
+     * good" every time. A badge that goes quiet because it is looking at the wrong
+     * hours is the one failure mode this section must not have.
+     */
+    now: java.time.LocalDateTime = location.localTime
 ): List<String> = buildList {
     fun s(id: Int, vararg args: Any): String = resources.getString(id, *args)
     fun temp(celsius: Double) = "${decimal1(options.temperature.convert(celsius))}${options.temperature.symbol}"
@@ -114,7 +127,7 @@ fun WeatherReport.toReadmeMarkdown(
             precipitationWarning = true
         ),
         state = AlertState(),
-        now = location.localTime,
+        now = now,
         cityKey = "readme"
     )
     // The sky's one line in this document's one badge (Fase 16e). It is raised only

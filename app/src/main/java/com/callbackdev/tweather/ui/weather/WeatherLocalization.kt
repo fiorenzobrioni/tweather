@@ -2,6 +2,8 @@ package com.callbackdev.tweather.ui.weather
 
 import android.content.res.Resources
 import com.callbackdev.tweather.R
+import com.callbackdev.tweather.domain.WeatherException
+import java.time.Duration
 
 /**
  * Localizes the user-facing weather DATA values (conditions, UV, AQI, pollen, moon
@@ -86,6 +88,62 @@ object WeatherTranslations {
                 val last = value.substringAfterLast(' ')
                 if (last == value || last.any { it in 'A'..'Z' || it in 'a'..'z' }) value
                 else "${translate(value.substringBeforeLast(' '))} $last"
+            }
+        }
+    }
+}
+
+/**
+ * What `README.md` says about ITSELF — the loading line, a failed refresh, data the
+ * app could not update (Fase 17).
+ *
+ * The same facts `weather_data.json` prints as `// ERROR: net::ERR_INTERNET_DISCONNECTED`,
+ * in a language. The JSON keeps the code because a JSON file IS code and the error
+ * string is genuinely useful there; the README is the app's one prose surface, and
+ * `net::ERR_INTERNET_DISCONNECTED` in the middle of it asks somebody who does not read
+ * Chrome's dialect to learn it in order to be told the phone is offline.
+ *
+ * [WeatherException.terminalMessage] stays exactly as it is: it is what the other
+ * three surfaces (JSON, `cities.json`, `settings.config`) render, and this is a
+ * second reading of the same value, not a replacement.
+ */
+object WeatherStateProse {
+
+    /** The failure as a sentence. Total over [WeatherException]. */
+    fun error(resources: Resources, error: WeatherException): String = when (error) {
+        is WeatherException.NoNetwork -> resources.getString(R.string.readme_err_offline)
+        is WeatherException.ApiError -> resources.getString(R.string.readme_err_service, error.code)
+        is WeatherException.CityNotFound -> resources.getString(R.string.readme_err_city)
+        is WeatherException.LocationPermissionDenied ->
+            resources.getString(R.string.readme_err_gps_permission)
+        is WeatherException.LocationDisabled -> resources.getString(R.string.readme_err_gps_off)
+        is WeatherException.LocationTimeout -> resources.getString(R.string.readme_err_gps_timeout)
+        is WeatherException.LocationUnavailable ->
+            resources.getString(R.string.readme_err_gps_unavailable)
+        // Deliberately does NOT print the cause: `panic: unexpected error — …` is a
+        // stack-trace fragment, which is exactly the register this file does not use.
+        is WeatherException.Unknown -> resources.getString(R.string.readme_err_unknown)
+    }
+
+    /**
+     * How old, in words: `3 hours ago`, `un minuto fa`, `ieri`.
+     *
+     * Coarsest unit that still says something — nobody needs `2 hours and 14 minutes`
+     * to decide whether to trust a temperature. Plurals are real plurals: `1 ore fa`
+     * is the kind of thing that makes a reader stop trusting the rest of the page.
+     */
+    fun age(resources: Resources, age: Duration): String {
+        val minutes = age.toMinutes().coerceAtLeast(1)
+        return when {
+            minutes < 60 ->
+                resources.getQuantityString(R.plurals.age_minutes, minutes.toInt(), minutes.toInt())
+            minutes < 60 * 24 -> {
+                val hours = (minutes / 60).toInt()
+                resources.getQuantityString(R.plurals.age_hours, hours, hours)
+            }
+            else -> {
+                val days = (minutes / (60 * 24)).toInt()
+                resources.getQuantityString(R.plurals.age_days, days, days)
             }
         }
     }

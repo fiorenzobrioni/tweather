@@ -10,7 +10,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.callbackdev.tweather.data.MainEditorFile
+import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import java.time.Duration
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -130,6 +132,75 @@ class WeatherTabsTest {
                 )
             }
         }
-        compose.onNodeWithText("<!-- fetching README.md … -->").assertExists()
+        // HTML comments, because it is a markdown file — and a sentence inside them
+        // since Fase 17, because it is the prose one.
+        compose.onNodeWithText("<!-- Updating… -->").assertExists()
+    }
+
+    /**
+     * Fase 17. `net::ERR_INTERNET_DISCONNECTED` is Chrome's name for "the phone is
+     * offline": exactly right in a file that is code, and a vocabulary test in the
+     * one document written for somebody who does not read `git` for a living.
+     */
+    @Test
+    fun `the README says the failure in words and the JSON in codes`() {
+        val state = WeatherUiState(isLoading = false, error = WeatherException.NoNetwork())
+        compose.setContent {
+            TweatherTheme {
+                var active by remember { mutableStateOf(MainEditorFile.README) }
+                val files = editorFiles(skyEnabled = false)
+                WeatherScreen(
+                    state = state,
+                    onRefresh = {},
+                    activeFile = active,
+                    editorFiles = files,
+                    onSelectTab = { active = editorFileAt(it, skyEnabled = false) }
+                )
+            }
+        }
+        compose.onNodeWithText("<!-- No connection: the weather could not be updated. -->")
+            .assertExists()
+        compose.onNodeWithText("<!-- Tap ( ↻ ) to try again. -->").assertExists()
+
+        compose.onNodeWithText("weather_data.json").performClick()
+        compose.onNodeWithText(
+            "// ERROR: net::ERR_INTERNET_DISCONNECTED — check your connection"
+        ).assertExists()
+    }
+
+    /**
+     * Fase 17: a document the app could not refresh says so, in each file's own
+     * register, BEFORE the numbers it is about to print.
+     */
+    @Test
+    fun `a stale document announces its age above itself`() {
+        val report = sampleWeatherReport()
+        val state = WeatherUiState(
+            report = report,
+            isLoading = false,
+            error = WeatherException.NoNetwork(),
+            staleFor = Duration.ofHours(3)
+        )
+        compose.setContent {
+            TweatherTheme {
+                var active by remember { mutableStateOf(MainEditorFile.README) }
+                val files = editorFiles(skyEnabled = false)
+                WeatherScreen(
+                    state = state,
+                    onRefresh = {},
+                    activeFile = active,
+                    editorFiles = files,
+                    onSelectTab = { active = editorFileAt(it, skyEnabled = false) }
+                )
+            }
+        }
+        // 09:30 in America/New_York, the sample's last sync
+        compose.onNodeWithText(
+            "<!-- Below is the last update that worked, from 09:30 (3 hours ago). -->"
+        ).assertExists()
+        compose.onNodeWithText("# New York").assertExists()
+
+        compose.onNodeWithText("weather_data.json").performClick()
+        compose.onNodeWithText("// stale: last good fetch 3h ago").assertExists()
     }
 }

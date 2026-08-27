@@ -897,6 +897,47 @@ Costerebbe una **seconda sorgente dati** (TLE da CelesTrak: gratis e senza chiav
 Fuori perimetro anche pianeti, congiunzioni ed eclissi: ognuna vuole vero lavoro di effemeridi e una decisione sua. **Rinviate, non respinte** — il catalogo è una lista di valori `SkyJob`, quindi ognuna può arrivare dopo senza toccare formato del file, renderer o store.
 
 
+## Fase 16g — Il `## Stato` del README parla la lingua del README
+
+**Segnalazione del committente (27 ago 2026), con screenshot.** In `README.md` la sezione `## Astronomia` è in prosa, come deve essere, mentre la riga che il cielo mette in `## Stato` era:
+
+```
+> golden_hour.pm alle 19:21: ✗ fail  cloud 100%
+```
+
+L'id puntato di `sky.crontab` e il render del suo canale commenti, in mezzo all'unica pagina che questa app scrive in una lingua. Non è una questione di tono: `README.md` è prosa dalla Fase 10 — **headings compresi**, che è la deroga esplicita alla regola "le chiavi restano inglesi" — e quella riga chiedeva di conoscere il vocabolario di un altro file per farsi dire che sarà nuvoloso. La 16e l'aveva scritta contro la propria spec: `VISION_SKY.md` §9.1 dà come esempio `> Blue hour looks compromised: 45% cloud forecast at 20:22`, cioè una frase.
+
+Adesso, stesso verdetto e stesso numero:
+
+```
+> 🌇 L'ora d'oro della sera alle 19:21: il cielo sarà coperto (nuvole al 100%)
+> 🌇 The evening golden hour at 19:21: the sky will be overcast (100% cloud)
+```
+
+**La cifra sopravvive alla traduzione.** `VISION_SKY.md` §7 chiede il numero accanto al verdetto: un verdetto senza la cifra da cui è nato è un'opinione, e questa app non stampa opinioni. Mettere in prosa non voleva dire ammorbidire — `il cielo sarà coperto` senza il `100%` sarebbe stato *meno* onesto della riga tecnica che sostituisce, non più leggibile.
+
+**L'id non si localizza: si traduce solo dove si legge.** `SkyJob.id` resta inglese e puntato ovunque (§4): è quello che `sky.crontab` stampa, che lo store persiste e che il log mette sulla check line, e sono tutte superfici di codice. `ui/sky/SkyJobNames.kt` è il **dizionario** fra le due, e vive nel layer UI perché è un fatto di lettura, non di dominio: niente di quello che c'è dentro può arrivare al crontab.
+
+**Il dizionario è totale, e un test lo pretende.** Un job senza nome ricadrebbe sul proprio id — che *è* il bug — quindi `SkyJobNamesTest` cammina su tutto `SkyJobCatalog.all` nelle due lingue e pretende un nome diverso dall'id e senza punti dentro. Trentadue job più dieci sciami: chi aggiunge il trentatreesimo lo scopre dalla suite, non da uno screenshot fra sei mesi. Gli sciami hanno le loro dieci stringhe separate dalla frase (`Il picco delle %1$s` / `The peak of the %1$s`), perché il nome dello sciame è lo stesso in tutte e due le lingue mentre la frase intorno non lo è.
+
+**Il motivo davanti alle nuvole.** `skyVerdictProse` guarda prima la `note` e poi il cielo: pioggia e luna sono *loro* la ragione del verdetto, e stampare la nuvolosità per una notte rovinata dalla luna sarebbe la stessa bugia della 16d in un carattere più gentile. Solo `~ unstable` e `✗ fail` arrivano al README (li filtra `SkyReadme.warning`) e portano sempre la propria cifra: l'ultimo ramo è una rete, non un caso.
+
+**Il costo dichiarato: la riga è più lunga.** `> 🌇 L'ora d'oro della sera alle 19:21: il cielo sarà coperto (nuvole al 100%)` sono ~76 caratteri contro i ~46 di prima, e sullo schermo del committente ne entrano una quarantina: il motivo va cercato con uno scroll, dove prima si intravedeva `✗ fail`. Accettato, e non compensato accorciando: il verbo è quello che distingue `~ unstable` da `✗ fail` (*potrebbe essere nuvoloso* contro *sarà coperto*), quindi una frase nominale avrebbe fatto risparmiare otto caratteri buttando via l'unica informazione che il verdetto porta. Quello che si vede senza scrollare adesso è *quale* cosa e *a che ora*, in parole; prima era un id e un glifo. E il documento scorre in orizzontale per progetto — le due tabelle sono più larghe di questa riga da sempre.
+
+**L'ordine è nome-prima, e non è un gusto: è grammatica.** Le altre due righe di `## Stato` mettono il motivo davanti (`⚠️ Temporale in arrivo verso le 14:00`), che per un badge sarebbe meglio anche qui. Non si può: in italiano il nome del job entrerebbe dopo una preposizione (*per l'ora d'oro*, *per il tramonto*, *per la finestra di buio*) e comporre una preposizione articolata con un pezzo di testo che arriva da `strings.xml` è il classico modo di generare *per Il tramonto*. Il nome tiene il proprio articolo e sta in testa, dove nessuna lingua deve accordarsi con lui.
+
+**L'emoji viene dal job, non dalla riga.** Le altre due righe di `## Stato` aprono con `⚠️` e `🌧️`; questa apre con quella del job (`🌅` `🌇` `🌆` `🌌` `🌙` `🌠`), così la riga dice di cosa parla prima di dire cosa c'è che non va. Sta in `SkyJobNames` e non nel catalogo per lo stesso motivo dei nomi: `sky.crontab` non renderizza emoji, le sue righe sono codice.
+
+- [x] `ui/sky/SkyJobNames.kt`: i 32 job e i 10 sciami in parole, EN/IT, più l'emoji per famiglia
+- [x] `skyVerdictProse` in `WeatherReadme.kt`: pioggia / luna / nuvole, ognuna con la sua cifra
+- [x] Test: la riga parola per parola in EN e in IT, il motivo giusto per pioggia e per luna, e il dizionario totale sul catalogo
+- [x] Suite verde (560 test, +6) e lint pulito (gli stessi warning di prima, tutti preesistenti)
+
+**Il resto del documento era già a posto.** Riletto tutto `toReadmeMarkdown` riga per riga cercando la stessa classe di errore: intestazioni, `## Stato` builtin, tabelle, qualità dell'aria, condizioni, astronomia e piè di pagina passano tutti da `strings.xml` o da `WeatherTranslations`, i giorni della settimana dal `Locale`, e `∅` è un glifo dichiarato (Fase 16e), non una parola non tradotta.
+
+**Una cosa resta, ed è una decisione del committente, non una svista mia:** la direzione del vento (`Vento: 2.9 km/h W`) non è localizzata. In italiano quel punto cardinale si scrive `O`, e con lui `NO`, `SO`, `ONO`, `OSO`, `NNO`, `SSO`: sette dei sedici punti sono sbagliati per un lettore italiano. **Non l'ho toccata qui** perché non è un messaggio, è un *valore* — lo stesso che stampa `weather_data.json`, che finisce negli snapshot Room come `current.wind_dir` e che il widget rende — quindi tradurlo è una riga in `WeatherTranslations` più una decisione su tre superfici, e la regola "i valori si traducono, le chiavi no" direbbe di farlo su tutte e tre insieme. Fase a parte, se si vuole.
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

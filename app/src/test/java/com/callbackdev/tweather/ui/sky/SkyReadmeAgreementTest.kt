@@ -27,6 +27,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * **The agreement test** (`VISION_SKY.md` §9.1 and §14): the numbers in the README's
@@ -205,7 +206,67 @@ class SkyReadmeAgreementTest {
         val status = section(readme(report, summary), "Status")
         val warnings = status.filter { it.startsWith("> ") }
         assertEquals("exactly one sky line, or Status stops being a badge", 1, warnings.size)
-        assertTrue(warnings.single(), warnings.single().contains("✗ fail"))
+        assertTrue(warnings.single(), warnings.single().contains("overcast"))
+    }
+
+    /**
+     * **The line is prose** (Fase 16g). It used to read
+     * `> golden_hour.pm at 19:32: ✗ fail  cloud 95%`: the crontab's dotted id and the
+     * crontab's verdict, dropped into the one document this app writes in a language.
+     * The job arrives by name and the verdict as a sentence — and the NUMBER survives,
+     * because a verdict without the figure it was built from is an opinion
+     * (`VISION_SKY.md` §7).
+     */
+    @Test
+    fun `the sky's line in Status is a sentence, not a crontab row`() {
+        val report = report(cloud = 95)
+        val summary = SkyReadme.summarize(context(report), allJobs)
+        val line = section(readme(report, summary), "Status").single { it.startsWith("> ") }
+
+        assertEquals("> 🌇 The evening golden hour at 19:32: the sky will be overcast (95% cloud)", line)
+        assertFalse(line, line.contains("golden_hour"))
+        assertFalse(line, line.contains("fail"))
+        assertFalse(line, line.contains("✗"))
+    }
+
+    /** The same line in Italian: the whole point of naming the job in a resource. */
+    @Test
+    @Config(qualifiers = "it")
+    fun `the sky's line is localized like the rest of the document`() {
+        val report = report(cloud = 95)
+        val summary = SkyReadme.summarize(context(report), allJobs)
+        val line = section(readme(report, summary), "Stato").single { it.startsWith("> ") }
+
+        assertEquals(
+            "> 🌇 L'ora d'oro della sera alle 19:32: il cielo sarà coperto (nuvole al 95%)",
+            line
+        )
+    }
+
+    /**
+     * Rain and moonlight are named for what they are: the cloud number is not the
+     * reason in either case, and printing it would be the file blaming the sky for a
+     * night the moon ruined.
+     */
+    @Test
+    fun `the reason the sky said no is the reason the line gives`() {
+        val rainy = report(cloud = 10, rain = 80)
+        val summary = SkyReadme.summarize(context(rainy), allJobs)
+        // Rain at 80% also trips the builtin precipitation alert, which is the older
+        // line of the two and reads first: the sky's is the one that names a job.
+        val line = section(readme(rainy, summary), "Status").last { it.startsWith("> ") }
+        assertEquals("> 🌇 The evening golden hour at 19:32: rain is likely (80%)", line)
+
+        // 26 Aug 2026: the moon is nearly full and up all night, so the dark window is
+        // `~ unstable` under a perfectly clear sky — the one verdict the clouds did
+        // not decide.
+        val clear = report(cloud = 5)
+        val darkness = listOf(SkySubscription("darkness.window"))
+        val moonlit = SkyReadme.summarize(context(clear), darkness)
+        val moon = section(readme(clear, moonlit), "Status").single { it.startsWith("> ") }
+        assertTrue(moon, moon.startsWith("> 🌌 The dark sky window at "))
+        assertTrue(moon, moon.contains("the moon will be up and "))
+        assertFalse(moon, moon.contains("cloud"))
     }
 
     @Test

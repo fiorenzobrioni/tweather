@@ -213,6 +213,8 @@ $ tweather run sky
 - **English, like every other code surface in the app.** Job names, cron expressions and
   the verdict words are code; the localized register lives in the README (§9) and in the
   accessibility announcements (§14). Same rule as `weather_data.json` and `alerts.rules`.
+  The README does not print the id at all: it looks the job up by name (§9.1), which is
+  the only direction this translation ever goes — nothing localized reaches the file.
 
 ### Editing it
 
@@ -476,8 +478,15 @@ already the only place in the document that speaks in `>` blockquotes:
 
 ```
 ## Status
-> Blue hour looks compromised: 45% cloud forecast at 20:22.
+> 🌆 The evening blue hour at 20:22: the sky may be cloudy (45% cloud)
 ```
+
+**The job arrives by NAME and the verdict as a sentence** (Fase 16g). Fase 16e shipped
+this line as `blue_hour.pm at 20:22: ~ unstable  cloud 45%` — the dotted id and the
+comment channel's render, both of which are `sky.crontab`'s grammar, in the middle of the
+one document this app writes in a language. `ui/sky/SkyJobNames.kt` is the dictionary
+between the two and lives in the UI layer: the id itself never moves (§4). The number
+does not soften on the way over — §7 applies here exactly as it does in the file.
 
 It is raised only for an **enabled, visibility-dependent job in the next 12 hours whose
 verdict is not `✓ pass`** — so the section reports your subscriptions, and someone who

@@ -96,6 +96,13 @@ All notable changes to tweather are documented here. The format follows
   (Open-Meteo's `uv_index_max`, fetched and parsed all along but never mapped into the
   domain). The instant value keeps its place in `weather_data.json`'s
   `current_conditions`, where the key says what it is.
+- `README.md`, `## Status`: the sky's warning line spoke the crontab's language. It read
+  `golden_hour.pm at 19:21: ✗ fail  cloud 100%`, which is a row of `sky.crontab` dropped
+  into the one page this app writes in prose. It now names the job and says what will go
+  wrong in a sentence, in your language: `🌇 The evening golden hour at 19:21: the sky
+  will be overcast (100% cloud)`. The number stays, because a verdict without the figure
+  it was built from is an opinion. The dotted job names keep their place in
+  `sky.crontab`, where they are code.
 
 ### Added
 

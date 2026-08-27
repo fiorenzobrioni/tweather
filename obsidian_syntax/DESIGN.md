@@ -165,3 +165,25 @@ Styled as single-line prompts (e.g., `> Search Location _`). Use a blinking unde
 
 ### Checkboxes & Radios
 Represented as code-style brackets: `[x]` for checked, `[ ]` for unchecked. These are interactive but rendered using the typography style rather than native OS controls.
+
+### Crontab Lines (`sky.crontab`, Fase 16)
+Three token roles, and **no new hue for any of them** — the module borrows what the
+palette already has rather than teaching the eye a fourth vocabulary:
+
+- **Cron expression** (`@daily`, `@yearly`, a polling expression): **Numbers** orange.
+  It is a literal, the same kind of thing a temperature is, and it is the one token on
+  the line the user cannot change.
+- **Job name** (`sun.set`, `meteor.perseids.peak`): default **on-surface**, like an
+  identifier in an editor. It is the line's tap target, and primary is reserved for
+  the token whose picker is open — the rule `alerts.rules` already set.
+- **Verdict glyph** (`✓ pass`, `~ unstable`, `✗ fail`, `? unknown`): the diff colors,
+  **additions green** for a pass and **deletions red** for a fail, with numbers orange
+  for unstable and **comments gray** for unknown. A verdict is a build result and this
+  app already has a color for "this went well" and "this did not".
+- A **commented-out line** goes comments gray end to end, cron field included: it is a
+  comment now, and a comment does not keep half its syntax coloring. The `#` lives
+  inside the column padding so a disabled line keeps its alignment.
+
+The `∅` of an event that does not happen, and the `–` of a run no fetch came near
+enough to judge, are both comments gray: the app is saying it has nothing, and nothing
+is not an alert.

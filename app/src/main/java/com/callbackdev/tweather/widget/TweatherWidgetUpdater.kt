@@ -6,10 +6,14 @@ import android.content.Context
 import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.LocationSettings
 import com.callbackdev.tweather.data.ServiceLocator
+import com.callbackdev.tweather.data.SkySubscription
+import com.callbackdev.tweather.ui.sky.SkyContext
+import com.callbackdev.tweather.ui.sky.SkyWidgetLine
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.GpsCityId
 import com.callbackdev.tweather.ui.weather.WeatherTranslations
 import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 
@@ -35,7 +39,10 @@ object TweatherWidgetUpdater {
 
         val settings = ServiceLocator.settingsStore(context).settings.first()
         val cityStore = ServiceLocator.cityStore(context)
-        val pinned = ServiceLocator.widgetCityStore(context).current()
+        val widgetCityStore = ServiceLocator.widgetCityStore(context)
+        val pinned = widgetCityStore.current()
+        val wantsSkyLine = widgetCityStore.currentSkyLine()
+        val subscriptions = ServiceLocator.skySubscriptionStore(context).subscriptions.first()
         val activeSource = cityStore.activeSource.first()
         val saved = cityStore.cities.first()
         val location = cityStore.locationSettings.first()
@@ -46,8 +53,15 @@ object TweatherWidgetUpdater {
 
         // Instances usually share one city; render once per distinct city and push
         // the same RemoteViews to the whole group.
-        ids.groupBy { resolveCity(pinned[it], activeSource, saved, location) }
-            .forEach { (city, groupIds) ->
+        // Grouped by city AND by whether the sky line is wanted (Fase 16e): two
+        // widgets on the same city can disagree about that one line, and rendering
+        // once per group is still one render for the overwhelmingly common case.
+        ids.groupBy {
+            resolveCity(pinned[it], activeSource, saved, location) to
+                (settings.skyEnabled && it in wantsSkyLine)
+        }
+            .forEach { (group, groupIds) ->
+                val (city, withSky) = group
                 val entry = city
                     ?.let { ServiceLocator.weatherRepository(context).historyFor(it, limit = 1) }
                     ?.firstOrNull()
@@ -55,6 +69,11 @@ object TweatherWidgetUpdater {
                     runCatching {
                         Json.decodeFromString<Map<String, String>>(it.snapshotJson)
                     }.getOrNull()
+                }
+                val skyLine = if (withSky && city != null) {
+                    skyLineFor(context, city, subscriptions, settings.updateFrequencyMin, now)
+                } else {
+                    null
                 }
                 val content = { tier: WidgetTier ->
                     WidgetContentBuilder.build(
@@ -65,7 +84,8 @@ object TweatherWidgetUpdater {
                         tier = tier,
                         translate = translate,
                         updateFrequencyMin = settings.updateFrequencyMin,
-                        now = now
+                        now = now,
+                        skyLine = skyLine
                     )
                 }
                 manager.updateAppWidget(
@@ -92,7 +112,10 @@ object TweatherWidgetUpdater {
         )
         if (ids.isEmpty()) return emptyList()
         // Placed instances only: a pin that outlived a missed onDeleted costs no fetch
-        val pinned = ServiceLocator.widgetCityStore(context).current()
+        val widgetCityStore = ServiceLocator.widgetCityStore(context)
+        val pinned = widgetCityStore.current()
+        val wantsSkyLine = widgetCityStore.currentSkyLine()
+        val subscriptions = ServiceLocator.skySubscriptionStore(context).subscriptions.first()
         val pins = ids.toList().mapNotNull { pinned[it] }.distinct()
         if (pins.isEmpty()) return emptyList()
 
@@ -134,4 +157,31 @@ object TweatherWidgetUpdater {
         // it — `# no data yet — open tweather`.
         ActiveSource.None -> null
     }
+    /**
+     * The widget's sky line, from the report the app already has. Null when nothing
+     * is subscribed or when there is no next job to name — never a placeholder: a
+     * line that says nothing costs the same room as one that says something.
+     */
+    private suspend fun skyLineFor(
+        context: Context,
+        city: City,
+        subscriptions: List<SkySubscription>,
+        updateFrequencyMin: Int,
+        now: Instant
+    ): String? {
+        val report = ServiceLocator.weatherRepository(context).cachedReport(city)
+        val zone = runCatching { ZoneId.of(city.timezone) }.getOrElse { ZoneId.systemDefault() }
+        return SkyWidgetLine.of(
+            subscriptions,
+            SkyContext(
+                cityLabel = city.label,
+                coordinates = city.coordinates,
+                zone = zone,
+                now = now,
+                report = report,
+                updateFrequencyMin = updateFrequencyMin
+            )
+        )
+    }
+
 }

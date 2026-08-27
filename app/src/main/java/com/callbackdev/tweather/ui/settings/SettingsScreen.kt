@@ -44,6 +44,7 @@ import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.AppSettings
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.WindSpeedUnit
+import com.callbackdev.tweather.domain.sky.SkyLead
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
@@ -85,6 +86,9 @@ class SettingsActions(
     val onDailySummary: (Boolean) -> Unit,
     val onPrecipWarning: (Boolean) -> Unit,
     val onUserRules: (Boolean) -> Unit,
+    val onSkyEnabled: (Boolean) -> Unit,
+    val onCycleSkyNotifyDefault: () -> Unit,
+    val onSkyNotifyOnFail: (Boolean) -> Unit,
     val onCycleFrequency: () -> Unit,
     val onCycleWidgetOpacity: () -> Unit,
     val onOpenUrl: (String) -> Unit,
@@ -334,6 +338,9 @@ fun SettingsScreen(
             onDailySummary = gated(viewModel::setDailySummary),
             onPrecipWarning = gated(viewModel::setPrecipitationWarning),
             onUserRules = gated(viewModel::setUserRules),
+            onSkyEnabled = viewModel::setSkyEnabled,
+            onCycleSkyNotifyDefault = viewModel::cycleSkyNotifyDefault,
+            onSkyNotifyOnFail = gated(viewModel::setSkyNotifyOnFail),
             onCycleFrequency = viewModel::cycleUpdateFrequency,
             onCycleWidgetOpacity = viewModel::cycleWidgetOpacity,
             onOpenUrl = uriHandler::openUri,
@@ -543,6 +550,40 @@ private fun buildSettingsLines(
         comma = false, hint = "// alerts.rules", syntax = syntax,
         onClickLabel = changeLabel("user_rules")) {
         actions.onUserRules(!settings.notifications.userRules)
+    })
+    add(punctLine("},", 1, syntax))
+
+    // Three keys since Fase 16f, and not one more: `VISION_SKY.md` §10 sketched
+    // eight, and the five that went are the ones the file already answers — the
+    // verdict thresholds are printed in `sky.crontab` itself, and the horizon is a
+    // fact about the forecast rather than a preference.
+    add(keyOpenLine("sky", 1, syntax))
+    add(boolLine("enabled", settings.skyEnabled, comma = true,
+        hint = "// sky.crontab in the editor", syntax = syntax,
+        onClickLabel = changeLabel("enabled")) {
+        actions.onSkyEnabled(!settings.skyEnabled)
+    })
+    add(
+        CodeLine(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.key)) { append("\"notify_default\"") }
+                withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+                withStyle(SpanStyle(color = syntax.string)) {
+                    append("\"${SkyLead.ofMinutes(settings.skyNotifyDefaultMin).label}\"")
+                }
+                withStyle(SpanStyle(color = syntax.comment)) {
+                    append(",  // every sky.crontab line without its own; 15m floor")
+                }
+            },
+            indent = 2,
+            onClick = actions.onCycleSkyNotifyDefault,
+            onClickLabel = changeLabel("notify_default")
+        )
+    )
+    add(boolLine("notify_on_fail", settings.skyNotifyOnFail, comma = false,
+        hint = "// remind me even if it will not be visible", syntax = syntax,
+        onClickLabel = changeLabel("notify_on_fail")) {
+        actions.onSkyNotifyOnFail(!settings.skyNotifyOnFail)
     })
     add(punctLine("},", 1, syntax))
 
@@ -765,7 +806,9 @@ private fun SettingsScreenPreview() {
     TweatherTheme {
         SettingsScreen(
             settings = AppSettings(),
-            actions = SettingsActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            actions = SettingsActions(
+                {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+            )
         )
     }
 }

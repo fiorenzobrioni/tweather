@@ -18,7 +18,7 @@ It is a real weather app underneath: live data, background alerts, notification 
 you write yourself, a home-screen widget. The editor is the interface, not a skin over
 a list of cards.
 
-| `weather_data.json` | `weather_history.diff` | `settings.config` |
+| `weather_data.json` | `history.diff` | `settings.config` |
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/main-json.jpg" width="250" alt="The forecast rendered as syntax-highlighted JSON"> | <img src="docs/screenshots/logs-history.jpg" width="250" alt="Update history as a git diff"> | <img src="docs/screenshots/settings.jpg" width="250" alt="Settings as an editable config file"> |
 
@@ -180,7 +180,76 @@ condition goes false again, the forecast ones fire once per half-day.
 Evaluation rides the fetch the alerts already schedule, so the whole feature costs no
 extra battery: no new job, no extra request, no extra wakeup.
 
-### `weather_history.diff`: the update log
+### `sky.crontab`: what the sky has scheduled
+
+`weather_data.json` says what the atmosphere is doing now. `sky.crontab` says what the
+sky above the same city has scheduled next, and whether the clouds will let it happen.
+
+The sky is the only scheduler that has never missed a run: the sun rises, the moon
+turns, a meteor shower peaks on a date you could have known ten years ahead. So the
+file is a crontab. Every job carries a build verdict from the forecast the app already
+has.
+
+```
+# sky.crontab · Milan, Lombardy (Europe/Rome)
+# 7 jobs · next: golden_hour.pm in 1h 2m ✓
+
+@daily   sun.set              [rm]  # 20:12   ✓ pass  cloud 8%   −1m46s vs yesterday
+@daily   golden_hour.pm       [rm]  # 19:32..20:12   ✓ pass  cloud 8%
+@daily   darkness.window      [rm]  # 22:01..04:49   ~ unstable  moon 99% and up
+@yearly  meteor.perseids.peak [rm]  # 2027-08-13 00:32..04:22   ? unknown
+
+// pass ≤ 25% cloud · fail above 65% · rain ≥ 70% fails it whatever the sky does
+// a verdict is the forecast's opinion, not an observation; it will change
+```
+
+A crontab line asserts a fixed schedule, and sunrise is not fixed: it drifts a minute a
+day and jumps an hour at the daylight saving boundary. Real crontabs already solved
+this. Somebody who has to run a job at a computed moment writes a recurrence and lets
+the job work the moment out, documenting the resolved value in a comment. So the cron
+field states the recurrence, which is true, and the instant lives in the comment
+channel, where a crontab puts computed facts. Every expression the app renders parses
+under a real cron parser: that is a unit test, not a promise.
+
+The schedule is computed on the device from your latitude, so it is right in airplane
+mode and right past the seven day forecast horizon. The verdicts are not: past where
+the forecast ends the file says `? unknown` and why, and it never guesses. Nothing
+about light pollution is modelled, because there is no free source worth trusting and
+inventing a number would be the app lying. The file says that too, every time you open
+it.
+
+Edited by tapping, like `alerts.rules`: the job name comments the line out (which is
+how everyone disables a cron job), `[rm]` takes it out of the file, `+ add job` adds one
+back from the catalog. `$ tweather run sky` lines every enabled job up under itself.
+
+A line can also tell you before its time. Set `notify_default` in `settings.config` and
+every line grows a `--notify` token you can cycle per job: `off · 15m · 30m · 1h · 3h ·
+1d`. The reminder carries the verdict and the number behind it, so it says whether it is
+worth going out rather than only that something is about to happen, and one for a sky
+that will not cooperate is held back unless you ask for it. Fifteen minutes is the
+shortest lead on offer because the reminder is approximate by a few minutes: an exact
+one would cost battery all day, and a sunset is not an alarm clock. Nothing is sent
+until you ask for it, and only ever for the active city.
+
+### `sky_runs.log`: what the sky actually did
+
+The third file in the log. Not a `.diff`, because it records outcomes rather than
+changes, and calling it a diff would be the same kind of lie the crontab avoided.
+
+```
+# Aug 26
+20:12  sun.set          ✓ pass       cloud   8%  obs +12m
+20:43  blue_hour.pm     ✗ fail       cloud  92%  obs +6m
+# 1 passed · 1 failed
+```
+
+`obs` is how far the observing fetch was from the event. It is printed because a
+verdict resolved from a reading ninety minutes away is a weaker claim than one from a
+reading five minutes away, and hiding that distance would be dishonest. When no fetch
+came near enough at all, the run is recorded as skipped and no verdict is invented: it
+counts in no statistic.
+
+### `history.diff`: the update log
 
 Every fetch is committed. The diff is computed between consecutive snapshots of the
 same city, so you can see exactly what moved and when. A rule that fired on that data
@@ -199,9 +268,9 @@ diff --git a/weather_data.json b/weather_data.json
 +  "current.humidity_pct": 75
 ```
 
-### `weather_forecast.diff`: how the forecast changed
+### `forecast.diff`: how the forecast changed
 
-The second file in the log answers a different question. `weather_history.diff` diffs
+The second file in the log answers a different question. `history.diff` diffs
 *observations*, one moment against the moment before. This one diffs *predictions* for
 the same future day: how much has tomorrow changed since the app last looked?
 
@@ -263,7 +332,7 @@ showing. Background opacity is configurable. Its configuration screen is a file 
 | Current, hourly, daily, sunrise/sunset | Forecast API |
 | AQI, pollutants, pollen *(Europe only)* | Air Quality API |
 | City search | Geocoding API |
-| Moon phase | computed locally, since the API does not provide it |
+| Sun, moon, twilight, meteor showers | computed locally, since the API does not provide them |
 
 Location is optional and **coarse only** (`ACCESS_COARSE_LOCATION`): city-level accuracy
 is all a forecast needs. There is no background location: the alert worker uses the

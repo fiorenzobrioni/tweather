@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -66,10 +67,36 @@ class WidgetCityStore(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    /**
+     * Which widgets show the optional sky line (Fase 16e). Per widget, not per app:
+     * two widgets can pin two cities, and one of them may be the one somebody put on
+     * a screen to watch the sky. Absent means off, which is the default — an existing
+     * widget must not change shape because the app updated.
+     */
+    val skyLine: Flow<Set<Int>> = dataStore.data
+        .map { prefs ->
+            prefs.asMap().keys
+                .mapNotNull { it.name.removePrefix(SkyKeyPrefix).takeIf { n -> n != it.name } }
+                .mapNotNull { it.toIntOrNull() }
+                .filter { prefs[skyKey(it)] == true }
+                .toSet()
+        }
+        .distinctUntilChanged()
+
+    suspend fun currentSkyLine(): Set<Int> = skyLine.first()
+
+    suspend fun setSkyLine(appWidgetId: Int, enabled: Boolean) {
+        dataStore.edit { it[skyKey(appWidgetId)] = enabled }
+    }
+
     private fun key(appWidgetId: Int) = longPreferencesKey("$KeyPrefix$appWidgetId")
+
+    private fun skyKey(appWidgetId: Int) = booleanPreferencesKey("$SkyKeyPrefix$appWidgetId")
 
     companion object {
         private const val KeyPrefix = "widget_city_"
+
+        private const val SkyKeyPrefix = "widget_sky_"
 
         fun create(context: Context) = WidgetCityStore(context.widgetCitiesDataStore)
     }

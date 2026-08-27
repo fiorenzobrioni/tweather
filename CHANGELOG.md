@@ -8,6 +8,40 @@ All notable changes to tweather are documented here. The format follows
 
 ### Added
 
+- `sky.crontab`, a third file in the editor's tab bar: what the sky above the active
+  city has scheduled next — sunrise and sunset, the golden and blue hours, the three
+  twilights, moonrise and moonset, solstices, the major meteor showers — written as a
+  real crontab, with the recurrence in the cron field and the computed instant in the
+  comment beside it. Every line that is a sight to go outside for also carries a
+  verdict from the forecast the app already has: `✓ pass  cloud 8%`, `~ unstable`,
+  `✗ fail  rain 80%`, and `? unknown` when there is nothing recent enough to say.
+  Nothing here needs the network: the schedule is computed on the device, so it is
+  right in airplane mode. Edited by tapping, like `alerts.rules`: the job name
+  comments the line out, `[rm]` takes it out of the file, `+ add job` adds one back.
+  `$ tweather run sky` lines every enabled job up under itself. Switched on and off
+  by `sky.enabled` in `settings.config`.
+- `sky_runs.log`, a third file in the log: what the sky was actually seen to do, one
+  line per job, grouped by day with a count at the foot of each. It records outcomes
+  rather than changes, which is why it is a `.log` and not a `.diff`. Each line carries
+  how far the observing update was from the event, and a job no update came near enough
+  to judge is recorded as skipped rather than guessed at. The same runs appear as check
+  lines on the commit that observed them in `weather_history.diff`.
+- The city's `README.md` grew its `## Astronomy` section: the golden and blue hours,
+  the astronomical dark window and the part of it the moon leaves alone, and the moon's
+  own rise, set and illumination. If a job you subscribed to in `sky.crontab` is coming
+  in the next twelve hours under a sky that will not cooperate, `## Status` says so in
+  one line.
+- The home widget can show one optional line with the next sky job and its verdict.
+  Off by default, and the first line dropped when the widget has less room.
+- Sky reminders. A line of `sky.crontab` can tell you before its time: tap its
+  `--notify` token to cycle `off · 15m · 30m · 1h · 3h · 1d`. The reminder carries the
+  verdict and the number behind it, so it says whether it is worth going out rather
+  than only that something is about to happen; one for a sky that will not cooperate
+  is held back unless you ask for it with `notify_on_fail`. The reminder is
+  approximate by a few minutes on purpose, which is why fifteen is the shortest lead:
+  an exact one would cost battery all day for a sunset that is not an alarm clock.
+  Set `notify_default` in `settings.config` to give every line the same lead at once;
+  it starts off, so nothing is sent until you ask for it.
 - `$ tweather init`: the first run now asks where you are — your position, a city
   search, or skip — instead of assuming. Skipping lands on an editor that says
   `// no location configured` and offers the search, which is also what you get if
@@ -20,6 +54,15 @@ All notable changes to tweather are documented here. The format follows
 
 ### Changed
 
+- Sunrise, sunset and daylight are now computed on the phone rather than read off the
+  provider's response. They agree with it to within a minute, and they are now the same
+  numbers everywhere in the app, correct without a connection and correct past the
+  seven day forecast. Where the sun does not rise or set at all, the app says so
+  instead of printing another time in its place.
+- The two log files lost their `weather_` prefix: they are `history.diff` and
+  `forecast.diff` now. It was the only place in the app where a file said it was about
+  the weather, which every file here is, and the sixteen characters it cost were what
+  kept the third log file off the edge of the screen.
 - The bottom bar now ends on Settings, like every other Android app and like tsteps
   and thabit: Editor, Search, Logs, Settings. The Logs tab also swaps its terminal
   glyph for the commit one (a dot on a branch line), which is what

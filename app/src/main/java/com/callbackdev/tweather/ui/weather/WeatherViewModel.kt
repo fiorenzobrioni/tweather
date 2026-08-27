@@ -10,19 +10,27 @@ import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.LocationProvider
 import com.callbackdev.tweather.data.MainEditorFile
 import com.callbackdev.tweather.data.ServiceLocator
+import com.callbackdev.tweather.data.DefaultUpdateFrequencyMin
 import com.callbackdev.tweather.data.SettingsStore
+import com.callbackdev.tweather.data.SkySubscriptionStore
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.data.WorkspaceStore
 import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.WeatherReport
 import com.callbackdev.tweather.domain.model.toGpsCity
+import com.callbackdev.tweather.ui.sky.SkyContext
+import com.callbackdev.tweather.ui.sky.SkyReadme
+import com.callbackdev.tweather.ui.sky.SkySummary
+import java.time.Clock
 import java.time.Duration
+import java.time.ZoneId
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -50,7 +58,9 @@ class WeatherViewModel(
     private val cityStore: CityStore,
     settingsStore: SettingsStore,
     private val locationProvider: LocationProvider,
-    private val workspaceStore: WorkspaceStore
+    private val workspaceStore: WorkspaceStore,
+    private val skySubscriptionStore: SkySubscriptionStore,
+    private val clock: Clock = Clock.systemUTC()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeatherUiState())
@@ -75,6 +85,15 @@ class WeatherViewModel(
     val activeFile: StateFlow<MainEditorFile> = workspaceStore.mainActiveFile
         .stateIn(viewModelScope, SharingStarted.Eagerly, MainEditorFile.JSON)
 
+    /**
+     * `sky.enabled` from `settings.config` (Fase 16c): whether the strip draws a
+     * third tab at all. Eagerly like [activeFile] — a tab that appears one frame
+     * after the others reads as a glitch, and the strip's width jumping is worse.
+     */
+    val skyEnabled: StateFlow<Boolean> = settingsStore.settings
+        .map { it.skyEnabled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
     fun selectFile(file: MainEditorFile) {
         viewModelScope.launch { workspaceStore.setMainActiveFile(file) }
     }
@@ -88,6 +107,36 @@ class WeatherViewModel(
     fun dismissHelpHint() {
         viewModelScope.launch { workspaceStore.dismissHelpHint() }
     }
+
+    /**
+     * What the sky adds to `README.md` (Fase 16e), or null when the module is off.
+     *
+     * Built here rather than inside the document so the README stays a pure
+     * rendering of a report plus a summary — and so the SAME summary can be compared
+     * against `sky.crontab` in a test, which is the agreement rule of `VISION_SKY.md`
+     * §9.1 turned into an assertion.
+     */
+    val skySummary: StateFlow<SkySummary?> = combine(
+        uiState,
+        skyEnabled,
+        skySubscriptionStore.subscriptions
+    ) { state, enabled, subscriptions ->
+        val report = state.report
+        if (!enabled || report == null) return@combine null
+        val zone = runCatching { ZoneId.of(report.location.timezone) }
+            .getOrElse { ZoneId.systemDefault() }
+        SkyReadme.summarize(
+            SkyContext(
+                cityLabel = report.location.city,
+                coordinates = report.location.coordinates,
+                zone = zone,
+                now = clock.instant(),
+                report = report,
+                updateFrequencyMin = updateFrequencyMin
+            ),
+            subscriptions
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private var city: City? = null
     private var loadJob: Job? = null
@@ -103,11 +152,15 @@ class WeatherViewModel(
     @Volatile
     private var cacheTtl: Duration? = null // null = repository default
 
+    @Volatile
+    private var updateFrequencyMin: Int = DefaultUpdateFrequencyMin
+
     init {
         // The sync setting drives the repository cache TTL on the next load
         viewModelScope.launch {
             settingsStore.settings.collect {
                 cacheTtl = Duration.ofMinutes(it.updateFrequencyMin.toLong())
+                updateFrequencyMin = it.updateFrequencyMin
             }
         }
         // Follow the Explorer's selection: every change of active source reloads
@@ -248,7 +301,8 @@ class WeatherViewModel(
                     cityStore = ServiceLocator.cityStore(app),
                     settingsStore = ServiceLocator.settingsStore(app),
                     locationProvider = ServiceLocator.locationProvider(app),
-                    workspaceStore = ServiceLocator.workspaceStore(app)
+                    workspaceStore = ServiceLocator.workspaceStore(app),
+                    skySubscriptionStore = ServiceLocator.skySubscriptionStore(app)
                 )
             }
         }

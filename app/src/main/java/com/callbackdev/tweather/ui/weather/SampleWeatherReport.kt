@@ -70,12 +70,15 @@ internal fun sampleWeatherReport(): WeatherReport {
             moonPhase = MoonPhase.WAXING_GIBBOUS,
             daylightDuration = Duration.ofHours(10).plusMinutes(52)
         ),
+        // Cloud cover tracks the condition of each row (Fase 16a): the field is not
+        // rendered anywhere, but a sample whose sunny hour is 90% overcast would be a
+        // trap for the first sky verdict written against it.
         hourly = listOf(
-            HourlyForecast(baseDate.atTime(15, 0), 19.0, sunny, 0),
-            HourlyForecast(baseDate.atTime(16, 0), 18.0, sunny, 0),
-            HourlyForecast(baseDate.atTime(17, 0), 17.0, partlyCloudy, 5),
-            HourlyForecast(baseDate.atTime(18, 0), 15.0, partlyCloudy, 10),
-            HourlyForecast(baseDate.atTime(19, 0), 14.0, clearNight, 0)
+            HourlyForecast(baseDate.atTime(15, 0), 19.0, sunny, 0, 5),
+            HourlyForecast(baseDate.atTime(16, 0), 18.0, sunny, 0, 10),
+            HourlyForecast(baseDate.atTime(17, 0), 17.0, partlyCloudy, 5, 45),
+            HourlyForecast(baseDate.atTime(18, 0), 15.0, partlyCloudy, 10, 55),
+            HourlyForecast(baseDate.atTime(19, 0), 14.0, clearNight, 0, 8)
         ),
         daily = listOf(
             DailyForecast(baseDate.plusDays(3), 20.0, 12.0, sunny, 0, 5, "Moderate ☀️"),

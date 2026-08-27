@@ -563,6 +563,340 @@ Rilievo del committente confrontando le tre app: tweather era l'unica con **Impo
 **Nota su una flakiness pre-esistente**: durante la verifica `TweatherNavigationTest` è fallito due volte su quattro esecuzioni della suite completa, con test diversi ogni volta (`aFreshInstallLandsOnTweatherInit`, poi `skippingInitOpensTheWorkspaceAnyway`) e sempre sull'attesa della schermata di init. È una corsa fra la scrittura DataStore della migrazione (su `Dispatchers.IO`) e la prima composizione, non una conseguenza di questa fase: la classe passa isolata e la suite completa passa pulita nelle altre esecuzioni. Annotata qui perché prima o poi tingerà di rosso una CI senza colpa del commit che la fa girare.
 
 
+## Fase 16 — Il modulo cielo (`sky.crontab`, `sky_runs.log`) — in corso
+
+Proposta del committente (`VISION_SKY.md`, revisione 2 in repo): il cielo sopra la città attiva come **crontab**. `weather_data.json` dice cosa sta facendo l'atmosfera adesso; `sky.crontab` dice **cosa ha in programma il cielo**, e se le nuvole lasceranno passare il job. Ogni riga è un lavoro schedulato (alba, tramonto, ora d'oro, finestra di buio, sciame meteorico) e porta un **verdetto di build** calcolato sulle previsioni che l'app già scarica: `✓ pass`, `~ unstable`, `✗ fail`, `? unknown`, `∅ not scheduled`.
+
+**Perché dentro tweather e non in una quarta app.** La feature è impossibile senza le previsioni: una `tsky` autonoma che voglia dire `✗ fail: cloud 92%` dovrebbe scaricare la nuvolosità oraria per città, gestire le città salvate, persistere un file di impostazioni, far girare un job in background e disegnare un widget — cioè reimplementare tweather e diventare un'app meteo peggiore con una scheda di astronomia. E `weather_data.json` ha già un blocco `astronomical`: il modulo non è un soggetto nuovo che arriva, è un blocco esistente che finalmente ha spazio.
+
+**Niente quinto tab in basso — decisione del committente, ed è quella giusta.** La bozza originale spendeva il quinto slot della `NavigationBar` e si dichiarava "l'ultimo modulo assorbibile in questa forma". tweather ha già due livelli di navigazione che significano cose diverse: la barra in basso risponde a *cosa sto guardando* (i dati della città, l'elenco città, la storia, le opzioni), la striscia in alto risponde a *quale file di quella cosa*. Un modulo che aggiunge file non aggiunge una destinazione. Quindi:
+
+| File | Dove | Perché lì |
+|---|---|---|
+| `sky.crontab` | **Editor**, terzo tab dopo `weather_data.json` e `README.md` | È un documento *sulla città attiva*: la sua latitudine produce ogni istante che contiene. I tab dell'editor appartengono alla città, e questo pure — compreso il cambio città dal `⎇` della status bar. Ed è la prima schermata dell'app, cioè l'unico posto dove una feature si fa trovare. |
+| `sky_runs.log` | **Log**, terzo tab dopo `weather_history.diff` e `weather_forecast.diff` | È storia. Il tab Log è lo scaffale di ciò che è già successo. |
+| blocco `[sky]` | `settings.config` | Tre chiavi. Nessun file di impostazioni nuovo. |
+
+Il costo che resta, dichiarato: la striscia dell'editor passa a tre nomi (39 caratteri in bodyMedium bold — su un 5" scrolla), il sole e la luna compaiono in tre posti (JSON, README, crontab) e **un solo motore** deve alimentarli tutti e tre, e prima di qualunque verdetto serve lavoro sul layer dati (16a).
+
+**Il problema di onestà della metafora.** Una riga di crontab dichiara una schedule fissa; l'alba non lo è (deriva di circa un minuto al giorno e salta di un'ora al cambio ora legale). Scrivere `29 6 * * *  sunrise` sarebbe un file che dichiara una grammatica che non rispetta. La soluzione è che **i crontab veri hanno già questa forma**: chi deve far partire qualcosa a un istante calcolato non scrive un campo minuti finto, scrive una ricorrenza e lascia che sia il job a calcolare il momento, documentando il valore risolto in un commento. Quindi il campo schedule dichiara la **ricorrenza** (`@daily`, `@yearly`), che è vera; l'istante esatto vive nel **canale dei commenti**, dove tweather mette già tutto ciò che sa e la struttura dati non può contenere; gli eventi senza regola di ricorrenza (fasi lunari) diventano **job di polling** con un `*/30 * * * *` onesto, che è letteralmente quello che l'app fa — valuta a ogni fetch. Criterio di accettazione: **ogni espressione cron che il renderer emette deve passare un parser cron vero** (`cron-utils`, solo `testImplementation`).
+
+**La riga che tiene tutto insieme è la stessa delle altre fasi**: *il file può non sapere una cosa, non può inventarla*. Un verdetto che le previsioni non reggono è `? unknown`; una luna che quel giorno non sorge è `∅`, non `00:00`; una run che l'app non ha osservato è `– skipped` e non conta in nessuna statistica; un promemoria che l'app non sa consegnare in tempo non viene offerto come lead più corto.
+
+Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una, e sono **tutte fatte** (ago 2026): la 16f, che aveva un go/no-go suo, è passata.
+
+
+## Fase 16a — Il layer dati smette di buttare via ciò che ha già scaricato
+
+Prerequisito di tutto il resto, e utile **anche da solo**. Niente di quanto sta in `VISION_SKY.md` §7 è calcolabile sul modello di dominio attuale: `HourlyForecast` non porta la nuvolosità e la finestra oraria si ferma a 25 slot. Entrambe le cose costano **zero rete**.
+
+- `cloud_cover` è in `HOURLY_VARIABLES` dalla Fase 13c (ripara la nebbia di `weather_code`), è già deserializzato in `HourlyDto` ed è già sul disco dentro `ReportDiskCache` come DTO grezzo. Il mapper semplicemente smette di scartarlo.
+- `forecast_days = 7` restituisce **168** valori orari, già parsati: l'app ne mappa 25 e ne getta 143. L'orizzonte di verdetto a 3 giorni non è una capacità nuova, è roba che l'app paga e butta.
+
+La metà rischiosa è allargare la finestra, perché tre renderer leggono `report.hourly`: `weather_data.json` fa `hourly.drop(1)` **senza cap** e stamperebbe 167 righe; il `README.md` fa già `take(HourlyRows)`; `RuleVariables` e `AlertEngine` sono già limitati nel tempo (`next_6h`/`next_12h`, `now.plusHours(...)`). Quindi il cap esplicito nel JSON, e il test che lo blocca prima di tutto il resto.
+
+- [x] Test di regressione: `hourly forecast renders one day whatever the report carries` — costruisce una settimana di slot e pretende 24 righe. Verificato che **fallisce senza il cap** (167 righe) e passa con: una guardia che non si è vista fallire non è una guardia
+- [x] `HourlyForecast.cloudCoverPct` + mapping in `WeatherReportMapper.mapHourly`
+- [x] `HOURLY_WINDOW` 25 → 168; `.take(HourlyJsonRows)` esplicito in `WeatherJson.hourly_forecast` (che è ciò che la sua KDoc già dichiarava)
+- [x] Verificato che `RuleVariables`, `AlertEngine` e `WeatherSnapshots` non cambino comportamento: i primi due filtrano per **tempo** (`!isBefore(now) && !isAfter(end)`, `firstOrNull` con lo stesso predicato) e il terzo non tocca le orarie. Nessun consumatore di `report.hourly` indicizza per posizione — l'unico `hourly[...]` in `main/` sta dentro il mapper, sul DTO
+- [x] Suite verde (363 test, +3) e lint pulito. La guardia è stata vista fallire: senza il cap, `expected:<24> but was:<167>`
+
+**`FORECAST_DAYS` diventa una costante di `OpenMeteoForecastApi`**, e sia `HOURLY_WINDOW` (`× 24`) sia `DAILY_WINDOW` ne derivano. Il difetto che questa fase ripara è esattamente un 7 di qua e un 25 di là che non si parlavano: lasciare 168 scritto a mano nel mapper avrebbe ricreato lo stesso disallineamento un giro più in là. Ora i giorni di previsione si cambiano in un posto e la finestra segue.
+
+**La costante del JSON si chiama `HourlyJsonRows`, non `HourlyRows`.** `WeatherReadme.kt` ha già un `HourlyRows` privato che vale **14**, nello stesso package: due costanti private con un nome e due valori sono una trappola per chi legge, non un riuso.
+
+**Deviazione: `cloudCoverPct` era nullable, è finito non-null — e il test lo ha dimostrato.** La prima stesura lo aveva fatto `Int? = null` con un argomento che suonava bene: il verdetto del cielo ha uno stato `? unknown`, quindi serve un input capace di produrlo, e una nuvolosità mancante **non è un cielo sereno**. Il test scritto per coprire quel caso (array parallelo corto) è fallito con `IndexOutOfBoundsException` **prima di arrivare al mapping**: `repairedCodes()` legge la stessa colonna un passo prima, su tutti gli indici, e sarebbe esplosa comunque. Cioè il null era uno stato che il tipo permetteva e che il dato non può assumere.
+
+E un campo così non è neutro: ogni lettore in 16d avrebbe scritto `?: 0`, e 0% di nuvole significa "sereno". La versione nullable era la strada più breve verso esattamente la bugia che voleva impedire. Quindi campo **non-null, senza default**, letto come i suoi fratelli (`hourly.cloudCoverPct[i]`), e i quattro punti di costruzione aggiornati a mano — nel `SampleWeatherReport` con valori **coerenti con la condizione di ogni riga** (l'ora `sunny` è al 5%, non al 90%), perché il primo verdetto scritto contro quel sample lo leggerà davvero. L'assenza che la 16d dovrà gestire non è una colonna mancante, è un'**ora** mancante: un evento oltre la fine di `hourly`, che la lista esprime da sé.
+
+**La memoria, contata invece che stimata.** `hourlyTimes` e `hourlyCodes` erano già costruiti su **tutti** i 168 slot prima che la finestra si applicasse — quindi i `LocalDateTime` e i codici riparati non sono un costo nuovo. Il delta vero sono i soli oggetti mappati: 143 `HourlyForecast` (header + ref + `Double` + ref + due `Int` ≈ 40 B allineati) più 143 `WeatherCondition` (`WeatherCodes.condition` ne alloca uno per ora; le stringhe sono costanti condivise) ≈ 32 B → **~10 KB per report**. Per confronto, il `ForecastResponseDto` che il mapper ha in mano mentre lavora porta 168 stringhe di timestamp da ~56 B, cioè ~9,4 KB per la sola colonna `time`, più altre sei liste parallele: l'input era già più grande dell'aggiunta. La cache in RAM di `WeatherRepository` è però una `ConcurrentHashMap` per `cacheKey` **senza sfratto** (pre-esistente, e per la pseudo-città GPS c'è una chiave per cella da ~1,1 km): venti città in un processo sono ~200 KB in più. Nessun intervento qui, ma è la voce da guardare per prima se quella mappa diventerà un problema, perché adesso pesa quasi sei volte tanto per entrata.
+
+**Niente riga nel `CHANGELOG.md`.** Questa fase non ha nessun effetto visibile: la tabella oraria del JSON mostra le stesse 24 righe, il README le stesse 14, le notifiche le stesse cose. È infrastruttura per la 16d, e un changelog che annuncia un campo di dominio che nessuno vede è rumore. La riga arriva con la fase che si vede.
+
+
+## Fase 16b — `AstronomyEngine`: il motore, il catalogo, gli sciami (nessuna UI)
+
+Tutto puro, tutto JVM-testabile, come `AlertEngine` e `RuleEngine`: niente Android, niente clock implicito. `domain/sky/`: `AstronomyMath.kt` (le serie di Meeus), `AstronomyEngine.kt` (lat/lon/zona in, istanti fuori), `SkyJob.kt`, `SkyJobCatalog.kt` (insieme fisso, versionato, nessuna registrazione a runtime — stessa disciplina delle 22 variabili di `alerts.rules`), `SkyScheduler.kt`, `MeteorShowerTable.kt`.
+
+**Una primitiva, tutti gli eventi.** Invece di una formula chiusa per evento, il motore cerca l'istante in cui l'astro **attraversa una soglia di altezza**: l'alba è quel passaggio a −0,833°, il crepuscolo civile a −6°, l'ora d'oro fra +6° e −0,833°, il sorgere della luna a una soglia che segue la sua parallasse. Per questo l'elenco degli eventi può crescere senza che cresca la matematica, e per questo giorno polare, giorno senza luna e crepuscolo equatoriale di dieci minuti sono lo **stesso** ramo di codice invece di tre casi speciali.
+
+**Il catalogo**: `sun.rise`, `sun.set`, `solar.noon`, i tre crepuscoli (civile/nautico/astronomico, am e pm), `golden_hour.*`, `blue_hour.*`, `darkness.window`, `moon.rise`/`moon.set`/`moon.today`/`moon.phase`, solstizi ed equinozi, `meteor.<sciame>.peak`. **32 job**, quattro abilitati di default (`sun.rise`, `sun.set`, `golden_hour.pm`, `moon.today`) — chi apre il tab e ne trova trentadue lo richiude.
+
+**`darkness.window`** è l'aggiunta della revisione 2 e l'unica riga *derivata* del catalogo: l'intersezione fra buio astronomico e luna tramontata. Ogni altro job è un'ora in cui il sole o la luna attraversa un angolo, cosa che qualunque sito di effemeridi sa dire; questa è la domanda che si fa davvero un astrofilo, ed è calcolo puro sui due motori che il modulo ha già.
+
+**Sciami meteorici**: dieci maggiori, picchi calcolati dalla **longitudine solare** e non hardcoded per anno. Il test verifica i picchi nel 2026, 2027, 2030 e **2041**: la tabella non scade e non ha bisogno di un aggiornamento spedito con l'app. Il picco si risolve come la **notte** in cui cade (dal crepuscolo astronomico all'alba), non come un timestamp nudo.
+
+**`MoonPhase` riconciliato.** Era una media a otto bucket del mese sinodico medio con un novilunio hardcoded, accurata a circa un giorno — la sua stessa KDoc diceva "plenty for an emoji". Ora è un **classificatore sopra l'elongazione del motore**: enum, etichette ed emoji intatti, sostituita solo l'aritmetica. I sei test che l'enum aveva già passano **immutati**, compreso quello sulle date precedenti al vecchio riferimento: il valore reso non è cambiato di natura, solo di precisione.
+
+- [x] `AstronomyEngine`: alba/tramonto (lembo superiore, rifrazione standard −0,833°), i tre crepuscoli, ora d'oro (+6° → −0,833°) e ora blu (−4° → −6°), transito solare, sorgere/tramontare della luna, illuminazione, istante dei quarti, solstizi ed equinozi
+- [x] `SkyJobCatalog` + `SkyScheduler` (prossime N occorrenze, `nextToFire` per l'header) + `MeteorShowerTable`
+- [x] `MoonPhase` riconciliato: nessuna seconda implementazione in giro
+- [x] Test di correttezza: **9 siti da −67,6° a +69,6° × 3 giorni = 54 confronti** di alba e tramonto, tolleranza **120 s** (vedi sotto perché non 60); solstizi ed equinozi entro **56 s** su 7 istanti pubblicati fra il 2024 e il 2030; quarti lunari entro **5 min** su 5 istanti
+- [x] **Contract test contro Open-Meteo**: i 54 confronti *sono* quel test — i valori sono catturati dall'API vera il 26 ago 2026 e congelati nel file
+- [x] Test parser cron: ogni espressione del catalogo passa `cron-utils` (`testImplementation`, mai a runtime)
+- [x] Suite verde (403 test, +40) e lint pulito
+
+**Perché la tolleranza del contract test è 120 s e non 60.** Il limite non sta dalla nostra parte del filo. Open-Meteo **tronca al minuto**: su tutti i siti a media latitudine il nostro valore cade fra 0 e +60 s dopo il loro, mai prima, che è esattamente la firma di un troncamento. Oltre i |lat| 60 un minuto di orologio vale appena ~0,07° di altezza, quindi lì affiora anche la loro approssimazione (a Tromsø 85 s, a Ushuaia 106 s). Quello che il test può dimostrare è che i due valori coincidono ben dentro la larghezza di un `HH:mm` renderizzato. A fissare il motore all'angolo richiesto ci pensa il **secondo** test: per ogni evento solare, il sole *è davvero* all'altezza che lo definisce, entro 0,005° — cioè entro **un secondo del suo moto**, che è la risoluzione a cui il motore risponde e non un epsilon di comodo. I due insieme sono l'argomento completo: il primo prova la **posizione del sole** (una sbagliata non potrebbe accordarsi con un provider vero a nove latitudini), il secondo prova il **solutore** a qualunque soglia. Crepuscoli, ora d'oro e ora blu sono allora corretti per costruzione — che è il motivo per cui esiste una primitiva sola invece di sei formule.
+
+**Deviazione misurata: i solstizi NON usano il root-find.** `VISION_SKY.md` prevedeva di trovarli cercando l'istante in cui la longitudine apparente del sole tocca 0/90/180/270, con l'argomento che un solo modello solare non può contraddirsi. La misura ha smentito il piano: la serie solare a bassa accuratezza vale ~0,01°, il sole copre 0,01° in **un quarto d'ora**, e l'equinozio di marzo 2026 trovato così cadeva **otto minuti** dopo l'istante pubblicato — dentro la barra d'errore del modello e fuori da tutto ciò che una riga `HH:mm` può permettersi di affermare. I solstizi vengono quindi dalla serie *fittata sugli istanti di stagione* (Meeus 27), che su sette istanti pubblicati fra 2024 e 2030 sbaglia al massimo di 56 s. Il root-find resta, e serve **solo** agli sciami, dove la risposta è una notte larga nove ore e un quarto d'ora non sposta nulla. I due metodi non sono lasciati a divergere di nascosto: **un test misura la loro distanza e la fissa** (≤ 15 minuti, e ≤ 0,01° di scarto della serie all'istante vero), così il giorno in cui uno dei due cambia la discordanza è un test rosso e non una sorpresa.
+
+**Due scale di tempo, e non sono intercambiabili.** Le serie di posizione sono serie in Tempo Terrestre; il tempo siderale — e quindi ogni angolo orario — è funzione del Tempo Universale. ΔT fra i due vale ~75 s nel 2026. Passare UT a una serie di posizione è un errore piccolo (la luna si sposta di 0,015° in 75 s), passare TT al tempo siderale è un errore grande (il cielo gira 0,3° in 75 s). La prima stesura li confondeva; ora `centuriesTT` alimenta le posizioni e il giorno giuliano UT alimenta il siderale.
+
+**Due bug veri, trovati dai test e non dalla rilettura.**
+
+1. **La bisezione andava in una direzione sola.** Bracketing e bisezione assumevano una funzione crescente: giusto per un'alba, sbagliato per un tramonto. Non è un errore "un po'": la ricerca si allontanava dalla radice e restituiva **il bordo del bracket**, cioè un orario plausibile appoggiato su un multiplo di dieci minuti (`20:19:59` invece di `20:12:06`, otto minuti di errore che *sembrano* un orario). Riparato piegando il verso nel **segno** della funzione testata, così la caccia è una sola, `negativo → non negativo`, e non esiste più un ramo "discesa" da sbagliare.
+2. **`nextMoonQuarter` non era strettamente successivo.** Chiedendo "il quarto dopo questo quarto" — cioè esattamente quello che fa scorrere una serie — l'elongazione all'istante di partenza sta un capello *sotto* il proprio bersaglio, la ricerca inquadrava l'istante da cui era partita e lo restituiva tale e quale: quattro copie dello stesso istante invece di quattro quarti. La guardia sta nel motore e non nel chiamante, dove il secondo a servirsene avrebbe dovuto ricordarsela.
+
+**Costo misurato, per la 16c.** `solarDay` ≈ **1,7 ms** e `lunarDay` ≈ **0,9 ms** per giorno-città sulla JVM di sviluppo (griglia da 10 minuti, ~15 attraversamenti più il transito). Su ART sono realisticamente 3–5 volte tanto, cioè **un frame perso** se il file lungo li ricalcola a ogni ricomposizione. La memoizzazione per `(città, data locale)` prevista in 16c non è quindi una precauzione: è la misura che la chiede. Già ridotto qui il grosso spreco evidente — giorno polare e notte polare vengono da **una** scansione del giorno invece che da due.
+
+**Niente riga nel `CHANGELOG.md`.** Come la 16a: nessuna UI, nessun effetto visibile. L'unica cosa che *si vedrà* è la fase lunare più precisa nel JSON e nel README, ma quella arriva insieme al resto in 16e, che è la fase che si vede.
+
+
+## Fase 16c — `sky.crontab`, terzo tab dell'editor (ancora senza verdetti)
+
+Il file si legge e si modifica **token per token**, come `alerts.rules`: nessun campo di testo, nessun parser, un errore di sintassi non è scrivibile. Tap sul nome del job = commenta/decommenta (che è **come si disabilita davvero** un cron job: la riga resta nel file, grigia, in colore commento, e non viene valutata); `[rm]` toglie la riga dal file con conferma a due tap e il job torna nel catalogo; `+ add job` apre il catalogo come una lista di autocomplete in stile IDE. `#` e `[rm]` sono diversi apposta e la differenza è reale: un job commentato si riaccende con un tap, uno rimosso va ripescato dal catalogo. Nessuno dei due manda mai una notifica.
+
+Ecco il file, com'è uscito (Milano, 26 ago 2026, 18:30 locali):
+
+```
+# sky.crontab — Milan, Lombardy (Europe/Rome)
+# 10 jobs · 1 disabled · next: golden_hour.pm in 1h 2m
+# times are computed per occurrence, not fixed; see each line
+
+@daily         sun.rise               [rm]  # Aug 27 06:38   +1m15s vs yesterday
+@daily         sun.set                [rm]  # 20:12   −1m46s vs yesterday
+#@daily        golden_hour.am         [rm]
+@daily         golden_hour.pm         [rm]  # 19:32..20:12
+@daily         blue_hour.pm           [rm]  # 20:30..20:43
+@daily         darkness.window        [rm]  # 22:01..04:49   moon up all night
+@daily         moon.today             [rm]  # 🌕 full moon, 96% lit
+*/30 * * * *   moon.phase             [rm]  # Aug 28 06:18   🌕 full moon
+@yearly        solstice.winter        [rm]  # 2026-12-21 21:50   in 117d
+@yearly        meteor.perseids.peak   [rm]  # 2027-08-13 00:32..04:22   in 351d
+
++ add job
+
+// light pollution is not modelled: the app does not know your sky
+// this file is the schedule; whether the clouds allow it comes next
+```
+
+**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e canale dei commenti sono codice. Il registro localizzato del cielo vive nel `README.md` (16e); qui sono localizzate solo le etichette di accessibilità.
+
+**Le soglie non ci sono ancora** perché non ci sono ancora i verdetti (16d). Il piede del file lo dice invece di tacerlo: *this file is the schedule; whether the clouds allow it comes next*.
+
+**Stato "nessuna città" (Fase 14b)**: senza latitudine non è calcolabile niente, quindi il tab rende `# no location configured` + il suggerimento, come gli altri due file dell'editor — ma nel canale commenti che *questo* file usa, cioè `#`, perché è con quello che commenta un crontab.
+
+- [x] `ui/sky/SkyCrontabScreen.kt` + `SkyScreen.kt` + `SkyDocument.kt`: gutter, striscia tab, renderer a token e canvas riusati di peso; **`SkyDocument` è puro**, così l'intero file si asserisce in un test JVM senza comporre niente
+- [x] `data/SkySubscriptionStore.kt` (DataStore `sky`): job sottoscritti + lead `--notify` (scritti ora, letti in 16f)
+- [x] Sottoscrizioni **globali, non per città**; per città è lo *schedule* che risolvono, che è calcolato e mai memorizzato
+- [x] `sky.enabled` in `settings.config` (`false` toglie il tab; le righe cielo del README arrivano in 16e)
+- [x] `EditorTabs`: il tab attivo entra in vista
+- [x] `SkyAlmanac`: memoizzazione per `(città, data locale)`, LRU limitata
+- [x] Test: fuso della città, giorno/notte polare `∅` con la causa, luna che non sorge `∅`, DST, crepuscolo equatoriale, due job allo stesso istante in ordine stabile, "nessuna città", ordine di catalogo, riga commentata senza commento
+- [x] Suite verde (445 test, +42) e lint pulito
+
+**Il `--notify` non si vede, e non è una dimenticanza.** Lo store porta già `notifyLeadMinutes` e c'è un test che lo verifica, ma il file non rende nessun token `--notify=30m`: un token che promette un promemoria che l'app non sa ancora mandare sarebbe **la prima cosa che questo modulo mente**. Stessa ragione per cui il blocco `[sky]` di `settings.config` ha **una** chiave e non le tre della spec: `notify_default` e `notify_on_fail` governano promemoria che spedisce la 16f.
+
+**Un bug vero, trovato dal test dello store.** `edit()` scriveva `Seeded = true` **prima** di leggere la lista corrente. Sembra equivalente e non lo è: `decode` restituisce i quattro default solo finché il flag è falso, quindi la **prima modifica di un'installazione nuova** decodificava un file vuoto e ci salvava sopra — un tap su una riga e le altre tre sparivano. Ora si legge prima e si marca dopo, e c'è un test che si chiama esattamente così.
+
+**Tre correzioni di resa, ognuna trovata renderizzando il file e guardandolo.**
+
+1. **`moon.today` nominava domani.** Risolto come "prossima occorrenza", alle sei di sera stampava `Aug 27 12:00`: una riga che si chiama `today` che nomina il giorno dopo. Non è un evento che il cielo ha in programma, è un'affermazione sul giorno in cui sei: adesso risponde per oggi e risponde **senza orologio**, perché una fase non "succede" a mezzogiorno.
+2. **La causa polare era scritta per il job sbagliato.** «polar day: the sun does not set here today» compariva anche sotto `sun.rise`, dove non vuol dire niente. Riscritta in modo che valga per chiunque la chieda: «the sun stays above the horizon here».
+3. **Il segno del DST era ambiguo.** La spec suggeriva `# DST +1h on Oct 25`; quel giorno l'offset **scende** di un'ora e la giornata **si allunga** di un'ora, quindi un `+` è giusto o sbagliato a seconda di quale delle due cose intendeva chi legge. Adesso il file dice cosa fa l'orologio: `# DST: the clock falls back 1h on Oct 25`.
+
+**Due decisioni di layout prese contro la spec, e la ragione è la stessa della Fase 11d.**
+
+`VISION_SKY.md` §4 metteva `[rm]` **in fondo alla riga**. In una riga di crontab risolta finiva **oltre il bordo destro di uno schermo da 360dp**, raggiungibile solo pannando: che non è un controllo, è la diceria di un controllo. La 11d aveva già chiuso questa discussione per le tabelle del README — il commento è a lunghezza variabile e si può permettere di clippare, un bersaglio da toccare no — quindi `[rm]` sta **prima** del commento.
+
+E la conferma **è il token stesso**, `[rm]` → `[rm?]` in rosso, non un `// tap again to confirm` appeso in coda: cambia sotto il dito che l'ha appena toccato, non costa larghezza alla riga, e le parole stanno nella click label dove le legge lo screen reader. Un `// tap again` in fondo a una riga larga è una conferma che nessuno vede.
+
+**La colonna dei nomi si allinea al file, non al catalogo.** Prima era paddata all'id più lungo del catalogo (`meteor.eta_aquariids.peak`, 25 caratteri): un file di due righe spingeva così il proprio `[rm]` fuori schermo. Un crontab vero si allinea a sé stesso — è quello che fa `column -t` — e qui è anche l'unica versione usabile.
+
+**`EditorTabs` scrollava ma non riportava in vista il tab attivo.** Bug latente da sempre, che la terza voce dell'editor rendeva visibile: il tab selezionato poteva stare fuori schermo col suo indicatore da 2px, e la barra sembrava non avere nessun file attivo. Riparato **nel componente** e non nella sola chiamata che lo ha esposto, perché le strisce di Impostazioni e Log hanno la stessa forma a tre nomi e lo stesso difetto.
+
+**La memoizzazione era obbligatoria, non prudente.** `SkyScheduler.resolve` chiama `solarDay` per ogni job: con 32 job sulla stessa data sono ~55 ms di matematica per ricomposizione, misurati in 16b. `SkyAlmanac` è la memoria di `AstronomyEngine`, che resta un calcolatore senza stato — referenzialmente trasparente, LRU limitata a 400 voci (la chiave contiene una data e il file può chiederne un anno: una mappa che cresce e basta sarebbe una perdita lenta che non si annuncia mai), e le coordinate arrotondate a ~10 m così stare fermi è **una** chiave.
+
+**Niente riga nel `CHANGELOG.md` nemmeno qui.** Il tab si vede, ma senza verdetti è metà della cosa promessa: la voce di changelog arriva con la 16d/16e, quando `sky.crontab` dice anche se vale la pena uscire.
+
+
+## Fase 16d — `SkyVerdictEngine`: le nuvole danno il verdetto
+
+`SkyVerdictEngine.kt`: evento risolto + previsione oraria + luna → verdetto, nel canale dei commenti di ogni riga. Puro come tutti gli altri motori: niente clock, niente Android, niente repository.
+
+Ecco il file con e senza previsioni utili (Milano, 26 ago 2026):
+
+```
+# sky.crontab — Milan, Lombardy (Europe/Rome)
+# 7 jobs · next: golden_hour.pm in 1h 2m ✓
+
+@daily   sun.set              [rm]  # 20:12   ✓ pass  cloud 8%   −1m46s vs yesterday
+@daily   golden_hour.pm       [rm]  # 19:32..20:12   ✓ pass  cloud 8%
+@daily   darkness.window      [rm]  # 22:01..04:49   ~ unstable  moon 99% and up
+@yearly  meteor.perseids.peak [rm]  # 2027-08-13 00:32..04:22   in 351d   ? unknown (past the forecast horizon)
+
+$ tweather run sky
+// sun.set              20:12         ✓ pass  cloud 8%
+// golden_hour.pm       19:32..20:12  ✓ pass  cloud 8%
+// darkness.window      22:01..04:49  ~ unstable  moon 99% and up
+// moon.today           🌕 full moon, 96% lit
+// meteor.perseids.peak 2027-08-13    ? unknown (past the forecast horizon)
+
+// pass ≤ 25% cloud · fail above 65% · rain ≥ 70% fails it whatever the sky does
+// a bright moon (≥ 60%) unsettles a dark-sky job under a clear sky
+// light pollution is not modelled: the app does not know your sky
+// a verdict is the forecast's opinion, not an observation — it will change
+```
+
+- La **finestra, non l'istante**: per un job a intervallo si media sui bucket orari che attraversa, per uno puntuale si prende il bucket che lo contiene. La pioggia però si prende al **massimo** e non in media: un'ora di pioggia dentro una finestra di due non si media via, è la cosa che rovina l'evento.
+- **Il numero usato si stampa.** Un verdetto la cui prova è invisibile è un'opinione, e questa app non renderizza opinioni.
+- I job di buio hanno **in più la condizione lunare**: sopra il 60% di illuminazione con la luna alta, un cielo sereno resta `~ unstable`, e il commento nomina **la luna, non le nuvole**. La luna può solo peggiorare un verdetto, mai migliorarlo.
+- **Oltre l'orizzonte non c'è verdetto**: `? unknown` con la ragione fra parentesi, mai una stima.
+- **I dati stantii non hanno diritto a un'opinione.** Sopra la soglia esistente (due volte l'intervallo di polling) il verdetto è `? unknown (no recent data)`, non l'ultimo noto: stampare quello sarebbe rispondere a una domanda su stasera con quello che l'app pensava ieri, con le stesse parole che usa quando sa.
+
+- [x] `SkyVerdictEngine` + tabella verdetti con tutti i confini di soglia, l'override precipitazioni e l'override luna
+- [x] `$ tweather run sky` (conferma a due tap), verdetti nella riga e nell'header (`# next: golden_hour.pm in 1h 2m ✓`)
+- [x] Dati stantii: sopra la soglia di staleness il verdetto è `? unknown`, non l'ultimo noto
+- [x] Fetch fallito: **lo schedule si rende lo stesso** — non gli serve la rete, ed è testato che ogni riga e ogni finestra compaiono anche senza nessun report. La *causa* del fallimento resta della scheda che ha provato a fetchare: questo tab non fetcha, quindi riporta la conseguenza (`? unknown (no recent data)`) e non un errore che non è suo
+- [x] Test: confini di soglia, evento esattamente sul bordo dell'orizzonte (`? unknown`, mai estrapolato), copertura mancante, buco *dentro* la previsione (che è una cosa diversa dalla sua fine, e il file dice quale)
+- [x] Suite verde (483 test, +38) e lint pulito
+
+**Il bug più grosso della fase: `sun.set` non aveva verdetto.** Avevo agganciato il verdetto a `visibilityDependent`, il flag introdotto in 16b — e quel flag risponde a un'**altra** domanda. `visibilityDependent` governa se un *promemoria* va soppresso quando l'evento non si vedrà (16f): un tramonto **avviene comunque** e magari alle 20:12 hai un appuntamento, quindi il suo promemoria parte lo stesso; il picco delle Perseidi senza cielo sereno non è un evento, quindi il suo si sopprime. Ma se le nuvole *contano* per guardarlo è un'altra cosa ancora — e vale per il tramonto più che per qualunque altra riga, visto che **"stasera vale la pena uscire?" è la domanda per cui esiste tutto il modulo**. Aggiunto `SkyJob.observable`, vero per tutto tranne i momenti di pura geometria (solstizio, istante del quarto, mezzogiorno solare): quelli avvengono a un orario calcolato che nessuno va a guardare, e un `✗ fail` su un primo quarto sarebbe il file che si inventa una posta in gioco che nessuno ha.
+
+**La soglia di pioggia che fa fallire un evento è quella che l'app già aveva** (`AlertEngine.PRECIP_THRESHOLD_PCT`, 70%). «Piove» deve voler dire una cosa sola dentro l'app: un job del cielo in disaccordo con una notifica sulla stessa ora sarebbe l'app che litiga con sé stessa. C'è un test che tiene le due costanti legate.
+
+**La regola di staleness ha cambiato casa.** Viveva dentro `WidgetContent`, che è dove era stata scritta ma non dove appartiene: quanto vecchio è troppo vecchio è un fatto sui **dati**, non su una delle superfici che li disegna. Ora è `domain/WeatherFreshness`, letta dal widget e dal cielo. Due volte l'intervallo di polling: un sync saltato è ordinario, due di fila vogliono dire che i numeri a schermo non sono più un'affermazione sull'adesso.
+
+**`WeatherRepository.cachedReport()`: legge, non fetcha.** Aprire un tab non è un motivo per spendere due GET, e lo schedule che questo file rende non ha bisogno di rete. Nessun cancello TTL, a differenza di `getWeather`: restituisce quello che c'è e lascia al chiamante il giudizio sull'età — che è esattamente il giudizio che il verdetto deve dare ad alta voce. Il tab si aggiorna sul **feed dei commit** che già esiste (ogni fetch che atterra committa nello storico), lo stesso segnale su cui si ridisegna il widget.
+
+**Tre correzioni di resa, di nuovo trovate guardando il file.**
+
+1. **La luna veniva nominata due volte.** `# 22:01..04:49   moon up all night   ~ unstable  moon 99% and up`: il suffisso dice *quando* la luna se ne va, il verdetto *quanto* è luminosa, ma insieme sono la stessa frase due volte. Quando il verdetto ha già nominato la luna, il suffisso si fa da parte.
+2. **Il verdetto arrivava terzo.** Sulla riga dell'alba stava dopo la deriva in secondi: `# 06:38   +1m15s vs yesterday   ✓ pass`. La deriva è curiosità, il verdetto è la risposta alla domanda con cui si apre il file. Adesso viene subito dopo il *quando*.
+3. **`// no fetch yet` con altre parole dopo.** Un `//` apre una spiegazione e quindi vive a fine riga; ma su una riga il verdetto può essere seguito dalle curiosità del job, e `? unknown // no fetch yet −1m46s vs yesterday` è un commento che non è riuscito a commentare. Le ragioni del verdetto stanno fra **parentesi**; il `//` resta sulle righe `∅`, dove non segue mai niente.
+
+**`$ tweather run sky` è una seconda vista degli stessi fatti, e va bene così.** Senza registro delle run e senza notifiche (16e e 16f), non c'è niente che il dry run *eviti* di fare — quindi la sua ragione d'essere qui è un'altra: una riga di crontab risolta è larga abbastanza da doverla pannare, quindi il blocco è **l'unico posto in cui i verdetti stanno incolonnati uno sotto l'altro**, con la finestra su cui ognuno è stato calcolato scritta per intero invece che abbreviata per stare in colonna. Un job senza verdetto ci stampa il **fatto** a cui si è risolto invece di una finestra e un trattino (`moon.today` stampava `12:00`, che è l'istante a cui si misura la sua fase e non vuol dire niente per chi legge). Ogni modifica al file azzera il blocco: un dry run è un'istantanea, e una lasciata lì sopra un file cambiato è una risposta vecchia coi vestiti di una nuova.
+
+**Questa volta il `CHANGELOG.md` la riga ce l'ha.** Le fasi 16a–16c non avevano niente che un utente potesse vedere e la voce è stata rimandata due volte dicendolo; adesso il tab risponde alla domanda per cui esiste, quindi la voce copre 16a–16d insieme — che è anche come le leggerà chi la legge, cioè come una cosa sola.
+
+
+## Fase 16e — La storia delle run, e il cielo nel `README.md`
+
+**`sky_runs.log` non si porta dietro una tabella nuova.** La bozza prevedeva `SkyRunEntity`, `SkyRunDao`, `SkyRunRecorder` e un pruning proprio a 200. Qui le run vanno dove vanno già le regole scattate: **una colonna `sky_runs` TEXT nullable su `weather_history`** (Room v3 → v4), scritta dallo stesso `UPDATE` post-fetch di `setFiredRulesOnLatest`. Tre motivi, e il primo non è il costo:
+
+1. **È più onesto.** Una run del cielo non è un evento indipendente, è *qualcosa che un fetch ha notato*. `obs +12m` è la bozza che lo ammette dentro una stringa; attaccare la run al commit che l'ha osservata lo dice nello schema: il timestamp della riga meno l'istante dell'evento **è** `obs`.
+2. **La schermata Log sa già renderlo.** Le run rendono come check line `✓ sun.set ran clear` sul commit, gratis, e `sky_runs.log` è una **seconda vista** sulle stesse righe, raggruppata per giorno invece che per commit. Due file, una verità, nessun test di riconciliazione da scrivere.
+3. **Il pruning si risolve da sé.** Le run invecchiano con i 200 commit della storia, invece di avere una seconda politica di retention che può dissentire dalla prima.
+
+```
+# Aug 26
+20:12  sun.set          ✓ pass       cloud   8%  obs +12m
+20:43  blue_hour.pm     ✗ fail       cloud  92%  obs +6m
+06:37  sun.rise         – skipped                obs +95m
+# 1 passed · 1 failed · 1 skipped
+```
+
+Le run si registrano **solo per i job osservabili e abilitati**, nella finestra `(commit precedente, adesso]` — che è precisamente l'ultimo momento in cui l'app ha guardato, quindi il vuoto fra i due è tutto quello che è successo mentre non guardava. Un job a intervallo conta come eseguito **quando la finestra si chiude**: l'ora d'oro non è successa alle 19:32, è successa fra le 19:32 e le 20:12. Sul primissimo commit non c'è un precedente e non c'è niente che si sia perso: un'installazione non acquisisce una storia di tramonti per cui non era installata.
+
+**`– skipped` è lo stato di copertura, e viene da sé.** Se la previsione in mano non porta più l'ora dell'evento, `SkyVerdictEngine` risponde già `? unknown (no forecast hour covers it)`: la run si registra senza verdetto e non conta in nessuna statistica. Non è stato necessario inventare una regola dei ±90 minuti — il motore della 16d produceva esattamente la risposta giusta.
+
+**Il README: `## Astronomia` cresce, `## Stato` prende l'avviso — nessuna sezione nuova.** La bozza aggiungeva un `## Stanotte` dopo `## Prossime ore`, che avrebbe messo tramonto, fase e tramonto della luna lì e, sei righe sotto, `## Astronomia` avrebbe ristampato alba, tramonto, luce diurna e fase: un documento, due sezioni, stesso soggetto. Quindi `## Astronomia` resta dove l'ha messa la 13d e diventa la casa del cielo:
+
+```
+## Astronomia
+Alba: 06:37 · Tramonto: 20:12
+Luce diurna: 13h 34m
+Ora d'oro: 19:32–20:12 · Ora blu: 20:30–20:43
+Buio astronomico: 22:01–04:49, la luna resta alta tutta la notte
+Luna: Gibbosa crescente 🌔 · illuminata al 96% · sorge 19:34 · tramonta 05:36
+```
+
+Sempre presente, perché è *oggi* e non la pubblicità di un modulo; le due righe in mezzo compaiono solo con `sky.enabled`. L'**avviso** va in `## Stato`, l'unica sezione del documento che parla già in blockquote, e solo per un job **abilitato dall'utente**, nelle prossime 12 ore, con verdetto diverso da pass: la sezione riporta **le tue** sottoscrizioni e non fa pubblicità a chi `sky.crontab` non l'ha mai aperto. Uno solo, o `## Stato` smette di essere un badge.
+
+**Un solo motore, tre render — JSON compreso.** `astronomical.sunrise`/`sunset` non sono più i valori `daily` di Open-Meteo: li calcola il motore, e `daylight_duration` è la loro differenza invece di un terzo numero che deve essere d'accordo con gli altri due. È il **test di accordo** a tenere insieme il tutto: i tempi che il README stampa sono un sottoinsieme di quelli che `sky.crontab` risolve, per la stessa città allo stesso istante.
+
+- [x] Room v3 → v4: colonna `sky_runs` + `MIGRATION_3_4` + `setSkyRunsOnLatest`
+- [x] Check line sul commit in `weather_history.diff` + `ui/logs/SkyRunsLog.kt` come terzo tab della striscia Log
+- [x] `## Astronomia` alimentata dal motore; avviso in `## Stato`; stringhe EN/IT
+- [x] `astronomical` del JSON e `MoonPhase` dal motore; `daylight_duration` coerente
+- [x] Riga widget opzionale, default off, ultima nel budget (opzione per-widget in `widget.config`)
+- [x] **Test di accordo**: i tempi di `## Astronomia` sono quelli di `sky.crontab`, con le due divergenze *volute* fissate a loro volta (vedi sotto)
+- [x] Accessibilità: ogni riga del crontab e del log annuncia il proprio stato a parole, EN e IT
+- [x] `README.md` (sezioni `### sky.crontab` e `### sky_runs.log`, riga nella tabella dati, **senza trattini**), `HELP.md` (la parola *crontab*, il calcolo locale, quale città riceve le notifiche), `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md` (tre ruoli token, nessuna tinta nuova)
+- [x] Suite verde (521 test, +38) e lint pulito
+
+**Il modello non sapeva dire "non sorge".** `Astronomical.sunrise` era un `LocalTime` non-null perché i valori venivano dal provider; con il motore, sopra il circolo polare a giugno **non c'è un'alba**, e il vecchio tipo poteva solo metterci un altro orario e lasciare che il lettore lo prendesse per buono. Ora `sunrise`, `sunset` e `daylightDuration` sono nullable: il JSON stampa `null` (che è già quello che fa per una sezione che i provider non hanno riempito, quindi è in carattere e non un'eccezione), il README stampa `∅`, lo stesso glifo che `sky.crontab` usa per lo stesso fatto.
+
+**Un bug vero, e la sua onda.** Il motore risponde al secondo, e `WeatherSnapshots.flatten` scrive `sunrise.toString()` nello storico: senza troncare, **ogni singolo fetch** avrebbe messo una riga `astronomical.sunrise` fresca in `weather_history.diff`, perché la risposta si sposta di frazioni di secondo fra un fetch e l'altro. I valori del provider erano precisi al minuto e nessuno se n'era accorto finché non hanno smesso di essere la sorgente. Troncati al minuto — che è anche l'unica precisione che l'app renderizza. Nella `SkyRun`, invece, l'istante tiene i secondi: quel valore si scrive una volta e non si ridiffa mai, quindi non c'è niente che possa fare rumore.
+
+**`obs` si arrotonda, non si tronca.** È una distanza: 11m53s è più vicino a `+12m` che a `+11m`, e troncare avrebbe sotto-riportato in silenzio proprio la debolezza che quel numero esiste per dichiarare.
+
+**Due divergenze fra i due file, entrambe volute, entrambe fissate da un test.** `## Astronomia` descrive **oggi**, `sky.crontab` descrive **il prossimo**: alle sei di sera il README dice giustamente l'alba di oggi (06:37, già passata) e il crontab dice giustamente quella di domani (06:38). Lo stesso, amplificato, per la luna, che sorge ~50 minuti più tardi ogni giorno. Non sono in disaccordo: sono due file che rispondono a due domande. Fissato con due test apposta, così nessuno "ripara" l'uno nell'altro.
+
+**Il test di accordo ha trovato un bug nel test di accordo.** Il primo tentativo raccoglieva anche `*Last updated 18:30*`: `## Astronomia` è l'ultimo heading del documento, quindi la sezione "arrivava fino in fondo" e il piè di pagina veniva letto come uno degli orari del cielo. Riparato l'helper, non il codice — ma valeva la pena scriverlo, perché la stessa svista in un test più permissivo sarebbe passata.
+
+**La striscia dei Log a tre nomi era più larga di un telefono, e i nomi si sono accorciati.** `weather_history.diff weather_forecast.diff sky_runs.log` sono 53 caratteri monospace: oltre il bordo di uno schermo da 360dp. La barra scorre da sempre e dalla 16c porta in vista il tab **attivo**, quindi il file si raggiungeva con uno swipe — ma a riposo il terzo nome non era sullo schermo, e un file che non si intravede è un file che non esiste per chi non sa già che c'è.
+
+Il prefisso `weather_` era **l'unica cosa in tutto il progetto a portarselo dietro**: nessun altro file dell'app dice di che parla nel proprio nome, perché è un'app meteo e lo dicono tutti. `history.diff` e `forecast.diff` non perdono niente e restituiscono 16 caratteri che quella striscia non aveva. Misurato con una sonda Robolectric a tre larghezze prima e dopo, invece di stimarlo: con i nomi lunghi `sky_runs.log` è `displayed=false` a **320, 360 e 411dp**; con quelli corti i tre nomi sono `displayed=true` a tutte e tre. Il test ora lo pretende con `assertIsDisplayed` su tutti e tre, più un caso a `w320dp` — l'asserzione più dura, che è quella che si può permettere solo un layout che ci sta davvero.
+
+Costo dichiarato: gli screenshot in `docs/screenshots/` mostrano ancora i nomi vecchi, e non si rigenerano da qui. La scoperta si appoggia su `HELP.md`, che nomina `sky_runs.log` e usa il nome nuovo.
+
+**La regola dei trattini del README ha costretto due migliorie nell'app.** Il `README.md` non ha **mai** avuto un trattino lungo, nemmeno dentro un blocco di codice, e i miei blocchi citano output vero. Invece di piegare la regola o di far dire al README una cosa che l'app non dice, ho cambiato l'app: l'header del crontab separa con `·` (che è già il separatore della riga successiva — il trattino era l'unico segno tipografico che quel file prendeva in prestito per un uso solo) e la riga di piede usa un punto e virgola. Il glifo `–` di `skipped` resta nell'app, perché accanto a ✓ ✗ ~ ∅ un `-` ASCII sembrerebbe un refuso, e il README lo descrive a parole invece di citarlo.
+
+**La riga del widget è per-widget, non globale.** Due widget possono fissare due città, e uno dei due può essere quello che qualcuno ha messo su uno schermo per guardare il cielo. Spenta di default (un widget già piazzato non deve cambiare forma perché l'app si è aggiornata) e **ultima nel budget di righe**, cioè la prima a cadere quando il launcher dà meno spazio: la temperatura è il motivo per cui il widget esiste, questa riga no. Niente numero delle nuvole sulla riga: alla larghezza di un widget viene ellissata da destra, e il numero se ne porterebbe via la parola del verdetto.
+
+**La regola di staleness ha trovato casa in `domain/WeatherFreshness`** già in 16d; qui il modulo cielo è il suo secondo lettore, come previsto.
+
+
+## Fase 16f — I promemoria (`--notify`)
+
+L'unica parte del modulo che **aggiunge una primitiva di scheduling all'app**, e per questo è l'ultima: tutto il resto spedisce senza.
+
+Oggi tweather schedula esattamente una cosa: un job periodico WorkManager a 15/30/60/120 minuti, default 60. Nient'altro. Un promemoria "30 minuti prima del tramonto" su quel tick non ci sta — al default l'app si sveglia due volte l'ora in momenti che col tramonto non c'entrano — quindi serve `AlarmManager`, e questo porta con sé:
+
+- **`setAndAllowWhileIdle`**, mai `setExact*`, mai `SCHEDULE_EXACT_ALARM` — la batteria è una feature e un tramonto non è una sveglia. `setWindow` non basta: in Doze un allarme a finestra semplice viene rimandato alla maintenance window successiva, che può essere fra ore, e il promemoria arriva a buio fatto.
+- **Un receiver `RECEIVE_BOOT_COMPLETED` e un percorso di riarmo**, perché gli allarmi non sopravvivono a un riavvio e la persistenza di WorkManager non si estende a loro. Un permesso nuovo (normale, non runtime), un receiver nuovo in manifest, e una cosa in più che può smettere di funzionare in silenzio.
+- **Una deriva che l'app deve dichiarare.** Inesatto vuol dire ±10 minuti in pratica: per questo il lead minimo selezionabile è **15 minuti** e per questo `5m` **non è nel ciclo** (`off · 15m · 30m · 1h · 3h · 1d`). La bozza offriva `5m` al §4 e lo vietava al §10: aveva ragione il §10. Un lead che l'app non sa onorare non è un lead più corto, è una bugia.
+
+Comportamento: la notifica **porta il verdetto** (`golden hour in 30 min — ✓ clear (8%)`); con `notify_on_fail = false` (default) un `✗ fail` la sopprime, perché ricordare qualcosa che non si vedrà è rumore; `? unknown` **si manda** per i job che avvengono comunque (eventi solari) e **si sopprime** per quelli che dipendono dalla visibilità, entrambi con `// no recent data`; una notifica per job per occorrenza, deduplicata come le regole utente; **solo la città attiva** viene schedulata — una città pinnata sul widget non schedula notifiche del cielo, e lo dice `HELP.md` invece di lasciarlo scoprire.
+
+- [x] `AlarmManager.setAndAllowWhileIdle` + receiver di boot + riarmo; nessun permesso di allarme esatto
+- [x] Ciclo `--notify` sul token della riga; `notify_default` e `notify_on_fail` in `settings.config`
+- [x] Dedup nello stesso stampo di `alerts` e `rule_state` (DataStore `sky_alerts`, 40 impronte, più recenti in testa)
+- [x] Test: dedup fra fetch, soppressione su `fail` e su `unknown` per i job dipendenti dalla visibilità, riarmo dopo un boot simulato
+- [x] `HELP.md`: una riga può avvisare, e l'avviso è approssimato apposta (EN/IT)
+- [x] Suite verde (554 test, +33) e lint pulito
+
+**Il bug più grosso della fase, e stava per essere spedito: il token `--notify` non era raggiungibile.** Il renderer mostra la colonna solo se qualche riga del file ha un lead — un file su cui nessuno ha messo un promemoria non paga una colonna per la possibilità, che è la regola giusta. Ma `SkySubscription.notifyLeadMinutes` nasce `null` **su ogni riga**, sia sulle quattro seminate al primo avvio sia su ogni job aggiunto dal catalogo: quindi la colonna non compariva mai, e non c'era **nessun modo di accendere un promemoria**. Provato con una sonda prima di ripararlo (`PROBE seeded leads = [null, null, null, null]`), come per la striscia dei Log: una diagnosi per lettura è un'ipotesi.
+
+La riparazione non è stata rendere il token sempre visibile. Misurato: a 360dp la riga di default (`@daily` + `sun.rise` + `[rm]`) lascia una decina di caratteri di commento sullo schermo, cioè **esattamente l'istante risolto** — che è il motivo per cui il file esiste. Una colonna `--notify=off` fissa da 12 caratteri su ogni riga se lo sarebbe portato via, per mostrare "off" a chi non ha chiesto niente.
+
+Quindi è cambiato il **significato di `notify_default`**: non più un valore-seme copiato dentro un job quando lo aggiungi (che avrebbe lasciato le righe vecchie mute per sempre), ma **il lead che una riga usa quando non ne ha uno suo**. `null` su una riga vuol dire "segui il default", non "niente promemoria". Con `notify_default = off`, che ora è il default di fabbrica, il file è identico a prima e non parte niente; portalo a `30m` in `settings.config` e **tutte** le righe mostrano il token, e da lì ognuna si cicla per conto suo. Il ciclo parte dal valore **mostrato**, non da quello memorizzato, o il primo tocco salterebbe altrove rispetto al numero scritto lì accanto.
+
+**`notify_default` era 30m di fabbrica, ed era un altro modo di dire la stessa bugia.** Un'installazione che accende `sky.enabled` per *leggere* il file si sarebbe trovata quattro promemoria al giorno senza averne chiesto uno. Ora è `off`, e lo `0` con cui si memorizza (un `intPreferences` non tiene `null`) legge uguale all'assente.
+
+**Il receiver è testabile perché `onReceive` non fa il lavoro.** `goAsync()` più una coroutine su `Dispatchers.Default` è un fire-and-forget con cui un test può solo correre una gara; estratto un `internal suspend fun handle(context, intent)` che contiene tutto tranne il dispatch, e i test lo attendono. Il `finally` che riarma è dentro `handle`, quindi è coperto: c'è un test che gli passa un job id fuori catalogo (una consegna impossibile, che è come si comporterebbe un'eccezione) e pretende comunque l'allarme successivo.
+
+**Due asserzioni sbagliate mie, non due bug.** `ShadowAlarmManager.getNextScheduledAlarm()` fa `poll()` sulla coda e *deschedula*: leggerlo prima di contare gli allarmi svuotava la lista che stavo per contare. Il non distruttivo è `peekNextScheduledAlarm()`, verificato disassemblando lo shadow invece di indovinare. E `windowLengthMs` per `setAndAllowWhileIdle` vale `-1` = `WINDOW_HEURISTIC`, cioè "la finestra la sceglie il sistema": **è esattamente l'inesattezza che si vuole**. Pretendevo `0`, che è `WINDOW_EXACT`, cioè il contrario di quello che questa fase dichiara di fare — l'asserzione avrebbe fallito la build se il codice fosse stato giusto e passata se fosse stato sbagliato.
+
+**Spegnere il modulo cancella l'allarme subito.** `reschedule` cancellava già quando `sky.enabled` è falso, ma nessuno lo chiamava al cambio dell'interruttore: l'allarme sarebbe sopravvissuto fino a scattare, avrebbe svegliato il telefono, avrebbe trovato il modulo spento e si sarebbe cancellato da solo. Corretto, ma una sveglia inutile dopo che l'utente ha detto di no. `SettingsViewModel` prende il riarmo iniettato (come `SkyViewModel`), in **una** coroutine dopo la scrittura: partire in parallelo avrebbe fatto rileggere il valore vecchio.
+
+**L'id della notifica viene dall'indice nel catalogo, non da `jobId.hashCode()`.** Due hash che collidono avrebbero fatto sovrascrivere in silenzio il promemoria di un job con quello di un altro: un bug che si sarebbe visto solo su un telefono, e solo per due job su trentadue.
+
+**Lint ha trovato l'unica cosa che `runCatching` nasconde.** `manager.notify` vuole `POST_NOTIFICATIONS` e lint pretende un `catch (SecurityException)` **esplicito**: `runCatching`, che prende tutto, non conta come "gestita". Allineato ad `AlertNotifier`, che lo faceva già bene dalla 9c.
+
+
+### Fase 16 — fuori perimetro: `iss.pass`, pianeti, eclissi
+
+La bozza schedulava i passaggi ISS come ultima fase con un go/no-go. La revisione 2 dà la raccomandazione: **non farlo**, lasciando il catalogo aperto se cambia idea.
+
+Costerebbe una **seconda sorgente dati** (TLE da CelesTrak: gratis e senza chiave, ma la storia della "sorgente unica" finisce, ed è una delle tre cose con cui il README apre), **vera meccanica orbitale** (propagazione SGP4, angoli topocentrici, condizione di visibilità: satellite illuminato, osservatore nel buio astronomico, elevazione sopra ~10°) che sarebbe il pezzo di matematica più grande dell'app — più grande di tutto il resto di questa spec messo insieme — con vettori di test propri, la **freschezza del TLE come fatto di prima classe** (sopra i ~7 giorni degrada, quindi regola di staleness e riga dedicata nel canale commenti), e soprattutto **una notifica non consegnabile**: un passaggio dura sei minuti, un allarme inesatto deriva di dieci.
+
+È l'ultimo punto a decidere. Ogni altro job del catalogo degrada con grazia quando l'app è imprecisa: un promemoria di tramonto in ritardo di otto minuti è ancora un promemoria di tramonto. Un passaggio ISS in ritardo di otto minuti è una notifica su una cosa finita. Un modulo la cui tesi è "il file può non sapere, non può inventare" non dovrebbe spedire una riga che strutturalmente non sa onorare.
+
+Fuori perimetro anche pianeti, congiunzioni ed eclissi: ognuna vuole vero lavoro di effemeridi e una decisione sua. **Rinviate, non respinte** — il catalogo è una lista di valori `SkyJob`, quindi ognuna può arrivare dopo senza toccare formato del file, renderer o store.
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

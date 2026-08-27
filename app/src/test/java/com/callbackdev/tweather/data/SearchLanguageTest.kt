@@ -62,6 +62,7 @@ class SearchLanguageTest {
         override fun observeLatest(limit: Int): Flow<List<WeatherHistoryEntry>> = emptyFlow()
         override suspend fun prune(keep: Int) = Unit
         override suspend fun setFiredRulesOnLatest(cityKey: String, firedRulesJson: String) = Unit
+        override suspend fun setSkyRunsOnLatest(cityKey: String, skyRunsJson: String) = Unit
     }
 
     private val defaultLocale: Locale = Locale.getDefault()

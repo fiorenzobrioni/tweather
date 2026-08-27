@@ -8,11 +8,17 @@ import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.domain.AlertEngine
 import com.callbackdev.tweather.domain.WeatherException
+import com.callbackdev.tweather.domain.WeatherFreshness
+import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.GpsCityId
+import com.callbackdev.tweather.domain.model.WeatherReport
+import com.callbackdev.tweather.domain.sky.SkyJobCatalog
+import com.callbackdev.tweather.domain.sky.SkyRunRecorder
 import com.callbackdev.tweather.domain.rules.RuleEngine
 import com.callbackdev.tweather.widget.TweatherWidgetProvider
 import com.callbackdev.tweather.widget.TweatherWidgetUpdater
 import java.time.Duration
+import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.first
@@ -136,6 +142,19 @@ class WeatherSyncWorker(
             }
         }
 
+        // The sky module (Fase 16e). Deliberately OUTSIDE the `alertsWanted` gate:
+        // recording is not notifying, and a sky run is a fact about what happened
+        // whether or not this install has notifications on at all. Zero extra
+        // battery — same fetch, same clock, and the schedule is local arithmetic.
+        if (settings.skyEnabled) {
+            recordSkyRuns(context, city, report, settings.updateFrequencyMin)
+            // Re-arm on every sync (Fase 16f). The receiver arms the next reminder
+            // when one fires, so this is a safety net rather than the main path: an
+            // alarm lost to a force-stop or a cleared task comes back at the next
+            // fetch instead of never.
+            SkyAlarmScheduler.reschedule(context)
+        }
+
         // Widgets pinned to another city have no other producer of history commits:
         // without this their data would only age. One extra fetch (two GETs) per
         // distinct pinned city per period, and only while such a widget is placed.
@@ -149,6 +168,43 @@ class WeatherSyncWorker(
             }
         }
         return Result.success()
+    }
+
+    /**
+     * Which sky jobs ran since this city's previous commit, attached to the one this
+     * fetch just wrote.
+     *
+     * The previous commit IS the "since": it is precisely the last moment the app
+     * looked at this city, so the window between them is everything that happened
+     * while it was not looking. On the very first commit there is no previous one and
+     * nothing to have missed, so nothing is recorded — an install does not acquire a
+     * history of sunsets it was not installed for.
+     */
+    private suspend fun recordSkyRuns(
+        context: Context,
+        city: City,
+        report: WeatherReport,
+        updateFrequencyMin: Int
+    ) {
+        val subscriptions = ServiceLocator.skySubscriptionStore(context).subscriptions.first()
+        val jobs = subscriptions.filter { it.enabled }.mapNotNull { SkyJobCatalog.byId(it.jobId) }
+        if (jobs.isEmpty()) return
+        val repository = ServiceLocator.weatherRepository(context)
+        val history = repository.historyFor(city, limit = 2)
+        val previous = history.getOrNull(1) ?: return
+        val zone = runCatching { ZoneId.of(report.location.timezone) }
+            .getOrDefault(ZoneId.systemDefault())
+        val runs = SkyRunRecorder.runsSince(
+            since = Instant.ofEpochSecond(previous.timestampEpochSeconds),
+            now = report.systemInfo.lastSync,
+            jobs = jobs,
+            zone = zone,
+            coordinates = city.coordinates,
+            hours = report.hourly,
+            dataAge = Duration.ZERO,
+            staleAfter = WeatherFreshness.staleAfter(updateFrequencyMin)
+        )
+        repository.recordSkyRuns(city, runs)
     }
 
     companion object {

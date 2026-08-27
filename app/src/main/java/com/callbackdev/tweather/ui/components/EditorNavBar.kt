@@ -120,7 +120,7 @@ fun EditorNavBar(
  *   promised a tree that no longer exists (`cities/` moved into the Cerca tab). It
  *   is an open editor, so it says so, behind the `{ }` of the file it opens. Its
  *   route stays "explorer" — that string is state, not a label.
- * - Logs opens `weather_history.diff`, a git log: it wears the **commit** glyph (a
+ * - Logs opens `history.diff`, a git log: it wears the **commit** glyph (a
  *   dot on a branch line), like tsteps and thabit. The terminal glyph it used to
  *   wear named the app's skin, not this file — and every actual terminal in the app
  *   (the `$` commands, the status bar, the widget) is somewhere else.

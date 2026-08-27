@@ -65,8 +65,8 @@ class LogsTabsTest {
     @Test
     fun historyIsTheDefaultTab() {
         setContent()
-        compose.onNodeWithText("weather_history.diff").assertIsSelected()
-        compose.onNodeWithText("weather_forecast.diff").assertIsNotSelected()
+        compose.onNodeWithText("history.diff").assertIsSelected()
+        compose.onNodeWithText("forecast.diff").assertIsNotSelected()
         compose.onNodeWithText("diff --git a/weather_data.json b/weather_data.json")
             .assertExists()
         compose.onNodeWithText("⎇ history").assertExists()
@@ -76,8 +76,8 @@ class LogsTabsTest {
     @Test
     fun forecastTabShowsRevisionsAndSwitchesTheStatusBar() {
         setContent()
-        compose.onNodeWithText("weather_forecast.diff").performClick()
-        compose.onNodeWithText("weather_forecast.diff").assertIsSelected()
+        compose.onNodeWithText("forecast.diff").performClick()
+        compose.onNodeWithText("forecast.diff").assertIsSelected()
         compose.onNodeWithText("@@ tomorrow @@").assertExists()
         compose.onNodeWithText("- \"precip_pct\": 20").assertExists()
         compose.onNodeWithText("+ \"precip_pct\": 70").assertExists()
@@ -90,7 +90,7 @@ class LogsTabsTest {
     @Test
     fun forecastHunkHeadersNameThePerDateFiles() {
         setContent()
-        compose.onNodeWithText("weather_forecast.diff").performClick()
+        compose.onNodeWithText("forecast.diff").performClick()
         compose.onNodeWithText("+++ b/forecast_2026-08-18.json", substring = true)
             .assertExists()
         compose.onNodeWithText("--- a/forecast_2026-08-18.json", substring = true)
@@ -134,7 +134,7 @@ class LogsTabsTest {
                 LogsScreen(commits = commits, revisions = emptyList())
             }
         }
-        compose.onNodeWithText("weather_forecast.diff").performClick()
+        compose.onNodeWithText("forecast.diff").performClick()
         compose.onNodeWithText("// no forecast revisions yet").assertExists()
     }
 }

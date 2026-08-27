@@ -91,7 +91,8 @@ class WidgetConfigActivity : ComponentActivity() {
                     cities = cities,
                     gpsAvailable = location.useGps,
                     gpsLabel = location.gpsCity?.name,
-                    pinnedCityId = widgetCityStore.current()[appWidgetId]
+                    pinnedCityId = widgetCityStore.current()[appWidgetId],
+                    skyLine = appWidgetId in widgetCityStore.currentSkyLine()
                 )
             }
             TweatherTheme(profile = ThemeProfile.fromName(settings.themeProfileName)) {
@@ -107,10 +108,24 @@ class WidgetConfigActivity : ComponentActivity() {
                         state = state,
                         onFollowApp = { pin(null) },
                         onSelectCity = { pin(it.id) },
-                        onSelectGps = { pin(GpsCityId) }
+                        onSelectGps = { pin(GpsCityId) },
+                        onToggleSkyLine = { toggleSkyLine() }
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Flips this widget's sky line. Unlike [pin] it does NOT close the screen: it is
+     * a rendering option, not the answer to the question the screen was opened with.
+     */
+    private fun toggleSkyLine() {
+        val store = ServiceLocator.widgetCityStore(this)
+        lifecycleScope.launch {
+            val on = appWidgetId in store.currentSkyLine()
+            store.setSkyLine(appWidgetId, !on)
+            TweatherWidgetUpdater.updateAll(this@WidgetConfigActivity)
         }
     }
 
@@ -130,7 +145,9 @@ data class WidgetConfigState(
     val gpsAvailable: Boolean = false,
     val gpsLabel: String? = null,
     /** null = follow the app's active source (the default). */
-    val pinnedCityId: Long? = null
+    val pinnedCityId: Long? = null,
+    /** Fase 16e: whether this widget shows the optional sky line. Off by default. */
+    val skyLine: Boolean = false
 )
 
 /**
@@ -152,7 +169,8 @@ fun WidgetConfigScreen(
     state: WidgetConfigState,
     onFollowApp: () -> Unit,
     onSelectCity: (City) -> Unit,
-    onSelectGps: () -> Unit
+    onSelectGps: () -> Unit,
+    onToggleSkyLine: () -> Unit = {}
 ) {
     val syntax = TweatherTheme.syntax
     val selectedColor = MaterialTheme.colorScheme.primary
@@ -161,6 +179,7 @@ fun WidgetConfigScreen(
     val resources = LocalContext.current.resources
     val followLabel = stringResource(R.string.cd_widget_follow_app)
     val gpsLabel = stringResource(R.string.cd_select_gps)
+    val skyLineLabel = stringResource(R.string.cd_widget_sky_line)
 
     val lines = remember(state, syntax, selectedColor, gpsColor, resources) {
         buildWidgetConfigLines(
@@ -171,9 +190,11 @@ fun WidgetConfigScreen(
             followAppLabel = followLabel,
             gpsClickLabel = gpsLabel,
             cityClickLabel = { resources.getString(R.string.cd_widget_pin, it.name) },
+            skyLineLabel = skyLineLabel,
             onFollowApp = onFollowApp,
             onSelectGps = onSelectGps,
-            onSelectCity = onSelectCity
+            onSelectCity = onSelectCity,
+            onToggleSkyLine = onToggleSkyLine
         )
     }
 
@@ -230,9 +251,11 @@ private fun buildWidgetConfigLines(
     followAppLabel: String,
     gpsClickLabel: String,
     cityClickLabel: (City) -> String,
+    skyLineLabel: String,
     onFollowApp: () -> Unit,
     onSelectGps: () -> Unit,
-    onSelectCity: (City) -> Unit
+    onSelectCity: (City) -> Unit,
+    onToggleSkyLine: () -> Unit
 ): List<CanvasLine> = buildList {
     val pinnedId = state.resolvedPinnedId()
     val names = fileNames(state.cities)
@@ -320,7 +343,27 @@ private fun buildWidgetConfigLines(
         )
     }
 
-    add(punctLine("]", 1, syntax))
+    add(punctLine("],", 1, syntax))
+
+    // The sky module's one optional line (Fase 16e). Per widget, and off by default:
+    // an existing widget must not change shape because the app updated. It sits after
+    // the source list because it is a property of THIS widget's rendering, not
+    // another thing to pin.
+    add(
+        CodeLine(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.key)) { append("\"sky_line\"") }
+                withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
+                withStyle(SpanStyle(color = syntax.number)) { append(state.skyLine.toString()) }
+                withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
+                    append("  // next sky job and its verdict")
+                }
+            },
+            indent = 1,
+            onClick = onToggleSkyLine,
+            onClickLabel = skyLineLabel
+        )
+    )
     add(punctLine("}", 0, syntax))
 }
 
@@ -345,7 +388,8 @@ private fun WidgetConfigScreenPreview() {
             ),
             onFollowApp = {},
             onSelectCity = {},
-            onSelectGps = {}
+            onSelectGps = {},
+            onToggleSkyLine = {}
         )
     }
 }

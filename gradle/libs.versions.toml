@@ -19,6 +19,7 @@ junit = "4.13.2"
 androidxJunit = "1.2.1"
 espresso = "3.6.1"
 robolectric = "4.16"
+cronUtils = "9.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,6 +54,10 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+# testImplementation ONLY (Fase 16b): an outside opinion on whether the expressions
+# sky.crontab renders are really cron. Never on the runtime classpath — the app does
+# not parse cron, it emits it.
+cron-utils = { group = "com.cronutils", name = "cron-utils", version.ref = "cronUtils" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

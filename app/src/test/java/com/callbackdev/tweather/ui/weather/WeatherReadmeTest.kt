@@ -135,6 +135,7 @@ class WeatherReadmeTest {
                     start.plusHours(it.toLong()),
                     19.0,
                     WeatherCondition(0, "Sunny", "☀️"),
+                    0,
                     0
                 )
             }
@@ -174,7 +175,8 @@ class WeatherReadmeTest {
                 LocalDate.of(2023, 10, 27).atTime(18, 0),
                 15.0,
                 WeatherCondition(95, "Thunderstorm", "⛈️"),
-                80
+                80,
+                100
             )
         )
         val lines = readme(report)

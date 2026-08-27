@@ -32,7 +32,7 @@ object WeatherSnapshots {
      * Flattens the daily forecast for the next two target dates (tomorrow and the
      * day after, in the city's local time) into `<ISO date>.<field>` keys, e.g.
      * `2026-08-18.high_c`. Absolute dates keep consecutive snapshots aligned on the
-     * same target day, so `weather_forecast.diff` compares two predictions of the
+     * same target day, so `forecast.diff` compares two predictions of the
      * same future moment. Values stay English and metric like [flatten].
      */
     fun flattenForecast(report: WeatherReport): Map<String, String> = buildMap {

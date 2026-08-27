@@ -86,7 +86,7 @@ class LogsLocalizedValuesTest {
     @Test
     fun forecastValuesLocalizeToo() {
         setContent()
-        compose.onNodeWithText("weather_forecast.diff").performClick()
+        compose.onNodeWithText("forecast.diff").performClick()
         compose.onNodeWithText("- \"status\": \"Coperto ☁️\"").assertExists()
         compose.onNodeWithText("+ \"status\": \"Pioggia 🌧️\"").assertExists()
         compose.onNodeWithText("@@ tomorrow @@").assertExists() // hunk header is code

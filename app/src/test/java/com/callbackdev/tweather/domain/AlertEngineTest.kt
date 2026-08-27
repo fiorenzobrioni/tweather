@@ -24,7 +24,8 @@ class AlertEngineTest {
         time = now.plusHours(plusHours),
         tempC = 18.0,
         condition = WeatherCondition(wmoCode, "desc-$wmoCode", "⛅"),
-        precipChancePct = precipPct
+        precipChancePct = precipPct,
+        cloudCoverPct = 50
     )
 
     private fun report(hourly: List<HourlyForecast>): WeatherReport =

@@ -79,9 +79,9 @@
         <item></item>
         <item>## Le quattro schede</item>
         <item></item>
-        <item>- **Editor** - `weather_data.json` e `README.md`: il meteo della città attiva. Il primo è la versione tecnica, con tutti i campi; il secondo è la stessa cosa raccontata a parole.</item>
+        <item>- **Editor** - `weather_data.json`, `README.md` e `sky.crontab`: il meteo della città attiva. Il primo è la versione tecnica, con tutti i campi; il secondo è la stessa cosa raccontata a parole; il terzo è quello che il cielo sopra quella città ha in programma.</item>
         <item>- **Cerca** - `cities.json`: cerchi una città e la aggiungi all\'elenco. Quella attiva è marcata `// active`, e `[rm]` toglie una riga.</item>
-        <item>- **Log** - `weather_history.diff`: tutti gli aggiornamenti che l\'app ha fatto.</item>
+        <item>- **Log** - `history.diff`: tutti gli aggiornamenti che l\'app ha fatto, più `sky_runs.log`, quello che il cielo è stato visto fare.</item>
         <item>- **Impostazioni** - `settings.config` e `alerts.rules`: le opzioni si cambiano toccando il valore. Non c\'è nessun interruttore da cercare.</item>
         <item></item>
         <item>## Le parole prese in prestito</item>
@@ -90,10 +90,13 @@
         <item>- **diff** - la differenza fra due aggiornamenti. Le righe con `+` sono i valori nuovi, quelle con `-` i vecchi.</item>
         <item>- **branch** (`⎇`) - la città attiva, in fondo nella barra di stato. Toccala per cambiarla.</item>
         <item>- **CI** - nel software è il sistema che controlla il codice a ogni modifica. Qui `alerts.rules` fa lo stesso col meteo: scrivi una regola (\"pioggia sopra il 70%\") e l\'app ti avvisa quando si avvera.</item>
+        <item>- **crontab** - su un computer, l\'elenco dei lavori da far partire a orari fissi. `sky.crontab` è quello del cielo: l\'alba, l\'ora d\'oro, uno sciame di meteore. Nessuno li programma, ma sono puntuali, e l\'app li scrive allo stesso modo. Una riga può anche avvisarti poco prima della sua ora: l\'avviso è approssimato di qualche minuto, apposta, perché uno preciso costerebbe batteria tutto il giorno.</item>
         <item></item>
         <item>## Da dove arrivano i dati</item>
         <item></item>
         <item>Le previsioni sono di open-meteo.com, gratuite e senza account. Niente pubblicità e niente statistiche: dal telefono esce solo la richiesta del meteo. La tua posizione, se la attivi, è quella approssimata che dà Android, e serve solo a chiedere le previsioni per quel punto.</item>
+        <item></item>
+        <item>L\'alba, la luna e il resto non si chiedono a nessuno: l\'app li calcola sul telefono, ed è per questo che sono giusti anche senza connessione. Le notifiche riguardano sempre e solo la città attiva, mai una città fissata su un widget.</item>
         <item></item>
         <item>## Perché ha questo aspetto</item>
         <item></item>
@@ -212,4 +215,31 @@
     <string name="moon_waning_gibbous">Gibbosa calante</string>
     <string name="moon_last_quarter">Ultimo quarto</string>
     <string name="moon_waning_crescent">Luna calante</string>
+
+    <!-- Fase 16c: sky.crontab -->
+    <string name="status_sky_jobs">%1$d job</string>
+    <string name="cd_sky_add_job">Aggiungi un job dal catalogo</string>
+    <string name="cd_sky_pick_job">Aggiungi %1$s</string>
+    <string name="cd_sky_enable">Attiva %1$s</string>
+    <string name="cd_sky_disable">Commenta %1$s</string>
+    <string name="cd_sky_remove">Togli %1$s dal file</string>
+    <string name="cd_sky_confirm_remove">Conferma la rimozione di %1$s</string>
+    <string name="cd_run_sky">Esegui tutti i job del cielo sulle previsioni</string>
+    <string name="cd_confirm_run_sky">Conferma: esegui i job del cielo</string>
+    <string name="readme_golden_hour">Ora d\'oro</string>
+    <string name="readme_blue_hour">Ora blu</string>
+    <string name="readme_darkness">Buio astronomico</string>
+    <string name="readme_moonless_from">senza luna dalle %1$s</string>
+    <string name="readme_moon_up_all_night">la luna resta alta tutta la notte</string>
+    <string name="readme_moon_lit">illuminata al %1$d%%</string>
+    <string name="readme_moonrise">sorge</string>
+    <string name="readme_moonset">tramonta</string>
+    <string name="readme_status_sky">%1$s alle %2$s: %3$s</string>
+    <string name="status_sky_runs">%1$d run</string>
+    <string name="cd_widget_sky_line">Attiva o disattiva la riga del cielo su questo widget</string>
+    <string name="cd_sky_cycle_lead">Cambia il promemoria di %1$s</string>
+    <string name="sky_channel_name">Promemoria del cielo</string>
+    <string name="sky_channel_description">Promemoria approssimativi per i job di sky.crontab</string>
+    <string name="sky_notification_title">%1$s</string>
+    <string name="sky_notification_in">fra %1$d min</string>
 </resources>

@@ -57,6 +57,12 @@ object ServiceLocator {
     @Volatile
     private var ruleStateStore: RuleStateStore? = null
 
+    @Volatile
+    private var skySubscriptionStore: SkySubscriptionStore? = null
+
+    @Volatile
+    private var skyAlertStateStore: SkyAlertStateStore? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -110,6 +116,18 @@ object ServiceLocator {
                 .also { ruleStore = it }
         }
 
+    fun skySubscriptionStore(context: Context): SkySubscriptionStore =
+        skySubscriptionStore ?: synchronized(this) {
+            skySubscriptionStore ?: SkySubscriptionStore.create(context.applicationContext, json)
+                .also { skySubscriptionStore = it }
+        }
+
+    fun skyAlertStateStore(context: Context): SkyAlertStateStore =
+        skyAlertStateStore ?: synchronized(this) {
+            skyAlertStateStore ?: SkyAlertStateStore.create(context.applicationContext)
+                .also { skyAlertStateStore = it }
+        }
+
     fun ruleStateStore(context: Context): RuleStateStore =
         ruleStateStore ?: synchronized(this) {
             ruleStateStore ?: RuleStateStore.create(context.applicationContext)
@@ -129,7 +147,9 @@ object ServiceLocator {
         alertStateStore: AlertStateStore? = null,
         widgetCityStore: WidgetCityStore? = null,
         ruleStore: RuleStore? = null,
-        ruleStateStore: RuleStateStore? = null
+        ruleStateStore: RuleStateStore? = null,
+        skySubscriptionStore: SkySubscriptionStore? = null,
+        skyAlertStateStore: SkyAlertStateStore? = null
     ) {
         this.repository = repository
         this.cityStore = cityStore
@@ -138,6 +158,8 @@ object ServiceLocator {
         this.widgetCityStore = widgetCityStore
         this.ruleStore = ruleStore
         this.ruleStateStore = ruleStateStore
+        this.skySubscriptionStore = skySubscriptionStore
+        this.skyAlertStateStore = skyAlertStateStore
     }
 
     /**
@@ -177,7 +199,11 @@ object ServiceLocator {
             TweatherDatabase::class.java,
             "tweather.db"
         )
-            .addMigrations(TweatherDatabase.MIGRATION_1_2, TweatherDatabase.MIGRATION_2_3)
+            .addMigrations(
+                TweatherDatabase.MIGRATION_1_2,
+                TweatherDatabase.MIGRATION_2_3,
+                TweatherDatabase.MIGRATION_3_4
+            )
             .build()
 
         return WeatherRepository(

@@ -91,9 +91,9 @@
         <item></item>
         <item>## The four tabs</item>
         <item></item>
-        <item>- **Editor** - `weather_data.json` and `README.md`: the weather of the active city. The first is the technical version, every field of it; the second is the same thing told in words.</item>
+        <item>- **Editor** - `weather_data.json`, `README.md` and `sky.crontab`: the weather of the active city. The first is the technical version, every field of it; the second is the same thing told in words; the third is what the sky above that city has scheduled next.</item>
         <item>- **Search** - `cities.json`: look up a city and add it to the list. The active one is marked `// active`, and `[rm]` removes a line.</item>
-        <item>- **Logs** - `weather_history.diff`: every update the app has made.</item>
+        <item>- **Logs** - `history.diff`: every update the app has made, plus `sky_runs.log`, what the sky was seen to do.</item>
         <item>- **Settings** - `settings.config` and `alerts.rules`: options change by tapping the value itself. There is no switch to hunt for.</item>
         <item></item>
         <item>## The borrowed words</item>
@@ -102,10 +102,13 @@
         <item>- **diff** - the difference between two updates. Lines with `+` are the new values, lines with `-` the old ones.</item>
         <item>- **branch** (`⎇`) - the active city, down in the status bar. Tap it to switch.</item>
         <item>- **CI** - in software it is the system that checks the code on every change. Here `alerts.rules` does the same to the weather: you write a rule (\"rain above 70%\") and the app tells you when it comes true.</item>
+        <item>- **crontab** - on a computer, the list of jobs to run at set times. `sky.crontab` is the sky\'s: sunrise, the golden hour, a meteor shower. Nobody schedules those, but they run on time, so the app writes them down the same way. A line can also remind you a little before its time: the reminder is approximate by a few minutes, on purpose, because an exact one would cost battery all day.</item>
         <item></item>
         <item>## Where the data comes from</item>
         <item></item>
         <item>Forecasts are open-meteo.com\'s, free and without an account. No ads and no analytics: the only thing that leaves the phone is the weather request itself. Your position, if you turn it on, is the coarse one Android gives, and it is used only to ask for the forecast at that spot.</item>
+        <item></item>
+        <item>Sunrise, the moon and the rest are not asked of anybody: the app works them out on the phone, which is why they are right without a connection. Notifications only ever concern the active city, never a city pinned to a widget.</item>
         <item></item>
         <item>## Why it looks like this</item>
         <item></item>
@@ -227,4 +230,31 @@
     <string name="moon_waning_gibbous">Waning Gibbous</string>
     <string name="moon_last_quarter">Last Quarter</string>
     <string name="moon_waning_crescent">Waning Crescent</string>
+
+    <!-- Fase 16c: sky.crontab -->
+    <string name="status_sky_jobs">%1$d jobs</string>
+    <string name="cd_sky_add_job">Add a job from the catalog</string>
+    <string name="cd_sky_pick_job">Add %1$s</string>
+    <string name="cd_sky_enable">Enable %1$s</string>
+    <string name="cd_sky_disable">Comment out %1$s</string>
+    <string name="cd_sky_remove">Remove %1$s from the file</string>
+    <string name="cd_sky_confirm_remove">Confirm removing %1$s</string>
+    <string name="cd_run_sky">Run every enabled sky job against the forecast</string>
+    <string name="cd_confirm_run_sky">Confirm running the sky jobs</string>
+    <string name="readme_golden_hour">Golden hour</string>
+    <string name="readme_blue_hour">Blue hour</string>
+    <string name="readme_darkness">Astronomical darkness</string>
+    <string name="readme_moonless_from">moonless from %1$s</string>
+    <string name="readme_moon_up_all_night">the moon is up all night</string>
+    <string name="readme_moon_lit">%1$d%% lit</string>
+    <string name="readme_moonrise">rises</string>
+    <string name="readme_moonset">sets</string>
+    <string name="readme_status_sky">%1$s at %2$s: %3$s</string>
+    <string name="status_sky_runs">%1$d runs</string>
+    <string name="cd_widget_sky_line">Toggle the sky line on this widget</string>
+    <string name="cd_sky_cycle_lead">Change the reminder for %1$s</string>
+    <string name="sky_channel_name">Sky reminders</string>
+    <string name="sky_channel_description">Approximate reminders for the jobs in sky.crontab</string>
+    <string name="sky_notification_title">%1$s</string>
+    <string name="sky_notification_in">in %1$d min</string>
 </resources>

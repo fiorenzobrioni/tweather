@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.data.mapper
 
+import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import com.callbackdev.tweather.data.remote.dto.AirQualityCurrentDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
 import com.callbackdev.tweather.data.remote.dto.HourlyDto
@@ -20,21 +21,42 @@ import com.callbackdev.tweather.domain.model.Precipitation
 import com.callbackdev.tweather.domain.model.SystemInfo
 import com.callbackdev.tweather.domain.model.WeatherReport
 import com.callbackdev.tweather.domain.model.Wind
+import com.callbackdev.tweather.domain.sky.AstronomyEngine
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
 /**
  * Hourly slots carried in the domain: the CURRENT hour first — slot 0 feeds
- * `current_conditions`' rain chance and anchors AlertEngine/rules — plus the full
- * day both tabs read from the hour after it (Fase 11f: the views drop slot 0, it
- * only repeats the current section; the JSON still shows 24 rows, `+1h..+24h`).
+ * `current_conditions`' rain chance and anchors AlertEngine/rules (Fase 11f: the
+ * views drop it, it only repeats the current section) — and then every remaining
+ * hour the response carries.
+ *
+ * `FORECAST_DAYS × 24` since Fase 16a, 25 before it. The old number was one day, and
+ * the other 143 hours of the response were deserialized into [HourlyDto], written to
+ * `ReportDiskCache` as part of the raw DTO, and then dropped on the floor by this
+ * function. So a sky verdict three days out is not a new capability that needs a new
+ * request: it is data the app has been paying for and discarding. Widening costs no
+ * network, no disk and no parsing — only the mapped objects, which is why the count
+ * is bounded here rather than left as "whatever arrived".
+ *
+ * The realized count is never the full 168: the window opens at the current hour, so
+ * it runs from ~168 at midnight down to ~145 at 23:00, and [mapHourly] clips it to
+ * what the response actually holds.
+ *
+ * **The views do not follow this window.** `weather_data.json` caps its table at 24
+ * rows and the README at 14; AlertEngine and RuleVariables bound themselves by time
+ * (`next_6h`, `next_12h`, `now.plusHours(…)`) rather than by position. Anything new
+ * reading `report.hourly` has to decide its own horizon — the list is a week now.
  */
-private const val HOURLY_WINDOW = 25
-private const val DAILY_WINDOW = 7
+private const val HOURLY_WINDOW = OpenMeteoForecastApi.FORECAST_DAYS * 24
+
+/** Days of daily forecast carried — the whole response, like [HOURLY_WINDOW]. */
+private const val DAILY_WINDOW = OpenMeteoForecastApi.FORECAST_DAYS
 
 /**
  * Below 51 the WMO scale carries only sky states and fog; from 51 up every code is a
@@ -107,7 +129,7 @@ object WeatherReportMapper {
             ),
             airQuality = airQuality?.toAirQuality(),
             pollen = airQuality?.toPollenReport(),
-            astronomical = mapAstronomical(forecast, fetchedAt),
+            astronomical = mapAstronomical(city, forecast, localTime, fetchedAt),
             hourly = mapHourly(forecast, hourlyTimes, hourlyCodes, currentHourIndex),
             daily = mapDaily(forecast, hourlyTimes, hourlyCodes),
             systemInfo = SystemInfo(
@@ -135,7 +157,11 @@ object WeatherReportMapper {
                         codes[i],
                         isDay = hourly.isDay[i] == 1
                     ),
-                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0
+                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0,
+                    // Read like its siblings: the parallel arrays are the same length
+                    // in any response that deserialized, and `repairedCodes()` has
+                    // already indexed this very column over all of them.
+                    cloudCoverPct = hourly.cloudCoverPct[i]
                 )
             }
     }
@@ -257,13 +283,47 @@ object WeatherReportMapper {
         else -> 3
     }
 
-    private fun mapAstronomical(forecast: ForecastResponseDto, fetchedAt: Instant): Astronomical {
-        val daily = forecast.daily
+    /**
+     * Sun and moon from [AstronomyEngine], not from the provider's daily block
+     * (Fase 16e).
+     *
+     * The provider's values are still fetched — `daily.sunrise` feeds nothing now,
+     * but it costs nothing and the contract test compares the two. The engine wins
+     * for the reason `VISION_SKY.md` §9.2 gives: the same figure appears in the JSON
+     * tab, in the README and on a `sky.crontab` line that is computed anyway, and a
+     * document showing 06:31 in one tab and 06:32 in another because one of them
+     * waited for the network is exactly what "one engine is the source of truth" was
+     * written against. It also means these times are right offline and past the
+     * seven-day horizon, which the provider's cannot be.
+     *
+     * Nulls are real answers here: above the Arctic circle in June there is no
+     * sunrise, and the old code could only put some other time in its place.
+     */
+    private fun mapAstronomical(
+        city: City,
+        forecast: ForecastResponseDto,
+        localTime: LocalDateTime,
+        fetchedAt: Instant
+    ): Astronomical {
+        val zone = runCatching { ZoneId.of(forecast.timezone) }.getOrDefault(ZoneId.systemDefault())
+        val day = AstronomyEngine.solarDay(localTime.toLocalDate(), zone, city.coordinates)
+        // Truncated to the minute, and not for tidiness. Every surface renders these
+        // as `HH:mm`, but `WeatherSnapshots.flatten` writes `sunrise.toString()` into
+        // the history — so a value carrying seconds would put a fresh
+        // `astronomical.sunrise` line in `history.diff` on EVERY fetch, since
+        // the engine's answer moves by a fraction of a second between two of them.
+        // The provider's values were minute-precise and nothing noticed until they
+        // stopped being the source.
+        fun clock(at: Instant?) =
+            at?.atZone(zone)?.toLocalTime()?.truncatedTo(ChronoUnit.MINUTES)
         return Astronomical(
-            sunrise = LocalDateTime.parse(daily.sunrise.first()).toLocalTime(),
-            sunset = LocalDateTime.parse(daily.sunset.first()).toLocalTime(),
+            sunrise = clock(day.sunrise),
+            sunset = clock(day.sunset),
             moonPhase = MoonPhase.at(fetchedAt),
-            daylightDuration = Duration.ofSeconds(daily.daylightDurationSec.first().toLong())
+            // Derived from this engine's own two ends rather than read off
+            // `daily.daylight_duration`: three numbers that must agree are better as
+            // two numbers and a subtraction.
+            daylightDuration = day.daylight
         )
     }
 

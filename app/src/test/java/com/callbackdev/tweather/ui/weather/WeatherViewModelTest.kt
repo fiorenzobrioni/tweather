@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.LocationProvider
 import com.callbackdev.tweather.data.SettingsStore
+import com.callbackdev.tweather.data.SkySubscriptionStore
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.data.WorkspaceStore
 import com.callbackdev.tweather.data.local.TweatherDatabase
@@ -120,8 +121,19 @@ class WeatherViewModelTest {
         storeScope.cancel()
     }
 
+    private val skyStore by lazy {
+        SkySubscriptionStore(
+            PreferenceDataStoreFactory.create(scope = storeScope) {
+                tmp.newFile("sky-${System.nanoTime()}.preferences_pb")
+            },
+            json
+        )
+    }
+
     private fun viewModel(provider: LocationProvider) =
-        WeatherViewModel(repository, cityStore, settingsStore, provider, workspaceStore)
+        WeatherViewModel(
+            repository, cityStore, settingsStore, provider, workspaceStore, skyStore
+        )
 
     private fun awaitState(
         viewModel: WeatherViewModel,

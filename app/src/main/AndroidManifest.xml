@@ -7,6 +7,17 @@
     <!-- Alert engine (Fase 9c); minSdk 33 = single runtime-request code path -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      Fase 16f. Alarms do not survive a reboot and WorkManager's persistence does not
+      extend to them, so without this the sky reminders would go quiet after a restart
+      and nothing would say why. A normal permission, not a runtime one.
+
+      Deliberately NOT here: SCHEDULE_EXACT_ALARM. The reminders are inexact by
+      design (setAndAllowWhileIdle) — battery is a feature, and a sunset is not an
+      alarm clock. That is also why the shortest selectable lead is 15 minutes.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -24,6 +35,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Sky reminders (Fase 16f). exported=false: the system is exempt from the
+             export check for the broadcasts it sends itself, and our own alarm intent
+             is explicit, so nothing else can make this fire. -->
+        <receiver
+            android:name=".notifications.SkyAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Home widget (Fase 9d). exported=false: the system delivers APPWIDGET_*
              regardless, and it keeps our custom refresh action private. -->

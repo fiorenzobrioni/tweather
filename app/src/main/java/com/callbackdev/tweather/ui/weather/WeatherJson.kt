@@ -125,19 +125,28 @@ fun WeatherReport.toDisplayJson(
         put("pollen_report", JsonNull)
     }
     putJsonObject("astronomical") {
-        put("sunrise", astronomical.sunrise.format(ClockTime))
-        put("sunset", astronomical.sunset.format(ClockTime))
+        // `null` where the sun does not rise or set (Fase 16e): the polar day is a
+        // fact about the place, and a fake time would be the JSON's first invented
+        // value. `null` is also what this file already prints for a section the
+        // providers could not fill, so it is in character rather than an exception.
+        putNullable("sunrise", astronomical.sunrise?.format(ClockTime))
+        putNullable("sunset", astronomical.sunset?.format(ClockTime))
         put(
             "moon_phase",
             "${translate(astronomical.moonPhase.label)} ${astronomical.moonPhase.emoji}"
         )
-        put("daylight_duration", astronomical.daylightDuration.hhMm())
+        putNullable("daylight_duration", astronomical.daylightDuration?.hhMm())
     }
     putJsonArray("hourly_forecast") {
         // From the hour AFTER the current one (Fase 11f, like the README's table):
-        // slot 0 only repeats `current_conditions` right above. Still 24 rows — the
-        // mapper carries 25 so a full day survives the drop.
-        hourly.drop(1).forEach { h ->
+        // slot 0 only repeats `current_conditions` right above.
+        //
+        // The `take` is explicit since Fase 16a. It used to be implicit — the mapper
+        // carried exactly 25 slots, so dropping one left exactly the day this table
+        // has always shown. The mapper now carries a week for the sky module, and an
+        // uncapped `forEach` here would have quietly turned a 24-row table into a
+        // 167-row one in a document the user scrolls by hand.
+        hourly.drop(1).take(HourlyJsonRows).forEach { h ->
             add(buildJsonObject {
                 put("time", h.time.format(ClockTime))
                 put("temp_$tempKey", temp(h.tempC).roundToInt())
@@ -168,6 +177,11 @@ fun WeatherReport.toDisplayJson(
     }
 }
 
+/** A string value, or an in-character `null` when the sky does not have one. */
+private fun JsonObjectBuilder.putNullable(key: String, value: String?) {
+    if (value == null) put(key, JsonNull) else put(key, value)
+}
+
 // internal: AlertNotifier keys its temperatures the same way (`high_c`/`high_f`)
 internal val TemperatureUnit.keySuffix: String
     get() = if (this == TemperatureUnit.CELSIUS) "c" else "f"
@@ -188,6 +202,14 @@ internal fun WindSpeedUnit.convert(kph: Double): Double =
 
 internal val WindSpeedUnit.symbol: String
     get() = if (this == WindSpeedUnit.KMH) "km/h" else "mph"
+
+/**
+ * Rows of `hourly_forecast`: one full day, `+1h..+24h`. Deliberately not the same
+ * number as the README's table (14 rows, Fase 11e) — the JSON tab is the full data
+ * source and the README the curated glance, which is the whole difference between
+ * the two tabs.
+ */
+private const val HourlyJsonRows = 24
 
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")

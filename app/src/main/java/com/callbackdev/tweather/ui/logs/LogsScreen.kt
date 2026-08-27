@@ -46,6 +46,8 @@ import com.callbackdev.tweather.data.local.SnapshotDiff
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
+import com.callbackdev.tweather.domain.sky.SkyRun
+import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
@@ -61,16 +63,34 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HISTORY_FILE = "weather_history.diff"
-private const val FORECAST_FILE = "weather_forecast.diff"
+/**
+ * `history.diff` and `forecast.diff`, shortened from `weather_history.diff` and
+ * `weather_forecast.diff` in Fase 16f.
+ *
+ * The `weather_` prefix was the only one in the app — `cities.json`,
+ * `settings.config`, `alerts.rules`, `sky.crontab`, `HELP.md` all name their subject
+ * and nothing else — and inside a weather app's Logs tab it was saying the one thing
+ * the reader already knew. It also cost 16 characters the strip did not have: with
+ * three files the third tab sat entirely off-screen at every phone width, which is
+ * how a file goes undiscovered. Measured: with the short names all three are fully
+ * visible down to 320dp.
+ */
+private const val HISTORY_FILE = "history.diff"
+private const val FORECAST_FILE = "forecast.diff"
+
+/**
+ * Fase 16e. Not a `.diff`: this one records outcomes, not changes, and calling it a
+ * diff would be the same kind of lie the crontab avoided.
+ */
+private const val SKY_RUNS_FILE = "sky_runs.log"
 
 /**
  * Logs screen: two fake files behind a real editor tab bar (Fase 9h).
  *
- * - `weather_history.diff` (Fase 8): every fetch is a git-style commit (short
+ * - `history.diff` (Fase 8): every fetch is a git-style commit (short
  *   hash, author `sys@tweather.app`, relative date) diffing observations — what
  *   actually changed since the previous fetch of the same city.
- * - `weather_forecast.diff` (Fase 9h): same commits, different question — how did
+ * - `forecast.diff` (Fase 9h): same commits, different question — how did
  *   the *prediction* for the same target date change between fetches. Per-date
  *   `---`/`+++` headers and `@@ tomorrow @@` hunks; sub-threshold model wiggle is
  *   filtered out by [ForecastDiff], so the file only contains real revisions.
@@ -86,11 +106,23 @@ private const val FORECAST_FILE = "weather_forecast.diff"
 fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Factory)) {
     val commits by viewModel.commits.collectAsStateWithLifecycle()
     val revisions by viewModel.revisions.collectAsStateWithLifecycle()
-    LogsScreen(commits = commits, revisions = revisions)
+    val skyRuns by viewModel.skyRuns.collectAsStateWithLifecycle()
+    val skyEnabled by viewModel.skyEnabled.collectAsStateWithLifecycle()
+    LogsScreen(
+        commits = commits,
+        revisions = revisions,
+        skyRuns = skyRuns,
+        skyEnabled = skyEnabled
+    )
 }
 
 @Composable
-fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
+fun LogsScreen(
+    commits: List<CommitUi>,
+    revisions: List<ForecastRevisionUi>,
+    skyRuns: List<SkyRunsLog.Row> = emptyList(),
+    skyEnabled: Boolean = false
+) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
     val translate = remember(resources) { WeatherTranslations.valueTranslator(resources) }
@@ -109,22 +141,38 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
             }
         }
     }
-    val lines = remember(commits, revisions, syntax, nowEpochSeconds, activeFile, translate) {
-        if (activeFile == 0) buildLogLines(commits, syntax, nowEpochSeconds, translate)
-        else buildForecastLines(
-            revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), translate
-        )
+    val files = if (skyEnabled) {
+        listOf(HISTORY_FILE, FORECAST_FILE, SKY_RUNS_FILE)
+    } else {
+        listOf(HISTORY_FILE, FORECAST_FILE)
+    }
+    // A tab that no longer exists cannot stay selected: switching the module off
+    // while sitting on its file must not leave the strip pointing at nothing.
+    val active = activeFile.coerceAtMost(files.lastIndex)
+    val lines = remember(commits, revisions, skyRuns, syntax, nowEpochSeconds, active, translate) {
+        when (active) {
+            0 -> buildLogLines(commits, syntax, nowEpochSeconds, translate)
+            1 -> buildForecastLines(
+                revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), translate
+            )
+            else -> SkyRunsLog.build(skyRuns, ZoneId.systemDefault(), syntax)
+        }
     }
     // One scroll position per file: switching tab must not land mid-file because
     // the OTHER diff was scrolled there.
     val historyScroll = rememberLazyListState()
     val forecastScroll = rememberLazyListState()
-    val canvasScroll = if (activeFile == 0) historyScroll else forecastScroll
+    val skyScroll = rememberLazyListState()
+    val canvasScroll = when (active) {
+        0 -> historyScroll
+        1 -> forecastScroll
+        else -> skyScroll
+    }
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTabs(
-                fileNames = listOf(HISTORY_FILE, FORECAST_FILE),
-                activeIndex = activeFile,
+                fileNames = files,
+                activeIndex = active,
                 onSelect = { activeFile = it }
             )
             Box(Modifier.weight(1f)) {
@@ -141,14 +189,22 @@ fun LogsScreen(commits: List<CommitUi>, revisions: List<ForecastRevisionUi>) {
                 )
             }
             TerminalStatusBar {
-                if (activeFile == 0) {
-                    Text("⎇ history")
-                    StatusBarDivider()
-                    Text(stringResource(R.string.status_commits, commits.size))
-                } else {
-                    Text("⎇ forecast")
-                    StatusBarDivider()
-                    Text(stringResource(R.string.status_revisions, revisions.size))
+                when (active) {
+                    0 -> {
+                        Text("⎇ history")
+                        StatusBarDivider()
+                        Text(stringResource(R.string.status_commits, commits.size))
+                    }
+                    1 -> {
+                        Text("⎇ forecast")
+                        StatusBarDivider()
+                        Text(stringResource(R.string.status_revisions, revisions.size))
+                    }
+                    else -> {
+                        Text("⎇ sky")
+                        StatusBarDivider()
+                        Text(stringResource(R.string.status_sky_runs, skyRuns.size))
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 Text("read-only")
@@ -218,6 +274,20 @@ private fun buildLogLines(
                     )
                 )
             }
+            // The sky module's check lines (Fase 16e), from the same commit row and
+            // the same store `sky_runs.log` reads: two files, one truth. Only the
+            // jobs this fetch was the first to see as past — a ✓ for every job that
+            // did not run would be the noise the fired-rules line already avoids.
+            commit.skyRuns.forEach { run ->
+                add(
+                    CodeLine(
+                        AnnotatedString(
+                            "${checkGlyph(run)} ${run.jobId} ${checkWord(run)}",
+                            SpanStyle(color = checkColor(run, syntax))
+                        )
+                    )
+                )
+            }
             add(commentLine("diff --git a/weather_data.json b/weather_data.json", syntax))
             if (commit.isInitial) {
                 add(commentLine("new file mode 100644", syntax))
@@ -225,6 +295,28 @@ private fun buildLogLines(
             commit.lines.forEach { line -> add(diffLine(line.localized(translate), syntax)) }
         }
     }
+}
+
+/** `✓`, `~`, `✗` — or `–` for a run no fetch came near enough to judge. */
+private fun checkGlyph(run: SkyRun): String = when (run.verdict) {
+    SkyVerdictKind.PASS -> "✓"
+    SkyVerdictKind.UNSTABLE -> "~"
+    SkyVerdictKind.FAIL -> "✗"
+    else -> "–"
+}
+
+private fun checkWord(run: SkyRun): String = when (run.verdict) {
+    SkyVerdictKind.PASS -> "ran clear"
+    SkyVerdictKind.UNSTABLE -> "ran, sky unsettled"
+    SkyVerdictKind.FAIL -> "ran unseen"
+    else -> "ran, no data near it"
+}
+
+private fun checkColor(run: SkyRun, syntax: SyntaxColors) = when (run.verdict) {
+    SkyVerdictKind.PASS -> syntax.diffAdd
+    SkyVerdictKind.FAIL -> syntax.diffDel
+    SkyVerdictKind.UNSTABLE -> syntax.number
+    else -> syntax.comment
 }
 
 private fun buildForecastLines(

@@ -7,7 +7,10 @@ import com.callbackdev.tweather.domain.AlertEngine
 import com.callbackdev.tweather.domain.AlertKind
 import com.callbackdev.tweather.domain.AlertState
 import com.callbackdev.tweather.domain.model.WeatherReport
-import com.callbackdev.tweather.ui.sky.SkyDocumentBuilder
+import com.callbackdev.tweather.domain.sky.SkyVerdict
+import com.callbackdev.tweather.domain.sky.SkyVerdictKind
+import com.callbackdev.tweather.domain.sky.SkyVerdictNote
+import com.callbackdev.tweather.ui.sky.SkyJobNames
 import com.callbackdev.tweather.ui.sky.SkySummary
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -40,6 +43,8 @@ import kotlin.math.roundToInt
  * rules evaluated statelessly (no dedup fingerprints — the README shows what IS,
  * notifications decide what's news) render as `>` blockquote warnings. It reads third,
  * right after Current and Today (Fase 13d) — a badge below the fold is not a badge.
+ * Every one of its lines is a SENTENCE (Fase 16g), the sky's included: see
+ * [skyVerdictProse] and [SkyJobNames].
  */
 fun WeatherReport.toReadmeMarkdown(
     resources: Resources,
@@ -115,14 +120,21 @@ fun WeatherReport.toReadmeMarkdown(
     // The sky's one line in this document's one badge (Fase 16e). It is raised only
     // for a job the user actually subscribed to, so `## Status` reports THEIR file
     // and never advertises a module they have not opened.
+    //
+    // It speaks the document's language, not the crontab's (Fase 16g): the job by
+    // NAME and the verdict as a sentence, where until now it printed the dotted id
+    // and `SkyDocumentBuilder.render` — `golden_hour.pm alle 19:21: ✗ fail  cloud
+    // 100%`, four tokens of another file's grammar in the middle of the only page
+    // this app writes in prose. The number survives the translation (`VISION_SKY.md`
+    // §7): a verdict without the figure it was built from is an opinion.
     val skyWarning = sky?.warning?.let { warning ->
         "> " + s(
             R.string.readme_status_sky,
-            warning.jobId,
+            SkyJobNames.label(resources, warning.jobId),
             warning.at.atZone(
                 runCatching { ZoneId.of(location.timezone) }.getOrDefault(ZoneId.systemDefault())
             ).format(ClockTime),
-            SkyDocumentBuilder.render(warning.verdict)
+            skyVerdictProse(resources, warning.verdict)
         )
     }
     if (warnings.isEmpty() && skyWarning == null) {
@@ -310,6 +322,38 @@ fun WeatherReport.toReadmeMarkdown(
 private const val HourlyRows = 14
 
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
+
+/**
+ * A [SkyVerdict] as a sentence: `the sky will be overcast (100% cloud)`, not
+ * `✗ fail  cloud 100%` (Fase 16g).
+ *
+ * Same verdict, same number, other language. `sky.crontab` keeps the glyph and the
+ * word because a crontab's comment channel is where this app puts facts in the
+ * file's own grammar; `## Status` is one line of a document written for somebody who
+ * does not read `git` for a living, and `✗ fail` in the middle of it asks them to
+ * learn a vocabulary to be told it will be cloudy.
+ *
+ * The reason comes FIRST, before the clouds: naming the sky for a night the moon
+ * ruined, or for one the rain will, is the same lie in a friendlier font. Only
+ * `~ unstable` and `✗ fail` reach the README (`SkyReadme.warning` filters), and both
+ * always carry their figure — the last branch is a safety net, not a case.
+ */
+private fun skyVerdictProse(resources: Resources, verdict: SkyVerdict): String = when {
+    verdict.note == SkyVerdictNote.PRECIPITATION -> resources.getString(
+        if (verdict.kind == SkyVerdictKind.FAIL) R.string.readme_status_sky_rain_likely
+        else R.string.readme_status_sky_rain_possible,
+        verdict.precipPct ?: 0
+    )
+    verdict.note == SkyVerdictNote.MOONLIGHT -> resources.getString(
+        R.string.readme_status_sky_moonlight, verdict.moonPct ?: 0
+    )
+    verdict.cloudPct != null -> resources.getString(
+        if (verdict.kind == SkyVerdictKind.FAIL) R.string.readme_status_sky_overcast
+        else R.string.readme_status_sky_cloudy,
+        verdict.cloudPct
+    )
+    else -> resources.getString(R.string.readme_status_sky_uncertain)
+}
 
 /**
  * What stands in for a time the sky does not have. Not `00:00` and not an empty

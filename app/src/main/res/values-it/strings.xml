@@ -242,4 +242,45 @@
     <string name="sky_channel_description">Promemoria approssimativi per i job di sky.crontab</string>
     <string name="sky_notification_title">%1$s</string>
     <string name="sky_notification_in">fra %1$d min</string>
+
+    <!-- Fase 16g: il cielo nella riga di `## Stato` del README -->
+    <string name="sky_job_sun_rise">L\'alba</string>
+    <string name="sky_job_sun_set">Il tramonto</string>
+    <string name="sky_job_solar_noon">Il mezzogiorno solare</string>
+    <string name="sky_job_twilight_civil_am">Il crepuscolo civile del mattino</string>
+    <string name="sky_job_twilight_civil_pm">Il crepuscolo civile della sera</string>
+    <string name="sky_job_twilight_nautical_am">Il crepuscolo nautico del mattino</string>
+    <string name="sky_job_twilight_nautical_pm">Il crepuscolo nautico della sera</string>
+    <string name="sky_job_twilight_astronomical_am">Il crepuscolo astronomico del mattino</string>
+    <string name="sky_job_twilight_astronomical_pm">Il crepuscolo astronomico della sera</string>
+    <string name="sky_job_golden_hour_am">L\'ora d\'oro del mattino</string>
+    <string name="sky_job_golden_hour_pm">L\'ora d\'oro della sera</string>
+    <string name="sky_job_blue_hour_am">L\'ora blu del mattino</string>
+    <string name="sky_job_blue_hour_pm">L\'ora blu della sera</string>
+    <string name="sky_job_darkness_window">La finestra di buio astronomico</string>
+    <string name="sky_job_moon_rise">Il sorgere della luna</string>
+    <string name="sky_job_moon_set">Il tramonto della luna</string>
+    <string name="sky_job_moon_today">La luna di stanotte</string>
+    <string name="sky_job_moon_phase">La prossima fase lunare</string>
+    <string name="sky_job_equinox_spring">L\'equinozio di primavera</string>
+    <string name="sky_job_solstice_summer">Il solstizio d\'estate</string>
+    <string name="sky_job_equinox_autumn">L\'equinozio d\'autunno</string>
+    <string name="sky_job_solstice_winter">Il solstizio d\'inverno</string>
+    <string name="sky_job_meteor_peak">Il picco delle %1$s</string>
+    <string name="shower_quadrantids">Quadrantidi</string>
+    <string name="shower_lyrids">Liridi</string>
+    <string name="shower_eta_aquariids">Eta Aquaridi</string>
+    <string name="shower_delta_aquariids">Delta Aquaridi</string>
+    <string name="shower_perseids">Perseidi</string>
+    <string name="shower_draconids">Draconidi</string>
+    <string name="shower_orionids">Orionidi</string>
+    <string name="shower_leonids">Leonidi</string>
+    <string name="shower_geminids">Geminidi</string>
+    <string name="shower_ursids">Ursidi</string>
+    <string name="readme_status_sky_overcast">il cielo sarà coperto (nuvole al %1$d%%)</string>
+    <string name="readme_status_sky_cloudy">il cielo potrebbe essere nuvoloso (nuvole al %1$d%%)</string>
+    <string name="readme_status_sky_rain_likely">è probabile che piova (%1$d%%)</string>
+    <string name="readme_status_sky_rain_possible">potrebbe piovere (%1$d%%)</string>
+    <string name="readme_status_sky_moonlight">la luna sarà alta e illuminata al %1$d%%</string>
+    <string name="readme_status_sky_uncertain">le previsioni non promettono un cielo sereno</string>
 </resources>

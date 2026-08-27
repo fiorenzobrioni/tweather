@@ -44,6 +44,9 @@ data class SkySummary(
  * thing the sky is allowed to say in `## Status`, and only when the user has actually
  * put that job in their file: the section reports YOUR subscriptions, it does not
  * advertise the module to somebody who never opened it.
+ *
+ * [jobId] is the catalog id, as everywhere else in this module: the README looks its
+ * NAME up in [SkyJobNames] and never prints the id itself (Fase 16g).
  */
 data class SkyWarning(val jobId: String, val verdict: SkyVerdict, val at: Instant)
 

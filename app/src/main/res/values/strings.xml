@@ -257,4 +257,48 @@
     <string name="sky_channel_description">Approximate reminders for the jobs in sky.crontab</string>
     <string name="sky_notification_title">%1$s</string>
     <string name="sky_notification_in">in %1$d min</string>
+
+    <!-- The sky's line in the README's `## Status` (Fase 16g). The document is prose,
+         so the job arrives here by NAME and the verdict as a sentence; the dotted id
+         and `✗ fail  cloud 100%` stay in sky.crontab, which is code. The number the
+         verdict was built from travels with the sentence (VISION_SKY §7). -->
+    <string name="sky_job_sun_rise">Sunrise</string>
+    <string name="sky_job_sun_set">Sunset</string>
+    <string name="sky_job_solar_noon">Solar noon</string>
+    <string name="sky_job_twilight_civil_am">Civil dawn</string>
+    <string name="sky_job_twilight_civil_pm">Civil dusk</string>
+    <string name="sky_job_twilight_nautical_am">Nautical dawn</string>
+    <string name="sky_job_twilight_nautical_pm">Nautical dusk</string>
+    <string name="sky_job_twilight_astronomical_am">Astronomical dawn</string>
+    <string name="sky_job_twilight_astronomical_pm">Astronomical dusk</string>
+    <string name="sky_job_golden_hour_am">The morning golden hour</string>
+    <string name="sky_job_golden_hour_pm">The evening golden hour</string>
+    <string name="sky_job_blue_hour_am">The morning blue hour</string>
+    <string name="sky_job_blue_hour_pm">The evening blue hour</string>
+    <string name="sky_job_darkness_window">The dark sky window</string>
+    <string name="sky_job_moon_rise">Moonrise</string>
+    <string name="sky_job_moon_set">Moonset</string>
+    <string name="sky_job_moon_today">Tonight\'s moon</string>
+    <string name="sky_job_moon_phase">The next moon phase</string>
+    <string name="sky_job_equinox_spring">The spring equinox</string>
+    <string name="sky_job_solstice_summer">The summer solstice</string>
+    <string name="sky_job_equinox_autumn">The autumn equinox</string>
+    <string name="sky_job_solstice_winter">The winter solstice</string>
+    <string name="sky_job_meteor_peak">The peak of the %1$s</string>
+    <string name="shower_quadrantids">Quadrantids</string>
+    <string name="shower_lyrids">Lyrids</string>
+    <string name="shower_eta_aquariids">Eta Aquariids</string>
+    <string name="shower_delta_aquariids">Delta Aquariids</string>
+    <string name="shower_perseids">Perseids</string>
+    <string name="shower_draconids">Draconids</string>
+    <string name="shower_orionids">Orionids</string>
+    <string name="shower_leonids">Leonids</string>
+    <string name="shower_geminids">Geminids</string>
+    <string name="shower_ursids">Ursids</string>
+    <string name="readme_status_sky_overcast">the sky will be overcast (%1$d%% cloud)</string>
+    <string name="readme_status_sky_cloudy">the sky may be cloudy (%1$d%% cloud)</string>
+    <string name="readme_status_sky_rain_likely">rain is likely (%1$d%%)</string>
+    <string name="readme_status_sky_rain_possible">rain is possible (%1$d%%)</string>
+    <string name="readme_status_sky_moonlight">the moon will be up and %1$d%% lit</string>
+    <string name="readme_status_sky_uncertain">the forecast does not promise a clear sky</string>
 </resources>

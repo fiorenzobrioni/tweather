@@ -217,7 +217,7 @@ class RulesScreenTest {
                 SettingsScreen(
                     settings = AppSettings(),
                     actions = SettingsActions(
-                        {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
+                        {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}
                     ),
                     onSelectFile = { selected = it }
                 )

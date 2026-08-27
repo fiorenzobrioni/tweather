@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter
  *
  * It is a **second view of the commits**, not a second store: every row here comes
  * from the `sky_runs` column of a `weather_history` commit, which is also where the
- * `✓ …` check lines in `weather_history.diff` come from. Two files, one truth, no
+ * `✓ …` check lines in `history.diff` come from. Two files, one truth, no
  * reconciliation test to write — and the retention solves itself, because runs age
  * out with the 200 commits the history already keeps.
  */

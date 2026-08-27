@@ -60,6 +60,9 @@ object ServiceLocator {
     @Volatile
     private var skySubscriptionStore: SkySubscriptionStore? = null
 
+    @Volatile
+    private var skyAlertStateStore: SkyAlertStateStore? = null
+
     fun weatherRepository(context: Context): WeatherRepository =
         repository ?: synchronized(this) {
             repository ?: build(context.applicationContext).also { repository = it }
@@ -119,6 +122,12 @@ object ServiceLocator {
                 .also { skySubscriptionStore = it }
         }
 
+    fun skyAlertStateStore(context: Context): SkyAlertStateStore =
+        skyAlertStateStore ?: synchronized(this) {
+            skyAlertStateStore ?: SkyAlertStateStore.create(context.applicationContext)
+                .also { skyAlertStateStore = it }
+        }
+
     fun ruleStateStore(context: Context): RuleStateStore =
         ruleStateStore ?: synchronized(this) {
             ruleStateStore ?: RuleStateStore.create(context.applicationContext)
@@ -139,7 +148,8 @@ object ServiceLocator {
         widgetCityStore: WidgetCityStore? = null,
         ruleStore: RuleStore? = null,
         ruleStateStore: RuleStateStore? = null,
-        skySubscriptionStore: SkySubscriptionStore? = null
+        skySubscriptionStore: SkySubscriptionStore? = null,
+        skyAlertStateStore: SkyAlertStateStore? = null
     ) {
         this.repository = repository
         this.cityStore = cityStore
@@ -149,6 +159,7 @@ object ServiceLocator {
         this.ruleStore = ruleStore
         this.ruleStateStore = ruleStateStore
         this.skySubscriptionStore = skySubscriptionStore
+        this.skyAlertStateStore = skyAlertStateStore
     }
 
     /**

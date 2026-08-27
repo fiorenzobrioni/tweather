@@ -10,6 +10,7 @@ import com.callbackdev.tweather.domain.sky.AstronomyEngine
 import com.callbackdev.tweather.domain.sky.SkyAlmanac
 import com.callbackdev.tweather.domain.sky.SkyJob
 import com.callbackdev.tweather.domain.sky.SkyJobCatalog
+import com.callbackdev.tweather.domain.sky.SkyLead
 import com.callbackdev.tweather.domain.sky.SkyNotScheduled
 import com.callbackdev.tweather.domain.sky.SkyOccurrence
 import com.callbackdev.tweather.domain.sky.SkyScheduler
@@ -51,6 +52,14 @@ data class SkyDocument(
      */
     val nameColumnWidth: Int = rows.maxOfOrNull { it.job.id.length } ?: 0
 
+    /**
+     * Width of the `--notify=…` column, zero when no line in the file has one — a
+     * file nobody set a reminder on does not pay a column for the possibility.
+     */
+    val leadColumnWidth: Int = rows
+        .filter { it.lead != SkyLead.OFF }
+        .maxOfOrNull { "--notify=${it.lead.label}".length } ?: 0
+
     /** Likewise, and it includes the `#` a commented-out line carries. */
     val expressionColumnWidth: Int =
         rows.maxOfOrNull { it.expression.length + if (it.enabled) 0 else 1 } ?: 0
@@ -66,6 +75,15 @@ data class SkyRow(
     val enabled: Boolean,
     /** The cron field: a nickname or the polling expression. Padded by the renderer. */
     val expression: String,
+    /**
+     * The `--notify=<lead>` argument, or [SkyLead.OFF]. Already RESOLVED against
+     * `notify_default`, so this is what the line shows, not what it stores.
+     *
+     * Rendered since Fase 16f — before it there was a reminder the app could not
+     * send, and a token promising one would have been the first thing this module
+     * lied about.
+     */
+    val lead: SkyLead = SkyLead.OFF,
     /** The comment channel: resolved instant, window, `∅` reason. Empty when disabled. */
     val comment: String,
     /**
@@ -147,7 +165,16 @@ object SkyDocumentBuilder {
     private val DayAndClock = DateTimeFormatter.ofPattern("MMM d HH:mm")
     private val IsoDate = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-    fun build(subscriptions: List<SkySubscription>, context: SkyContext): SkyDocument {
+    fun build(
+        subscriptions: List<SkySubscription>,
+        context: SkyContext,
+        /**
+         * `notify_default`: the lead a line uses when it carries none of its own.
+         * The README and the widget line pass nothing — they render no `--notify`
+         * token, so the fallback would only be a value they compute and discard.
+         */
+        defaultLeadMinutes: Int? = null
+    ): SkyDocument {
         val known = subscriptions.mapNotNull { subscription ->
             SkyJobCatalog.byId(subscription.jobId)?.let { it to subscription }
         }
@@ -158,8 +185,11 @@ object SkyDocumentBuilder {
             // A commented-out line is not evaluated. That is not an optimization: a
             // disabled job that still printed a resolved time would be a line
             // claiming to be off while doing the work of being on.
+            val lead = SkyLead.ofMinutes(subscription.notifyLeadMinutes ?: defaultLeadMinutes)
             if (!subscription.enabled) {
-                return@map SkyRow(job, enabled = false, expression = job.expression, comment = "")
+                return@map SkyRow(
+                    job, enabled = false, expression = job.expression, lead = lead, comment = ""
+                )
             }
             val occurrence = SkyScheduler
                 .next(job, context.now, context.zone, context.coordinates, limit = 1)
@@ -170,6 +200,7 @@ object SkyDocumentBuilder {
                 job = job,
                 enabled = true,
                 expression = job.expression,
+                lead = lead,
                 comment = comment(job, occurrence, verdict, context),
                 verdict = verdict,
                 at = at?.start,

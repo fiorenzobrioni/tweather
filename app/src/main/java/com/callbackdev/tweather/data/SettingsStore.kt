@@ -63,6 +63,23 @@ data class AppSettings(
      * a feature nobody finds.
      */
     val skyEnabled: Boolean = true,
+    /**
+     * The lead a job added from the catalog starts with (Fase 16f). Minutes, or null
+     * for no reminder.
+     */
+    /**
+     * The lead every line of `sky.crontab` uses unless it carries one of its own —
+     * NOT a seed copied into a job when it is added. Off by default: a fresh install
+     * that switched the module on to read the file must not start notifying for it.
+     * Off also means no line renders a `--notify` token, which is why the token is
+     * how you discover the file HAS reminders rather than how you learn it does not.
+     */
+    val skyNotifyDefaultMin: Int? = null,
+    /**
+     * Send the reminder even when the sky will not allow the event. False by default:
+     * a reminder for something you cannot see is noise.
+     */
+    val skyNotifyOnFail: Boolean = false,
     val updateFrequencyMin: Int = DefaultUpdateFrequencyMin,
     val widgetOpacityPct: Int = DefaultWidgetOpacityPct,
     /** Epoch seconds of the last edit; null until the user changes something. */
@@ -103,6 +120,10 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
                 ),
                 themeProfileName = prefs[ThemeProfileName] ?: "Obsidian",
                 skyEnabled = prefs[SkyEnabled] ?: true,
+                // 0 is how `off` is stored: an Int? preference cannot hold null, and
+                // absent must read the same as explicitly switched off.
+                skyNotifyDefaultMin = prefs[SkyNotifyDefault]?.takeIf { it > 0 },
+                skyNotifyOnFail = prefs[SkyNotifyOnFail] ?: false,
                 updateFrequencyMin = (prefs[UpdateFrequencyMin] ?: DefaultUpdateFrequencyMin)
                     .takeIf { it in UpdateFrequencies } ?: DefaultUpdateFrequencyMin,
                 widgetOpacityPct = (prefs[WidgetOpacity] ?: DefaultWidgetOpacityPct)
@@ -123,6 +144,11 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
     suspend fun setUserRules(enabled: Boolean) = set(UserRules, enabled)
     suspend fun setThemeProfile(name: String) = set(ThemeProfileName, name)
     suspend fun setSkyEnabled(enabled: Boolean) = set(SkyEnabled, enabled)
+
+    /** 0 stands for "off": DataStore has no nullable Int, and absent means default. */
+    suspend fun setSkyNotifyDefault(minutes: Int?) = set(SkyNotifyDefault, minutes ?: 0)
+
+    suspend fun setSkyNotifyOnFail(enabled: Boolean) = set(SkyNotifyOnFail, enabled)
     suspend fun setUpdateFrequency(minutes: Int) = set(UpdateFrequencyMin, minutes)
     suspend fun setWidgetOpacity(pct: Int) = set(WidgetOpacity, pct)
 
@@ -157,6 +183,8 @@ class SettingsStore(private val dataStore: DataStore<Preferences>) {
         private val UserRules = booleanPreferencesKey("notif_user_rules")
         private val ThemeProfileName = stringPreferencesKey("theme_profile")
         private val SkyEnabled = booleanPreferencesKey("sky_enabled")
+        private val SkyNotifyDefault = intPreferencesKey("sky_notify_default_min")
+        private val SkyNotifyOnFail = booleanPreferencesKey("sky_notify_on_fail")
         private val UpdateFrequencyMin = intPreferencesKey("sync_update_frequency_min")
         private val WidgetOpacity = intPreferencesKey("widget_bg_opacity_pct")
         private val LastModified = longPreferencesKey("last_modified_epoch")

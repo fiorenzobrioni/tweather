@@ -18,7 +18,7 @@ It is a real weather app underneath: live data, background alerts, notification 
 you write yourself, a home-screen widget. The editor is the interface, not a skin over
 a list of cards.
 
-| `weather_data.json` | `weather_history.diff` | `settings.config` |
+| `weather_data.json` | `history.diff` | `settings.config` |
 |:---:|:---:|:---:|
 | <img src="docs/screenshots/main-json.jpg" width="250" alt="The forecast rendered as syntax-highlighted JSON"> | <img src="docs/screenshots/logs-history.jpg" width="250" alt="Update history as a git diff"> | <img src="docs/screenshots/settings.jpg" width="250" alt="Settings as an editable config file"> |
 
@@ -222,6 +222,15 @@ Edited by tapping, like `alerts.rules`: the job name comments the line out (whic
 how everyone disables a cron job), `[rm]` takes it out of the file, `+ add job` adds one
 back from the catalog. `$ tweather run sky` lines every enabled job up under itself.
 
+A line can also tell you before its time. Set `notify_default` in `settings.config` and
+every line grows a `--notify` token you can cycle per job: `off · 15m · 30m · 1h · 3h ·
+1d`. The reminder carries the verdict and the number behind it, so it says whether it is
+worth going out rather than only that something is about to happen, and one for a sky
+that will not cooperate is held back unless you ask for it. Fifteen minutes is the
+shortest lead on offer because the reminder is approximate by a few minutes: an exact
+one would cost battery all day, and a sunset is not an alarm clock. Nothing is sent
+until you ask for it, and only ever for the active city.
+
 ### `sky_runs.log`: what the sky actually did
 
 The third file in the log. Not a `.diff`, because it records outcomes rather than
@@ -240,7 +249,7 @@ reading five minutes away, and hiding that distance would be dishonest. When no 
 came near enough at all, the run is recorded as skipped and no verdict is invented: it
 counts in no statistic.
 
-### `weather_history.diff`: the update log
+### `history.diff`: the update log
 
 Every fetch is committed. The diff is computed between consecutive snapshots of the
 same city, so you can see exactly what moved and when. A rule that fired on that data
@@ -259,9 +268,9 @@ diff --git a/weather_data.json b/weather_data.json
 +  "current.humidity_pct": 75
 ```
 
-### `weather_forecast.diff`: how the forecast changed
+### `forecast.diff`: how the forecast changed
 
-The second file in the log answers a different question. `weather_history.diff` diffs
+The second file in the log answers a different question. `history.diff` diffs
 *observations*, one moment against the moment before. This one diffs *predictions* for
 the same future day: how much has tomorrow changed since the app last looked?
 

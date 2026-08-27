@@ -310,7 +310,7 @@ object WeatherReportMapper {
         // Truncated to the minute, and not for tidiness. Every surface renders these
         // as `HH:mm`, but `WeatherSnapshots.flatten` writes `sunrise.toString()` into
         // the history — so a value carrying seconds would put a fresh
-        // `astronomical.sunrise` line in `weather_history.diff` on EVERY fetch, since
+        // `astronomical.sunrise` line in `history.diff` on EVERY fetch, since
         // the engine's answer moves by a fraction of a second between two of them.
         // The provider's values were minute-precise and nothing noticed until they
         // stopped being the source.

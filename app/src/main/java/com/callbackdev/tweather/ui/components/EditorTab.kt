@@ -175,7 +175,7 @@ private fun EditorTabSingleFilePreview() {
 private fun EditorTabsPreview() {
     TweatherTheme {
         EditorTabs(
-            fileNames = listOf("weather_history.diff", "weather_forecast.diff"),
+            fileNames = listOf("history.diff", "forecast.diff"),
             activeIndex = 0,
             onSelect = {}
         )

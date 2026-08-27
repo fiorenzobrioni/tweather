@@ -93,7 +93,7 @@
         <item></item>
         <item>- **Editor** - `weather_data.json`, `README.md` and `sky.crontab`: the weather of the active city. The first is the technical version, every field of it; the second is the same thing told in words; the third is what the sky above that city has scheduled next.</item>
         <item>- **Search** - `cities.json`: look up a city and add it to the list. The active one is marked `// active`, and `[rm]` removes a line.</item>
-        <item>- **Logs** - `weather_history.diff`: every update the app has made, plus `sky_runs.log`, what the sky was seen to do.</item>
+        <item>- **Logs** - `history.diff`: every update the app has made, plus `sky_runs.log`, what the sky was seen to do.</item>
         <item>- **Settings** - `settings.config` and `alerts.rules`: options change by tapping the value itself. There is no switch to hunt for.</item>
         <item></item>
         <item>## The borrowed words</item>
@@ -102,7 +102,7 @@
         <item>- **diff** - the difference between two updates. Lines with `+` are the new values, lines with `-` the old ones.</item>
         <item>- **branch** (`⎇`) - the active city, down in the status bar. Tap it to switch.</item>
         <item>- **CI** - in software it is the system that checks the code on every change. Here `alerts.rules` does the same to the weather: you write a rule (\"rain above 70%\") and the app tells you when it comes true.</item>
-        <item>- **crontab** - on a computer, the list of jobs to run at set times. `sky.crontab` is the sky\'s: sunrise, the golden hour, a meteor shower. Nobody schedules those, but they run on time, so the app writes them down the same way.</item>
+        <item>- **crontab** - on a computer, the list of jobs to run at set times. `sky.crontab` is the sky\'s: sunrise, the golden hour, a meteor shower. Nobody schedules those, but they run on time, so the app writes them down the same way. A line can also remind you a little before its time: the reminder is approximate by a few minutes, on purpose, because an exact one would cost battery all day.</item>
         <item></item>
         <item>## Where the data comes from</item>
         <item></item>
@@ -252,4 +252,9 @@
     <string name="readme_status_sky">%1$s at %2$s: %3$s</string>
     <string name="status_sky_runs">%1$d runs</string>
     <string name="cd_widget_sky_line">Toggle the sky line on this widget</string>
+    <string name="cd_sky_cycle_lead">Change the reminder for %1$s</string>
+    <string name="sky_channel_name">Sky reminders</string>
+    <string name="sky_channel_description">Approximate reminders for the jobs in sky.crontab</string>
+    <string name="sky_notification_title">%1$s</string>
+    <string name="sky_notification_in">in %1$d min</string>
 </resources>

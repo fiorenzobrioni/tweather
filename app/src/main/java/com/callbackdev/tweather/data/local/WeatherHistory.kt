@@ -14,10 +14,10 @@ import kotlinx.coroutines.flow.Flow
 
 /**
  * One weather fetch persisted as a git-style "commit" for the Logs screen
- * (`weather_history.diff`): short hash, fixed author, timestamp and a flattened
+ * (`history.diff`): short hash, fixed author, timestamp and a flattened
  * key→value snapshot (JSON) that Fase 8 diffs against the previous entry.
  * [forecastJson] (Fase 9h) is the same-shaped flatten of the daily forecast for
- * the next two target dates, diffed per-date in `weather_forecast.diff`; null on
+ * the next two target dates, diffed per-date in `forecast.diff`; null on
  * rows written before the column existed. [firedRulesJson] (Fase 11) is the JSON
  * array of user-rule names that fired on this data — the commit's check lines;
  * null when nothing fired (the overwhelmingly common case). [skyRunsJson] (Fase 16e)

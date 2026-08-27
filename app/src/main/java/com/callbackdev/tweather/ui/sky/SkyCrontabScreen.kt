@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.SkySubscription
 import com.callbackdev.tweather.domain.sky.SkyJob
+import com.callbackdev.tweather.domain.sky.SkyLead
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeLine
 import com.callbackdev.tweather.ui.components.WidgetLine
@@ -35,7 +36,8 @@ class SkyActions(
     val onToggleEnabled: (SkySubscription) -> Unit,
     val onRemove: (String) -> Unit,
     val onAdd: (String) -> Unit,
-    val onRunSky: () -> Unit = {}
+    val onRunSky: () -> Unit = {},
+    val onCycleLead: (SkySubscription) -> Unit = {}
 )
 
 /** Which line is mid-interaction: the catalog picker, an armed `[rm]`, an armed run. */
@@ -98,6 +100,7 @@ fun buildSkyLines(
                     document = document,
                     armed = armed,
                     onToggle = { actions.onToggleEnabled(subscription) },
+                    onCycleLead = { actions.onCycleLead(subscription) },
                     onRemove = {
                         if (armed) {
                             onStartEdit(null)
@@ -199,6 +202,7 @@ private fun CrontabLine(
     document: SkyDocument,
     armed: Boolean,
     onToggle: () -> Unit,
+    onCycleLead: () -> Unit,
     onRemove: () -> Unit,
     labels: SkyLabels
 ) {
@@ -223,6 +227,20 @@ private fun CrontabLine(
                 onClickLabel = labels.toggle(row)
             ) { onToggle() }
         )
+        // The `--notify` argument, exactly where a crontab puts a job's arguments:
+        // after the command. It cycles on tap like every other value in the app, and
+        // the column only exists when some line in the file has a reminder.
+        if (document.leadColumnWidth > 0) {
+            Text(
+                text = leadCell(row, document),
+                style = style,
+                color = if (row.enabled && row.lead != SkyLead.OFF) syntax.string else syntax.comment,
+                modifier = Modifier.clickable(
+                    role = Role.Button,
+                    onClickLabel = labels.cycleLead(row)
+                ) { onCycleLead() }
+            )
+        }
         // `[rm]` sits BEFORE the comment, not at the end of the line as
         // `VISION_SKY.md` §4 sketched it. Fase 11d settled this argument once
         // already, for the README's tables: the comment is variable-length and can
@@ -261,10 +279,21 @@ private fun expressionCell(row: SkyRow, document: SkyDocument): String {
     return (prefix + row.expression).padEnd(document.expressionColumnWidth + 2)
 }
 
+/**
+ * `--notify=30m`, padded to the file's own widest, or blank space of the same width
+ * on the lines with no reminder — so the comments stay in one column whether or not
+ * a given job is set to remind you.
+ */
+private fun leadCell(row: SkyRow, document: SkyDocument): String {
+    val text = if (row.lead == SkyLead.OFF) "" else "--notify=${row.lead.label}"
+    return text.padEnd(document.leadColumnWidth + 2)
+}
+
 /** What [CodeCanvas] measures the row as; the widths must match [CrontabLine]. */
 private fun measureOf(row: SkyRow, document: SkyDocument): String =
     expressionCell(row, document) +
         row.job.id.padEnd(document.nameColumnWidth + 1) +
+        leadCell(row, document) +
         "  [rm?]   " + // the armed form, so the row does not resize under the tap
         (if (row.comment.isEmpty()) "" else "# ${row.comment}")
 
@@ -278,7 +307,8 @@ class SkyLabels(
     val toggle: (SkyRow) -> String,
     val remove: (SkyRow, Boolean) -> String,
     val runSky: String,
-    val confirmRun: String
+    val confirmRun: String,
+    val cycleLead: (SkyRow) -> String
 )
 
 @Composable
@@ -301,7 +331,8 @@ fun rememberSkyLabels(): SkyLabels {
                 )
             },
             runSky = resources.getString(R.string.cd_run_sky),
-            confirmRun = resources.getString(R.string.cd_confirm_run_sky)
+            confirmRun = resources.getString(R.string.cd_confirm_run_sky),
+            cycleLead = { resources.getString(R.string.cd_sky_cycle_lead, it.job.id) }
         )
     }
 }

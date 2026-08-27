@@ -221,7 +221,7 @@ No text field, no parser. Tokens are tapped, as in `alerts.rules`:
 | Tap target | Behaviour |
 |---|---|
 | the job name | toggles the leading `#` — enable / disable |
-| `--notify=30m` | cycles `off · 15m · 30m · 1h · 3h · 1d` — **not rendered until 16f**, because a token promising a reminder the app cannot send is the first thing this module would lie about |
+| `--notify=30m` | cycles `off · 15m · 30m · 1h · 3h · 1d`. Rendered from 16f (before it, a token promising a reminder the app could not send would have been the first thing this module lied about) and **only on the lines that have a lead** — a file nobody set a reminder on does not pay a column for the possibility, and that column would cost the resolved instant its place on a 360dp screen. The cycle starts from the lead the line SHOWS, which is `notify_default` when it has none of its own |
 | `[rm]` | removes the line, job returns to the catalog. Two-tap, and the confirm is the token itself (`[rm]` → `[rm?]`): appended after the line as `// tap again`, it landed off the right edge of a phone. It also sits BEFORE the comment, for the same reason Fase 11d moved the README's status column last — a comment can afford to clip, a tap target cannot |
 | `+ add job` | opens the catalog as an IDE-style autocomplete list of jobs not in the file |
 | `$ tweather run sky` | dry run, two-tap confirm |
@@ -537,13 +537,22 @@ behaviour change, not a refactor:
 ```
 [sky]
 enabled          = true    # false removes the sky.crontab tab and the README's sky lines
-notify_default   = 30m     # applied to a job added from the catalog       (16f)
+notify_default   = off     # the lead every sky.crontab line without one of its own (16f)
 notify_on_fail   = false   # send the reminder anyway when it will not be visible (16f)
 ```
 
-Only `enabled` ships in 16c. The other two govern reminders 16f sends, and a setting
+Only `enabled` shipped in 16c. The other two govern reminders 16f sends, and a setting
 for a notification the app cannot deliver yet is the same lie as a `--notify` token
 that does nothing.
+
+✅ **`notify_default` is a fallback, not a seed, and it defaults to `off`.** The draft
+read it as the lead copied into a job when you add it. Built that way it is a dead end:
+every line stores its lead as null until somebody taps one, so a file of lines nobody
+has touched renders no `--notify` column, and with no column there is nothing to tap —
+a reminder could never be switched on at all. So null on a line means *follow
+`notify_default`*, not *no reminder*: one setting and the whole file grows the token,
+after which any line can be given its own. `off` out of the box, because an install
+that switched `sky.enabled` on to *read* the file must not start notifying for it.
 
 The draft had eight keys. Five are gone and each for a reason:
 
@@ -589,7 +598,7 @@ Given that, the phasing (§15) puts notifications **after** the README and the w
 that everything which costs nothing ships first and the alarm question is answered on its
 own, with the rest of the module already in the user's hands.
 
-Behaviour, once built:
+Behaviour, as built (16f) ✅:
 
 - The notification carries the verdict: `golden hour in 30 min — ✓ clear (8%)`. With
   `notify_on_fail = false` (the default) a `✗ fail` verdict suppresses it, because a
@@ -601,6 +610,22 @@ Behaviour, once built:
 - Only the active city is scheduled. A pinned widget city does not schedule sky
   notifications; `HELP.md` says so rather than letting it be a surprise.
 - The whole path is gated on the same `POST_NOTIFICATIONS` grant everything else uses.
+
+✅ **Three things the build added to this list.**
+
+- **One alarm at a time, and it is re-armed from four places**: after every fetch, after
+  every edit to `sky.crontab`, when a reminder fires, and on boot. The re-arm on a fired
+  reminder is in a `finally`, so a reminder that cannot be delivered at all still leaves
+  the next alarm behind — without it, one failure ends the reminders silently and
+  forever. A queue of alarms would buy nothing: the plan is recomputed on every fetch,
+  and a queue would have to be cancelled and rebuilt on every `--notify` tap.
+- **Switching `sky.enabled` off cancels the pending alarm there and then.** Left armed it
+  would survive until it fired, wake the device, find the module off and cancel itself:
+  correct, and one pointless wakeup after the user said no.
+- **The dedup fingerprint identifies the occurrence to the MINUTE**, not the second. The
+  engine's answer for one sunset moves by fractions of a second between two evaluations,
+  and a fingerprint that moved with it would dedup nothing at all. Same lesson as the
+  truncation 16e had to add to `WeatherSnapshots.flatten`, in a different place.
 
 ### Widget
 
@@ -844,7 +869,7 @@ the decisions and every deviation, as it already does.
 | **16c** ✅ | `sky.crontab` as the Editor strip's third tab: resolved schedule, tap to enable/disable, `[rm]`, `+ add job`, `sky.enabled` in `settings.config`. `EditorTabs` brings the active tab into view. No verdicts, no log, no notifications. | none |
 | **16d** ✅ | `SkyVerdictEngine` on the widened hourly forecast. Verdicts in the comment channel, `$ tweather run sky`. | existing fetch |
 | **16e** ✅ | `sky_runs` column (Room v4) + check lines on the commit + `sky_runs.log` as the Logs strip's third tab. `## Astronomy` and `## Status` in the README. Optional widget line. README/CHANGELOG. | existing fetch |
-| **16f** | `--notify` leads, `AlarmManager.setAndAllowWhileIdle`, boot receiver, dedup. **Separate go/no-go**: everything above ships without it. | existing fetch |
+| **16f** ✅ | `--notify` leads resolved through `notify_default`, `AlarmManager.setAndAllowWhileIdle`, boot receiver and re-arm, `sky_alerts` dedup, `notify_on_fail`. The separate go/no-go was taken and passed: everything above still ships without it. | existing fetch |
 
 16c alone is already a shippable, genuinely useful feature: a correct, localized,
 timezone-honest astronomical schedule for any city, computed entirely offline. If the

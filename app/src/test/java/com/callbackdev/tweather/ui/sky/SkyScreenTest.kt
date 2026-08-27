@@ -40,11 +40,13 @@ class SkyScreenTest {
         var removed: String? = null
         var added: String? = null
         var ran = 0
+        var cycledLead: SkySubscription? = null
         val actions = SkyActions(
             onToggleEnabled = { toggled = it },
             onRemove = { removed = it },
             onAdd = { added = it },
-            onRunSky = { ran++ }
+            onRunSky = { ran++ },
+            onCycleLead = { cycledLead = it }
         )
     }
 
@@ -61,12 +63,13 @@ class SkyScreenTest {
         ),
         context: SkyContext? = context(),
         dryRun: List<String>? = null,
+        defaultLeadMinutes: Int? = null,
         recorder: Recorder = Recorder()
     ): Recorder {
         compose.setContent {
             TweatherTheme {
                 SkyScreen(
-                    state = SkyUiState(subscriptions, context, dryRun),
+                    state = SkyUiState(subscriptions, context, defaultLeadMinutes, dryRun),
                     editorFiles = editorFiles(skyEnabled = true),
                     activeIndex = 2,
                     onSelectFile = {},
@@ -202,6 +205,62 @@ class SkyScreenTest {
             )
         )
         compose.onAllNodesWithTextCount("tweather run sky", expected = 0)
+    }
+
+    /**
+     * The `--notify` token, rendered since Fase 16f. Before the reminders existed it
+     * was deliberately absent: a token promising something the app could not send
+     * would have been the first thing this module lied about.
+     */
+    @Test
+    fun `a job with a reminder shows its notify token, and it cycles on tap`() {
+        val recorder = setScreen(
+            subscriptions = listOf(
+                SkySubscription("sun.rise"),
+                SkySubscription("sun.set", notifyLeadMinutes = 30)
+            )
+        )
+        compose.onNodeWithText("--notify=30m", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("--notify=30m", substring = true).performClick()
+        assertEquals("sun.set", recorder.cycledLead?.jobId)
+    }
+
+    /**
+     * A file where nobody set a reminder does not pay a column for the possibility.
+     * `notify_default` is off out of the box, so this is what a fresh install shows.
+     */
+    @Test
+    fun `a file with no reminders shows no notify column at all`() {
+        setScreen()
+        compose.onAllNodesWithTextCount("--notify", expected = 0)
+    }
+
+    /**
+     * The escape from the dead end this nearly shipped as. Every line stores its lead
+     * as null until somebody taps one, so if `notify_default` were only a seed value
+     * copied into newly added jobs, a file of seeded lines would render no token —
+     * and a reminder could never be switched on at all. `notify_default` is instead
+     * the lead a line uses when it carries none of its own: one setting, and the
+     * whole file grows the token.
+     */
+    @Test
+    fun `notify_default puts the token on every line that has no lead of its own`() {
+        setScreen(defaultLeadMinutes = 30)
+        compose.onAllNodesWithTextCount("--notify=30m", expected = 2)
+    }
+
+    /** A line's own lead wins over the default, which is what an override is. */
+    @Test
+    fun `a line with its own lead ignores notify_default`() {
+        setScreen(
+            subscriptions = listOf(
+                SkySubscription("sun.rise"),
+                SkySubscription("sun.set", notifyLeadMinutes = 60)
+            ),
+            defaultLeadMinutes = 30
+        )
+        compose.onAllNodesWithTextCount("--notify=30m", expected = 1)
+        compose.onAllNodesWithTextCount("--notify=1h", expected = 1)
     }
 
     @Test

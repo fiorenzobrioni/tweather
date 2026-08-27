@@ -17,10 +17,12 @@ import kotlinx.serialization.json.Json
 private val Context.skyDataStore by preferencesDataStore(name = "sky")
 
 /**
- * One line of `sky.crontab`: which catalog job, and whether its line is commented
- * out. [notifyLeadMinutes] is written now and read in Fase 16f — the file does not
- * render a `--notify` token yet, because a token promising a reminder the app does
- * not send would be the first thing this module lies about.
+ * One line of `sky.crontab`: which catalog job, whether its line is commented out,
+ * and its own reminder lead if it has one.
+ *
+ * [notifyLeadMinutes] null means "follow `notify_default`", not "no reminder" —
+ * every other value is an override this line was given by tapping its `--notify`
+ * token (Fase 16f).
  */
 @Serializable
 data class SkySubscription(
@@ -75,7 +77,11 @@ class SkySubscriptionStore(
         }
     }
 
-    /** Written now, read by Fase 16f's reminders. Null means no reminder. */
+    /**
+     * This line's own reminder. Null does NOT mean "no reminder": it means the line
+     * carries none of its own and follows `notify_default` (Fase 16f), which is what
+     * lets one setting switch the whole file's reminders on.
+     */
     suspend fun setNotifyLead(jobId: String, leadMinutes: Int?) {
         edit { current ->
             current.map { if (it.jobId == jobId) it.copy(notifyLeadMinutes = leadMinutes) else it }

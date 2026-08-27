@@ -148,6 +148,11 @@ class WeatherSyncWorker(
         // battery — same fetch, same clock, and the schedule is local arithmetic.
         if (settings.skyEnabled) {
             recordSkyRuns(context, city, report, settings.updateFrequencyMin)
+            // Re-arm on every sync (Fase 16f). The receiver arms the next reminder
+            // when one fires, so this is a safety net rather than the main path: an
+            // alarm lost to a force-stop or a cleared task comes back at the next
+            // fetch instead of never.
+            SkyAlarmScheduler.reschedule(context)
         }
 
         // Widgets pinned to another city have no other producer of history commits:

@@ -63,8 +63,20 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val HISTORY_FILE = "weather_history.diff"
-private const val FORECAST_FILE = "weather_forecast.diff"
+/**
+ * `history.diff` and `forecast.diff`, shortened from `weather_history.diff` and
+ * `weather_forecast.diff` in Fase 16f.
+ *
+ * The `weather_` prefix was the only one in the app — `cities.json`,
+ * `settings.config`, `alerts.rules`, `sky.crontab`, `HELP.md` all name their subject
+ * and nothing else — and inside a weather app's Logs tab it was saying the one thing
+ * the reader already knew. It also cost 16 characters the strip did not have: with
+ * three files the third tab sat entirely off-screen at every phone width, which is
+ * how a file goes undiscovered. Measured: with the short names all three are fully
+ * visible down to 320dp.
+ */
+private const val HISTORY_FILE = "history.diff"
+private const val FORECAST_FILE = "forecast.diff"
 
 /**
  * Fase 16e. Not a `.diff`: this one records outcomes, not changes, and calling it a
@@ -75,10 +87,10 @@ private const val SKY_RUNS_FILE = "sky_runs.log"
 /**
  * Logs screen: two fake files behind a real editor tab bar (Fase 9h).
  *
- * - `weather_history.diff` (Fase 8): every fetch is a git-style commit (short
+ * - `history.diff` (Fase 8): every fetch is a git-style commit (short
  *   hash, author `sys@tweather.app`, relative date) diffing observations — what
  *   actually changed since the previous fetch of the same city.
- * - `weather_forecast.diff` (Fase 9h): same commits, different question — how did
+ * - `forecast.diff` (Fase 9h): same commits, different question — how did
  *   the *prediction* for the same target date change between fetches. Per-date
  *   `---`/`+++` headers and `@@ tomorrow @@` hunks; sub-threshold model wiggle is
  *   filtered out by [ForecastDiff], so the file only contains real revisions.

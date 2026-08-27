@@ -583,7 +583,7 @@ Il costo che resta, dichiarato: la striscia dell'editor passa a tre nomi (39 car
 
 **La riga che tiene tutto insieme è la stessa delle altre fasi**: *il file può non sapere una cosa, non può inventarla*. Un verdetto che le previsioni non reggono è `? unknown`; una luna che quel giorno non sorge è `∅`, non `00:00`; una run che l'app non ha osservato è `– skipped` e non conta in nessuna statistica; un promemoria che l'app non sa consegnare in tempo non viene offerto come lead più corto.
 
-Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una: le **16a-16e sono fatte** (ago 2026), resta la 16f, che ha un go/no-go suo.
+Spec completa e motivata in `VISION_SKY.md`. Le sei sottofasi sotto sono verdi e spedibili una per una, e sono **tutte fatte** (ago 2026): la 16f, che aveva un go/no-go suo, è passata.
 
 
 ## Fase 16a — Il layer dati smette di buttare via ciò che ha già scaricato
@@ -835,7 +835,11 @@ Sempre presente, perché è *oggi* e non la pubblicità di un modulo; le due rig
 
 **Il test di accordo ha trovato un bug nel test di accordo.** Il primo tentativo raccoglieva anche `*Last updated 18:30*`: `## Astronomia` è l'ultimo heading del documento, quindi la sezione "arrivava fino in fondo" e il piè di pagina veniva letto come uno degli orari del cielo. Riparato l'helper, non il codice — ma valeva la pena scriverlo, perché la stessa svista in un test più permissivo sarebbe passata.
 
-**La striscia dei Log a tre nomi è più larga di un telefono.** `weather_history.diff weather_forecast.diff sky_runs.log` sono 53 caratteri monospace: oltre il bordo di uno schermo da 360dp. La barra scorre da sempre e dalla 16c porta in vista il tab **attivo**, quindi il file si raggiunge con uno swipe e si vede una volta selezionato — ma a riposo non è sullo schermo. Due nomi `.diff` riempivano già quella striscia; il terzo file l'ha solo reso evidente. Il test lo dice con `assertExists` e non con `assertIsDisplayed`, e scrolla prima di toccare, che è quello che fa una persona: annotato qui invece di nasconderlo dietro un'asserzione più morbida. La scoperta si appoggia su `HELP.md`, che ora nomina `sky_runs.log`.
+**La striscia dei Log a tre nomi era più larga di un telefono, e i nomi si sono accorciati.** `weather_history.diff weather_forecast.diff sky_runs.log` sono 53 caratteri monospace: oltre il bordo di uno schermo da 360dp. La barra scorre da sempre e dalla 16c porta in vista il tab **attivo**, quindi il file si raggiungeva con uno swipe — ma a riposo il terzo nome non era sullo schermo, e un file che non si intravede è un file che non esiste per chi non sa già che c'è.
+
+Il prefisso `weather_` era **l'unica cosa in tutto il progetto a portarselo dietro**: nessun altro file dell'app dice di che parla nel proprio nome, perché è un'app meteo e lo dicono tutti. `history.diff` e `forecast.diff` non perdono niente e restituiscono 16 caratteri che quella striscia non aveva. Misurato con una sonda Robolectric a tre larghezze prima e dopo, invece di stimarlo: con i nomi lunghi `sky_runs.log` è `displayed=false` a **320, 360 e 411dp**; con quelli corti i tre nomi sono `displayed=true` a tutte e tre. Il test ora lo pretende con `assertIsDisplayed` su tutti e tre, più un caso a `w320dp` — l'asserzione più dura, che è quella che si può permettere solo un layout che ci sta davvero.
+
+Costo dichiarato: gli screenshot in `docs/screenshots/` mostrano ancora i nomi vecchi, e non si rigenerano da qui. La scoperta si appoggia su `HELP.md`, che nomina `sky_runs.log` e usa il nome nuovo.
 
 **La regola dei trattini del README ha costretto due migliorie nell'app.** Il `README.md` non ha **mai** avuto un trattino lungo, nemmeno dentro un blocco di codice, e i miei blocchi citano output vero. Invece di piegare la regola o di far dire al README una cosa che l'app non dice, ho cambiato l'app: l'header del crontab separa con `·` (che è già il separatore della riga successiva — il trattino era l'unico segno tipografico che quel file prendeva in prestito per un uso solo) e la riga di piede usa un punto e virgola. Il glifo `–` di `skipped` resta nell'app, perché accanto a ✓ ✗ ~ ∅ un `-` ASCII sembrerebbe un refuso, e il README lo descrive a parole invece di citarlo.
 
@@ -844,7 +848,7 @@ Sempre presente, perché è *oggi* e non la pubblicità di un modulo; le due rig
 **La regola di staleness ha trovato casa in `domain/WeatherFreshness`** già in 16d; qui il modulo cielo è il suo secondo lettore, come previsto.
 
 
-## Fase 16f — I promemoria (`--notify`) — **go/no-go separato**
+## Fase 16f — I promemoria (`--notify`)
 
 L'unica parte del modulo che **aggiunge una primitiva di scheduling all'app**, e per questo è l'ultima: tutto il resto spedisce senza.
 
@@ -856,10 +860,30 @@ Oggi tweather schedula esattamente una cosa: un job periodico WorkManager a 15/3
 
 Comportamento: la notifica **porta il verdetto** (`golden hour in 30 min — ✓ clear (8%)`); con `notify_on_fail = false` (default) un `✗ fail` la sopprime, perché ricordare qualcosa che non si vedrà è rumore; `? unknown` **si manda** per i job che avvengono comunque (eventi solari) e **si sopprime** per quelli che dipendono dalla visibilità, entrambi con `// no recent data`; una notifica per job per occorrenza, deduplicata come le regole utente; **solo la città attiva** viene schedulata — una città pinnata sul widget non schedula notifiche del cielo, e lo dice `HELP.md` invece di lasciarlo scoprire.
 
-- [ ] `AlarmManager.setAndAllowWhileIdle` + receiver di boot + riarmo; nessun permesso di allarme esatto
-- [ ] Ciclo `--notify` sul token della riga; `notify_default` e `notify_on_fail` in `settings.config`
-- [ ] Dedup nello stesso stampo di `alerts` e `rule_state`
-- [ ] Test: dedup fra fetch, soppressione su `fail` e su `unknown` per i job dipendenti dalla visibilità, riarmo dopo un boot simulato
+- [x] `AlarmManager.setAndAllowWhileIdle` + receiver di boot + riarmo; nessun permesso di allarme esatto
+- [x] Ciclo `--notify` sul token della riga; `notify_default` e `notify_on_fail` in `settings.config`
+- [x] Dedup nello stesso stampo di `alerts` e `rule_state` (DataStore `sky_alerts`, 40 impronte, più recenti in testa)
+- [x] Test: dedup fra fetch, soppressione su `fail` e su `unknown` per i job dipendenti dalla visibilità, riarmo dopo un boot simulato
+- [x] `HELP.md`: una riga può avvisare, e l'avviso è approssimato apposta (EN/IT)
+- [x] Suite verde (554 test, +33) e lint pulito
+
+**Il bug più grosso della fase, e stava per essere spedito: il token `--notify` non era raggiungibile.** Il renderer mostra la colonna solo se qualche riga del file ha un lead — un file su cui nessuno ha messo un promemoria non paga una colonna per la possibilità, che è la regola giusta. Ma `SkySubscription.notifyLeadMinutes` nasce `null` **su ogni riga**, sia sulle quattro seminate al primo avvio sia su ogni job aggiunto dal catalogo: quindi la colonna non compariva mai, e non c'era **nessun modo di accendere un promemoria**. Provato con una sonda prima di ripararlo (`PROBE seeded leads = [null, null, null, null]`), come per la striscia dei Log: una diagnosi per lettura è un'ipotesi.
+
+La riparazione non è stata rendere il token sempre visibile. Misurato: a 360dp la riga di default (`@daily` + `sun.rise` + `[rm]`) lascia una decina di caratteri di commento sullo schermo, cioè **esattamente l'istante risolto** — che è il motivo per cui il file esiste. Una colonna `--notify=off` fissa da 12 caratteri su ogni riga se lo sarebbe portato via, per mostrare "off" a chi non ha chiesto niente.
+
+Quindi è cambiato il **significato di `notify_default`**: non più un valore-seme copiato dentro un job quando lo aggiungi (che avrebbe lasciato le righe vecchie mute per sempre), ma **il lead che una riga usa quando non ne ha uno suo**. `null` su una riga vuol dire "segui il default", non "niente promemoria". Con `notify_default = off`, che ora è il default di fabbrica, il file è identico a prima e non parte niente; portalo a `30m` in `settings.config` e **tutte** le righe mostrano il token, e da lì ognuna si cicla per conto suo. Il ciclo parte dal valore **mostrato**, non da quello memorizzato, o il primo tocco salterebbe altrove rispetto al numero scritto lì accanto.
+
+**`notify_default` era 30m di fabbrica, ed era un altro modo di dire la stessa bugia.** Un'installazione che accende `sky.enabled` per *leggere* il file si sarebbe trovata quattro promemoria al giorno senza averne chiesto uno. Ora è `off`, e lo `0` con cui si memorizza (un `intPreferences` non tiene `null`) legge uguale all'assente.
+
+**Il receiver è testabile perché `onReceive` non fa il lavoro.** `goAsync()` più una coroutine su `Dispatchers.Default` è un fire-and-forget con cui un test può solo correre una gara; estratto un `internal suspend fun handle(context, intent)` che contiene tutto tranne il dispatch, e i test lo attendono. Il `finally` che riarma è dentro `handle`, quindi è coperto: c'è un test che gli passa un job id fuori catalogo (una consegna impossibile, che è come si comporterebbe un'eccezione) e pretende comunque l'allarme successivo.
+
+**Due asserzioni sbagliate mie, non due bug.** `ShadowAlarmManager.getNextScheduledAlarm()` fa `poll()` sulla coda e *deschedula*: leggerlo prima di contare gli allarmi svuotava la lista che stavo per contare. Il non distruttivo è `peekNextScheduledAlarm()`, verificato disassemblando lo shadow invece di indovinare. E `windowLengthMs` per `setAndAllowWhileIdle` vale `-1` = `WINDOW_HEURISTIC`, cioè "la finestra la sceglie il sistema": **è esattamente l'inesattezza che si vuole**. Pretendevo `0`, che è `WINDOW_EXACT`, cioè il contrario di quello che questa fase dichiara di fare — l'asserzione avrebbe fallito la build se il codice fosse stato giusto e passata se fosse stato sbagliato.
+
+**Spegnere il modulo cancella l'allarme subito.** `reschedule` cancellava già quando `sky.enabled` è falso, ma nessuno lo chiamava al cambio dell'interruttore: l'allarme sarebbe sopravvissuto fino a scattare, avrebbe svegliato il telefono, avrebbe trovato il modulo spento e si sarebbe cancellato da solo. Corretto, ma una sveglia inutile dopo che l'utente ha detto di no. `SettingsViewModel` prende il riarmo iniettato (come `SkyViewModel`), in **una** coroutine dopo la scrittura: partire in parallelo avrebbe fatto rileggere il valore vecchio.
+
+**L'id della notifica viene dall'indice nel catalogo, non da `jobId.hashCode()`.** Due hash che collidono avrebbero fatto sovrascrivere in silenzio il promemoria di un job con quello di un altro: un bug che si sarebbe visto solo su un telefono, e solo per due job su trentadue.
+
+**Lint ha trovato l'unica cosa che `runCatching` nasconde.** `manager.notify` vuole `POST_NOTIFICATIONS` e lint pretende un `catch (SecurityException)` **esplicito**: `runCatching`, che prende tutto, non conta come "gestita". Allineato ad `AlertNotifier`, che lo faceva già bene dalla 9c.
 
 
 ### Fase 16 — fuori perimetro: `iss.pass`, pianeti, eclissi

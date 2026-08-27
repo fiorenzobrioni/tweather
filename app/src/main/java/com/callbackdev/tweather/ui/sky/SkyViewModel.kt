@@ -13,6 +13,8 @@ import com.callbackdev.tweather.data.SkySubscriptionStore
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.domain.model.City
+import com.callbackdev.tweather.domain.sky.SkyLead
+import com.callbackdev.tweather.notifications.SkyAlarmScheduler
 import java.time.Clock
 import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,18 +39,27 @@ import kotlinx.coroutines.launch
 data class SkyUiState(
     val subscriptions: List<SkySubscription> = emptyList(),
     val context: SkyContext? = null,
+    /**
+     * `notify_default` from `settings.config`: the lead a line uses when it carries
+     * none of its own. Off by default, and then no line renders a `--notify` token.
+     */
+    val defaultLeadMinutes: Int? = null,
     /** The `$ tweather run sky` block, once the command has been confirmed. */
     val dryRun: List<String>? = null
 ) {
-    val document: SkyDocument? = context?.let { SkyDocumentBuilder.build(subscriptions, it) }
+    val document: SkyDocument? = context?.let {
+        SkyDocumentBuilder.build(subscriptions, it, defaultLeadMinutes)
+    }
 }
 
 class SkyViewModel(
     private val store: SkySubscriptionStore,
     cityStore: CityStore,
     private val repository: WeatherRepository,
-    settingsStore: SettingsStore,
-    private val clock: Clock = Clock.systemUTC()
+    private val settingsStore: SettingsStore,
+    private val clock: Clock = Clock.systemUTC(),
+    /** Re-arms the reminder alarm; no-op in tests, which have no AlarmManager. */
+    private val onSubscriptionsChanged: suspend () -> Unit = {}
 ) : ViewModel() {
 
     private val dryRun = MutableStateFlow<List<String>?>(null)
@@ -56,17 +67,18 @@ class SkyViewModel(
     val uiState: StateFlow<SkyUiState> = combine(
         store.subscriptions,
         cityStore.activeSource,
-        settingsStore.settings.map { it.updateFrequencyMin },
+        settingsStore.settings.map { it.updateFrequencyMin to it.skyNotifyDefaultMin },
         // Every fetch that lands commits to the history, so the existing commit feed
         // doubles as "there is new weather to have an opinion about" — the same
         // signal the home widget already repaints on. This tab never fetches for
         // itself: it reads what the app has.
         repository.observeHistory(limit = 1),
         dryRun
-    ) { subscriptions, source, updateFrequencyMin, _, run ->
+    ) { subscriptions, source, (updateFrequencyMin, defaultLead), _, run ->
         SkyUiState(
             subscriptions = subscriptions,
             context = source.toSkyContext(updateFrequencyMin),
+            defaultLeadMinutes = defaultLead,
             dryRun = run
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SkyUiState())
@@ -77,15 +89,42 @@ class SkyViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     fun toggleEnabled(subscription: SkySubscription) {
-        viewModelScope.launch { store.setEnabled(subscription.jobId, !subscription.enabled) }
+        edit { store.setEnabled(subscription.jobId, !subscription.enabled) }
     }
 
     fun remove(jobId: String) {
-        viewModelScope.launch { store.remove(jobId) }
+        edit { store.remove(jobId) }
     }
 
     fun add(jobId: String) {
-        viewModelScope.launch { store.add(jobId) }
+        edit { store.add(jobId) }
+    }
+
+    /**
+     * Cycles `off · 15m · 30m · 1h · 3h · 1d` on the line's `--notify` token.
+     *
+     * Cycles from the lead the line is SHOWING, which is its own when it has one and
+     * `notify_default` when it does not: a token that jumped somewhere else on the
+     * first tap would be a control disagreeing with the value printed next to it. The
+     * result is always written explicitly, so from then on the line has its own.
+     */
+    fun cycleLead(subscription: SkySubscription) {
+        edit {
+            val shown = subscription.notifyLeadMinutes ?: uiState.value.defaultLeadMinutes
+            store.setNotifyLead(subscription.jobId, SkyLead.ofMinutes(shown).next().minutes)
+        }
+    }
+
+    /**
+     * Every edit re-arms the alarm (Fase 16f): the plan is "the nearest reminder",
+     * and adding, removing, commenting out or re-timing a line can change which one
+     * that is. Cheap — one DataStore read and one `setAndAllowWhileIdle`.
+     */
+    private fun edit(block: suspend () -> Unit) {
+        viewModelScope.launch {
+            block()
+            onSubscriptionsChanged()
+        }
     }
 
     /**
@@ -132,7 +171,8 @@ class SkyViewModel(
                     store = ServiceLocator.skySubscriptionStore(context),
                     cityStore = ServiceLocator.cityStore(context),
                     repository = ServiceLocator.weatherRepository(context),
-                    settingsStore = ServiceLocator.settingsStore(context)
+                    settingsStore = ServiceLocator.settingsStore(context),
+                    onSubscriptionsChanged = { SkyAlarmScheduler.reschedule(context) }
                 )
             }
         }

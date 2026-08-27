@@ -51,7 +51,8 @@ fun SkyScreen(
             onToggleEnabled = { viewModel.clearDryRun(); viewModel.toggleEnabled(it) },
             onRemove = { viewModel.clearDryRun(); viewModel.remove(it) },
             onAdd = { viewModel.clearDryRun(); viewModel.add(it) },
-            onRunSky = viewModel::runSky
+            onRunSky = viewModel::runSky,
+            onCycleLead = { viewModel.clearDryRun(); viewModel.cycleLead(it) }
         ),
         canvasState = canvasState
     )

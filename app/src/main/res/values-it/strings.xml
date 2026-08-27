@@ -81,7 +81,7 @@
         <item></item>
         <item>- **Editor** - `weather_data.json`, `README.md` e `sky.crontab`: il meteo della città attiva. Il primo è la versione tecnica, con tutti i campi; il secondo è la stessa cosa raccontata a parole; il terzo è quello che il cielo sopra quella città ha in programma.</item>
         <item>- **Cerca** - `cities.json`: cerchi una città e la aggiungi all\'elenco. Quella attiva è marcata `// active`, e `[rm]` toglie una riga.</item>
-        <item>- **Log** - `weather_history.diff`: tutti gli aggiornamenti che l\'app ha fatto, più `sky_runs.log`, quello che il cielo è stato visto fare.</item>
+        <item>- **Log** - `history.diff`: tutti gli aggiornamenti che l\'app ha fatto, più `sky_runs.log`, quello che il cielo è stato visto fare.</item>
         <item>- **Impostazioni** - `settings.config` e `alerts.rules`: le opzioni si cambiano toccando il valore. Non c\'è nessun interruttore da cercare.</item>
         <item></item>
         <item>## Le parole prese in prestito</item>
@@ -90,7 +90,7 @@
         <item>- **diff** - la differenza fra due aggiornamenti. Le righe con `+` sono i valori nuovi, quelle con `-` i vecchi.</item>
         <item>- **branch** (`⎇`) - la città attiva, in fondo nella barra di stato. Toccala per cambiarla.</item>
         <item>- **CI** - nel software è il sistema che controlla il codice a ogni modifica. Qui `alerts.rules` fa lo stesso col meteo: scrivi una regola (\"pioggia sopra il 70%\") e l\'app ti avvisa quando si avvera.</item>
-        <item>- **crontab** - su un computer, l\'elenco dei lavori da far partire a orari fissi. `sky.crontab` è quello del cielo: l\'alba, l\'ora d\'oro, uno sciame di meteore. Nessuno li programma, ma sono puntuali, e l\'app li scrive allo stesso modo.</item>
+        <item>- **crontab** - su un computer, l\'elenco dei lavori da far partire a orari fissi. `sky.crontab` è quello del cielo: l\'alba, l\'ora d\'oro, uno sciame di meteore. Nessuno li programma, ma sono puntuali, e l\'app li scrive allo stesso modo. Una riga può anche avvisarti poco prima della sua ora: l\'avviso è approssimato di qualche minuto, apposta, perché uno preciso costerebbe batteria tutto il giorno.</item>
         <item></item>
         <item>## Da dove arrivano i dati</item>
         <item></item>
@@ -237,4 +237,9 @@
     <string name="readme_status_sky">%1$s alle %2$s: %3$s</string>
     <string name="status_sky_runs">%1$d run</string>
     <string name="cd_widget_sky_line">Attiva o disattiva la riga del cielo su questo widget</string>
+    <string name="cd_sky_cycle_lead">Cambia il promemoria di %1$s</string>
+    <string name="sky_channel_name">Promemoria del cielo</string>
+    <string name="sky_channel_description">Promemoria approssimativi per i job di sky.crontab</string>
+    <string name="sky_notification_title">%1$s</string>
+    <string name="sky_notification_in">fra %1$d min</string>
 </resources>

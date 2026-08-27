@@ -87,7 +87,7 @@ class TweatherNavigationTest {
         compose.onNodeWithText("settings.config").assertExists()
 
         compose.onNodeWithText("Logs").performClick()
-        compose.onNodeWithText("weather_history.diff").assertExists()
+        compose.onNodeWithText("history.diff").assertExists()
 
         compose.onNodeWithText("Editor").performClick()
         compose.onNodeWithText("weather_data.json").assertExists()

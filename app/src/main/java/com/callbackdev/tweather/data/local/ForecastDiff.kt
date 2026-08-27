@@ -1,7 +1,7 @@
 package com.callbackdev.tweather.data.local
 
 /**
- * Diff engine for `weather_forecast.diff`: given one city's fetches oldest-first
+ * Diff engine for `forecast.diff`: given one city's fetches oldest-first
  * (each carrying the [WeatherSnapshots.flattenForecast] map), emits a revision per
  * fetch that changed at least one field above threshold. Anti-noise rules decided
  * with the committente (Fase 9h):

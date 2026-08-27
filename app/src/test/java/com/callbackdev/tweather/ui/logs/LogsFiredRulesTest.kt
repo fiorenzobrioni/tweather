@@ -9,7 +9,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/** Weather CI check lines in `weather_history.diff` (Fase 11). */
+/** Weather CI check lines in `history.diff` (Fase 11). */
 @RunWith(RobolectricTestRunner::class)
 class LogsFiredRulesTest {
 

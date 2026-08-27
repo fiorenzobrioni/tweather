@@ -342,7 +342,7 @@ class WeatherReportMapperTest {
     /**
      * Truncated to the minute, and not for tidiness: `WeatherSnapshots.flatten`
      * writes `sunrise.toString()` into the history, so a value carrying seconds would
-     * put a fresh `astronomical.sunrise` line in `weather_history.diff` on every
+     * put a fresh `astronomical.sunrise` line in `history.diff` on every
      * single fetch. The provider's values were minute-precise and nothing noticed
      * until they stopped being the source.
      */

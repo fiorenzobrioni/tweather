@@ -33,6 +33,15 @@ All notable changes to tweather are documented here. The format follows
   one line.
 - The home widget can show one optional line with the next sky job and its verdict.
   Off by default, and the first line dropped when the widget has less room.
+- Sky reminders. A line of `sky.crontab` can tell you before its time: tap its
+  `--notify` token to cycle `off · 15m · 30m · 1h · 3h · 1d`. The reminder carries the
+  verdict and the number behind it, so it says whether it is worth going out rather
+  than only that something is about to happen; one for a sky that will not cooperate
+  is held back unless you ask for it with `notify_on_fail`. The reminder is
+  approximate by a few minutes on purpose, which is why fifteen is the shortest lead:
+  an exact one would cost battery all day for a sunset that is not an alarm clock.
+  Set `notify_default` in `settings.config` to give every line the same lead at once;
+  it starts off, so nothing is sent until you ask for it.
 - `$ tweather init`: the first run now asks where you are — your position, a city
   search, or skip — instead of assuming. Skipping lands on an editor that says
   `// no location configured` and offers the search, which is also what you get if
@@ -50,6 +59,10 @@ All notable changes to tweather are documented here. The format follows
   numbers everywhere in the app, correct without a connection and correct past the
   seven day forecast. Where the sun does not rise or set at all, the app says so
   instead of printing another time in its place.
+- The two log files lost their `weather_` prefix: they are `history.diff` and
+  `forecast.diff` now. It was the only place in the app where a file said it was about
+  the weather, which every file here is, and the sixteen characters it cost were what
+  kept the third log file off the edge of the screen.
 - The bottom bar now ends on Settings, like every other Android app and like tsteps
   and thabit: Editor, Search, Logs, Settings. The Logs tab also swaps its terminal
   glyph for the commit one (a dot on a branch line), which is what

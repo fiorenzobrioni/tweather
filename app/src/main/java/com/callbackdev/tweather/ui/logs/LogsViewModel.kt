@@ -33,7 +33,7 @@ data class CommitUi(
 )
 
 /**
- * One `weather_forecast.diff` revision ready to render. Same hash as the fetch's
+ * One `forecast.diff` revision ready to render. Same hash as the fetch's
  * history commit: in git terms one commit touched both files.
  */
 data class ForecastRevisionUi(

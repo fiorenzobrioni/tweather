@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.callbackdev.tweather.data.AppSettings
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.ServiceLocator
+import com.callbackdev.tweather.domain.sky.SkyLead
+import com.callbackdev.tweather.notifications.SkyAlarmScheduler
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.UpdateFrequencies
@@ -23,7 +25,13 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val settingsStore: SettingsStore,
     private val cityStore: CityStore,
-    private val workspaceStore: WorkspaceStore
+    private val workspaceStore: WorkspaceStore,
+    /**
+     * Re-arms (or cancels) the sky reminder, Fase 16f. Injected rather than reached
+     * for, like [com.callbackdev.tweather.ui.sky.SkyViewModel]'s: a ViewModel with a
+     * Context in it is the thing that makes the settings screen untestable.
+     */
+    private val onSkyToggled: suspend () -> Unit = {}
 ) : ViewModel() {
 
     /**
@@ -53,7 +61,28 @@ class SettingsViewModel(
     fun setDailySummary(enabled: Boolean) = save { setDailySummary(enabled) }
     fun setPrecipitationWarning(enabled: Boolean) = save { setPrecipitationWarning(enabled) }
     fun setUserRules(enabled: Boolean) = save { setUserRules(enabled) }
-    fun setSkyEnabled(enabled: Boolean) = save { setSkyEnabled(enabled) }
+    /**
+     * Switching the module off cancels the pending reminder there and then. Without
+     * this it would survive until it fired, wake the device, find the module off and
+     * cancel itself — correct, but one pointless wakeup after the user said no.
+     */
+    fun setSkyEnabled(enabled: Boolean) {
+        // One coroutine, in order: [onSkyToggled] re-reads `sky.enabled` to decide
+        // what to arm, so it must not start before the write it is reacting to.
+        viewModelScope.launch {
+            settingsStore.setSkyEnabled(enabled)
+            onSkyToggled()
+        }
+    }
+    fun setSkyNotifyOnFail(enabled: Boolean) = save { setSkyNotifyOnFail(enabled) }
+
+    /** Cycles `off · 15m · 30m · 1h · 3h · 1d`, like every other value in the file. */
+    fun cycleSkyNotifyDefault() = save {
+        val current = SkyLead.ofMinutes(
+            this@SettingsViewModel.settings.value.skyNotifyDefaultMin
+        )
+        setSkyNotifyDefault(current.next().minutes)
+    }
     fun setThemeProfile(name: String) = save { setThemeProfile(name) }
 
     /** `$ git restore settings.config` — also turns gps back off (its default). */
@@ -107,7 +136,8 @@ class SettingsViewModel(
                 SettingsViewModel(
                     settingsStore = ServiceLocator.settingsStore(app),
                     cityStore = ServiceLocator.cityStore(app),
-                    workspaceStore = ServiceLocator.workspaceStore(app)
+                    workspaceStore = ServiceLocator.workspaceStore(app),
+                    onSkyToggled = { SkyAlarmScheduler.reschedule(app) }
                 )
             }
         }

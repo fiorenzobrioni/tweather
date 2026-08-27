@@ -110,6 +110,8 @@
         <item></item>
         <item>Sunrise, the moon and the rest are not asked of anybody: the app works them out on the phone, which is why they are right without a connection. Notifications only ever concern the active city, never a city pinned to a widget.</item>
         <item></item>
+        <item>When an update does not go through, nothing goes blank: the files show the last one that worked and say at the top what time it is from and how old it is. The hours already gone by are dropped, so what is left is what that update said about the time ahead.</item>
+        <item></item>
         <item>## Why it looks like this</item>
         <item></item>
         <item>Because a file can be read all at once, and because we like it this way. And if a word up there stayed obscure, never mind: it tells you the weather all the same.</item>
@@ -301,4 +303,35 @@
     <string name="readme_status_sky_rain_possible">rain is possible (%1$d%%)</string>
     <string name="readme_status_sky_moonlight">the moon will be up and %1$d%% lit</string>
     <string name="readme_status_sky_uncertain">the forecast does not promise a clear sky</string>
+
+    <!-- Fase 17: what README.md says about ITSELF — loading, failures, and data
+         that could not be refreshed. `weather_data.json` keeps the terminal codes
+         (`net::ERR_INTERNET_DISCONNECTED`) because a JSON file is code; this file is
+         prose and states the same facts in a language. -->
+    <string name="readme_note_no_location">No location configured yet.</string>
+    <string name="readme_note_search_city">Open cities.json and search for a city.</string>
+    <string name="readme_note_gps">Looking for your position…</string>
+    <string name="readme_note_loading">Updating…</string>
+    <string name="readme_note_retry">Tap ( ↻ ) to try again.</string>
+    <string name="readme_note_stale">Below is the last update that worked, from %1$s (%2$s).</string>
+    <string name="readme_err_offline">No connection: the weather could not be updated.</string>
+    <string name="readme_err_service">The weather service did not answer (error %1$d).</string>
+    <string name="readme_err_city">That city is not in the search index.</string>
+    <string name="readme_err_unknown">Something went wrong while updating.</string>
+    <string name="readme_err_gps_permission">Location permission is missing: grant it to use your position.</string>
+    <string name="readme_err_gps_off">Location is turned off on this device.</string>
+    <string name="readme_err_gps_timeout">Your position could not be determined.</string>
+    <string name="readme_err_gps_unavailable">Your position is not available right now.</string>
+    <plurals name="age_minutes">
+        <item quantity="one">a minute ago</item>
+        <item quantity="other">%1$d minutes ago</item>
+    </plurals>
+    <plurals name="age_hours">
+        <item quantity="one">an hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+    <plurals name="age_days">
+        <item quantity="one">yesterday</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
 </resources>

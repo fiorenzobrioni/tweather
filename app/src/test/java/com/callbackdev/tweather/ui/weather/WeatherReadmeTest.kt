@@ -225,6 +225,47 @@ class WeatherReadmeTest {
         assertTrue("*Last updated 09:30 · data by Open-Meteo*" in readme())
     }
 
+    /**
+     * Fase 17. A document recovered from a fetch the app could not refresh is
+     * evaluated against the REAL present, not against the clock of the fetch that
+     * produced it. Rain at +5h is inside `## Status`'s six-hour window from now and
+     * outside the one that closed three hours ago — and a badge that goes quiet
+     * because it is looking at the wrong hours is worse than no badge.
+     */
+    @Test
+    fun `status is evaluated against now, not against the fetch's clock`() {
+        val fetchedAt = LocalDate.of(2023, 10, 27).atTime(11, 30)
+        val now = fetchedAt.plusHours(3)
+        val rainy = WeatherCondition(61, "Rainy", "🌧️")
+        val report = sampleWeatherReport().let { sample ->
+            sample.copy(
+                location = sample.location.copy(localTime = fetchedAt),
+                // Trimmed as the ViewModel hands it over: from the hour we are in
+                hourly = (0..8).map {
+                    HourlyForecast(
+                        now.truncatedTo(java.time.temporal.ChronoUnit.HOURS).plusHours(it.toLong()),
+                        17.0,
+                        if (it == 5) rainy else WeatherCondition(0, "Sunny", "☀️"),
+                        if (it == 5) 80 else 0,
+                        0
+                    )
+                }
+            )
+        }
+        fun status(now: java.time.LocalDateTime) = report
+            .toReadmeMarkdown(resources = resources, now = now)
+            .section("## Status")
+
+        assertTrue(
+            "the fetch's own clock misses it, which is the bug",
+            status(fetchedAt).any { it.contains("Everything looks good") }
+        )
+        assertTrue(
+            status(now).joinToString(" "),
+            status(now).any { it.startsWith("> ") && it.contains("Rain likely") }
+        )
+    }
+
     @Test
     @Config(qualifiers = "it")
     fun `the italian document is fully localized, headings included`() {

@@ -16,6 +16,8 @@ import com.callbackdev.tweather.data.SkySubscriptionStore
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.data.WorkspaceStore
 import com.callbackdev.tweather.domain.WeatherException
+import com.callbackdev.tweather.domain.WeatherFreshness
+import com.callbackdev.tweather.domain.WeatherRecency
 import com.callbackdev.tweather.domain.model.City
 import com.callbackdev.tweather.domain.model.WeatherReport
 import com.callbackdev.tweather.domain.model.toGpsCity
@@ -50,7 +52,17 @@ data class WeatherUiState(
      * No location configured at all (Fase 14b): not an error and not a load — there
      * is simply nothing to fetch, and the document says so instead of staying blank.
      */
-    val noLocation: Boolean = false
+    val noLocation: Boolean = false,
+    /**
+     * How far behind [report] is, when the app has decided it is no longer current
+     * (Fase 17): `null` while it counts as fresh, which is every successful fetch and
+     * every cache hit — the TTL is half of [WeatherFreshness]'s threshold, so a hit
+     * cannot be stale.
+     *
+     * Non-null means the document below the error lines is the last fetch that
+     * worked, and both renderers say so before printing a single number.
+     */
+    val staleFor: Duration? = null
 )
 
 class WeatherViewModel(
@@ -281,11 +293,52 @@ class WeatherViewModel(
                 } else {
                     repository.getWeather(city, forceRefresh)
                 }
-                _uiState.value = WeatherUiState(report = report, isLoading = false)
+                _uiState.value = documentOf(report)
             } catch (e: WeatherException) {
-                _uiState.update { it.copy(isLoading = false, error = e) }
+                _uiState.value = documentOf(lastKnown(city), e)
             }
         }
+    }
+
+    /**
+     * The document to show when a fetch just failed (Fase 17).
+     *
+     * What is already on screen wins — a failed manual refresh has never blanked the
+     * page. What changed is the OTHER case: a cold start or a city switch with no
+     * network used to leave `README.md` with two comment lines and nothing else, on a
+     * phone that had a full week of forecast sitting in [ReportDiskCache]. The home
+     * widget had this right since Fase 9d (it keeps its last snapshot and marks it
+     * `# stale`); the editor, with a whole screen to explain itself in, threw the data
+     * away.
+     *
+     * Null when there is genuinely nothing to show: no entry, or one whose forecast no
+     * longer reaches the present, which is the honest expiry of a cached report and is
+     * read off the data itself ([WeatherRecency.coversNow]) rather than off a constant.
+     */
+    private suspend fun lastKnown(city: City): WeatherReport? =
+        _uiState.value.report
+            ?: repository.cachedReport(city)?.takeIf { WeatherRecency.coversNow(it, clock.instant()) }
+
+    /**
+     * A report as the editor renders it: trimmed to the hours and days that have not
+     * already happened, and carrying its age when it is no longer current.
+     *
+     * The trim runs on EVERY report, not only on a recovered one, because it is a
+     * no-op for a fetch that just landed and a genuine fix for a cache hit: with
+     * `update_frequency_min = 120` a hit can be 119 minutes old, and `## Next hours`
+     * opened with two hours that were over.
+     */
+    private fun documentOf(report: WeatherReport?, error: WeatherException? = null): WeatherUiState {
+        if (report == null) return WeatherUiState(isLoading = false, error = error)
+        val now = clock.instant()
+        val lastSync = report.systemInfo.lastSync
+        return WeatherUiState(
+            report = WeatherRecency.trim(report, now),
+            isLoading = false,
+            error = error,
+            staleFor = Duration.between(lastSync, now)
+                .takeIf { WeatherFreshness.isStale(lastSync, updateFrequencyMin, now) }
+        )
     }
 
     companion object {

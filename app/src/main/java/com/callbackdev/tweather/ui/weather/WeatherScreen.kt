@@ -51,6 +51,7 @@ import com.callbackdev.tweather.ui.sky.SkyScreen
 import com.callbackdev.tweather.ui.sky.SkySummary
 import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
+import java.time.Duration
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -264,6 +265,9 @@ private fun WeatherStatusBar(state: WeatherUiState, onOpenCities: () -> Unit = {
 
 private val LastUpdated = DateTimeFormatter.ofPattern("HH:mm:ss")
 
+/** The clock the README's own notes use — the same HH:mm as its footer. */
+private val NoteTime = DateTimeFormatter.ofPattern("HH:mm")
+
 /**
  * Bottom room the canvas leaves for the floating FAB: 56dp of button + its 24dp
  * margin + a line of slack. Without it the tail of the document stops *underneath*
@@ -296,20 +300,39 @@ private fun buildScreenLines(
         add(commentLine("// fetching weather_data.json …", syntax))
         add(commentLine("// GET https://api.open-meteo.com/v1/forecast", syntax))
     }
-    state.error?.let {
-        add(commentLine("// ERROR: ${it.terminalMessage}", syntax))
-        add(commentLine("// hint: tap ( ↻ ) to retry", syntax))
-    }
+    state.error?.let { add(commentLine("// ERROR: ${it.terminalMessage}", syntax)) }
+    // The document below is the last fetch that worked (Fase 17). `system_info`
+    // carries the timestamp two screens down; up here it is the age, which is the
+    // form of it a reader can act on.
+    state.staleFor?.let { add(commentLine("// stale: last good fetch ${codeAge(it)} ago", syntax)) }
+    state.error?.let { add(commentLine("// hint: tap ( ↻ ) to retry", syntax)) }
     state.report?.let {
         if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
         addAll(buildJsonLines(it.toDisplayJson(translate, locale, displayOptions), syntax))
     }
 }
 
+/** `45m`, `3h`, `2d` — the comment channel's register, so English and compact. */
+private fun codeAge(age: Duration): String {
+    val minutes = age.toMinutes()
+    return when {
+        minutes < 60 -> "${minutes}m"
+        minutes < 24 * 60 -> "${minutes / 60}h"
+        else -> "${age.toDays()}d"
+    }
+}
+
 /**
- * The README.md tab: same loading/error surface as the JSON, but a markdown file
- * comments in HTML (`<!-- -->`), not `//`. Errors stay English (they're terminal
- * output); the document below is fully localized prose.
+ * The README.md tab: same states as the JSON, in the same place, in a different
+ * language (Fase 17).
+ *
+ * A markdown file comments in HTML (`<!-- -->`) rather than `//`, and what goes
+ * inside the comment is a SENTENCE. The JSON keeps
+ * `// ERROR: net::ERR_INTERNET_DISCONNECTED — check your connection`, which is the
+ * useful form for a file that is code; here the same fact is "no connection: the
+ * weather could not be updated", because a reader of this document has not agreed to
+ * learn Chrome's error names in order to be told the phone is offline. The `GET`
+ * line has no prose equivalent at all and is simply not part of this file.
  */
 private fun buildReadmeLines(
     state: WeatherUiState,
@@ -319,29 +342,52 @@ private fun buildReadmeLines(
     displayOptions: DisplayOptions,
     skySummary: SkySummary? = null
 ): List<CodeLine> = buildList {
+    fun note(text: String) = add(commentLine("<!-- $text -->", syntax))
+
     if (state.noLocation) {
-        add(commentLine("<!-- no location configured -->", syntax))
-        add(commentLine("<!-- hint: open cities.json and search a city -->", syntax))
+        note(resources.getString(R.string.readme_note_no_location))
+        note(resources.getString(R.string.readme_note_search_city))
     } else if (state.acquiringFix) {
-        add(commentLine("<!-- gps: acquiring position … -->", syntax))
+        note(resources.getString(R.string.readme_note_gps))
     } else if (state.isLoading) {
-        add(commentLine("<!-- fetching README.md … -->", syntax))
-        add(commentLine("<!-- GET https://api.open-meteo.com/v1/forecast -->", syntax))
+        note(resources.getString(R.string.readme_note_loading))
     }
-    state.error?.let {
-        add(commentLine("<!-- ERROR: ${it.terminalMessage} -->", syntax))
-        add(commentLine("<!-- hint: tap ( ↻ ) to retry -->", syntax))
+    state.error?.let { note(WeatherStateProse.error(resources, it)) }
+
+    val report = state.report
+    val zone = report?.let {
+        runCatching { ZoneId.of(it.location.timezone) }.getOrDefault(ZoneId.systemDefault())
     }
-    state.report?.let {
+    // Said before the document rather than after it: the reader is about to be given
+    // a temperature, and how old it is changes what they do with it.
+    if (report != null && zone != null && state.staleFor != null) {
+        note(
+            resources.getString(
+                R.string.readme_note_stale,
+                report.systemInfo.lastSync.atZone(zone).format(NoteTime),
+                WeatherStateProse.age(resources, state.staleFor)
+            )
+        )
+    }
+    state.error?.let { note(resources.getString(R.string.readme_note_retry)) }
+
+    if (report != null && zone != null) {
         if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
         addAll(
             buildMarkdownLines(
-                it.toReadmeMarkdown(
+                report.toReadmeMarkdown(
                     resources = resources,
                     translate = WeatherTranslations.translator(resources),
                     locale = locale,
                     options = displayOptions,
-                    sky = skySummary
+                    sky = skySummary,
+                    // A recovered document is evaluated against the real present, not
+                    // against the clock of the fetch that produced it: `## Status` asks
+                    // "is anything coming", and asking it about a window that closed
+                    // three hours ago answers "everything looks good" every time.
+                    now = state.staleFor
+                        ?.let { report.systemInfo.lastSync.plus(it).atZone(zone).toLocalDateTime() }
+                        ?: report.location.localTime
                 ),
                 syntax
             )

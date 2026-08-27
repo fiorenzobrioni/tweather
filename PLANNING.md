@@ -938,6 +938,73 @@ Adesso, stesso verdetto e stesso numero:
 **Una cosa resta, ed è una decisione del committente, non una svista mia:** la direzione del vento (`Vento: 2.9 km/h W`) non è localizzata. In italiano quel punto cardinale si scrive `O`, e con lui `NO`, `SO`, `ONO`, `OSO`, `NNO`, `SSO`: sette dei sedici punti sono sbagliati per un lettore italiano. **Non l'ho toccata qui** perché non è un messaggio, è un *valore* — lo stesso che stampa `weather_data.json`, che finisce negli snapshot Room come `current.wind_dir` e che il widget rende — quindi tradurlo è una riga in `WeatherTranslations` più una decisione su tre superfici, e la regola "i valori si traducono, le chiavi no" direbbe di farlo su tutte e tre insieme. Fase a parte, se si vuole.
 
 
+## Fase 17 — Il README parla anche quando l'aggiornamento fallisce
+
+Due segnalazioni del committente (27 ago 2026) sulla stessa schermata: uno screenshot con l'app aperta senza rete, in cui `README.md` è **due righe di commento e basta**.
+
+```
+<!-- ERROR: net::ERR_INTERNET_DISCONNECTED — check your connection -->
+<!-- hint: tap ( ↻ ) to retry -->
+```
+
+**1. Anche questi messaggi vanno in prosa. Sì, e per lo stesso motivo della 16g.** `net::ERR_INTERNET_DISCONNECTED` è il nome che Chrome dà a "il telefono è offline": perfetto dentro un file che è codice, un test di vocabolario dentro l'unico documento scritto per chi non legge `git` per lavoro. `weather_data.json` se lo tiene — lì il codice d'errore è la forma *utile* del fatto, e la riga `GET https://api.open-meteo.com/v1/forecast` accanto ha senso solo lì. Il README dice la stessa cosa in una frase, localizzata come tutto il resto della pagina, e la riga `GET` semplicemente non è parte di questo file: non ha una versione in prosa perché non è un fatto che riguardi il lettore.
+
+`WeatherException.terminalMessage` non cambia di una virgola: è quello che rendono le altre tre superfici. `WeatherStateProse` è una **seconda lettura** dello stesso valore, non un rimpiazzo — lo stesso rapporto che `SkyJobNames` ha con `SkyJob.id`.
+
+**2. I dati vecchi possono restare più a lungo? Sì, e non è un compromesso: è l'app che smette di buttare via quello che ha.** La risposta onesta comincia da una scoperta imbarazzante: **quel telefono aveva una settimana di previsioni su disco.** `ReportDiskCache` tiene l'ultima risposta per città, e `getWeather` la rilegge solo **dentro il TTL**; scaduto quello va in rete, fallisce, e il file scritto un'ora prima non viene nemmeno guardato. Non è che mancasse il dato: c'era, ed è stato scartato.
+
+E c'è di peggio, come argomento: **il widget non l'ha mai fatto.** Dalla 9d rende l'ultimo snapshot che ha e lo marca `# stale` in rosso. Nella superficie con meno spazio di tutte l'app ha già preso questa decisione, e l'ha presa giusta; l'editor, che ha uno schermo intero per spiegarsi, mostrava una pagina bianca. Non stavo aggiungendo una feature, stavo allineando l'editor al widget.
+
+### Perché non basta "mostrarli e avvisare"
+
+Un fetch di tre ore fa apre con **tre ore che sono passate**. Stamparle sotto `## Prossime ore` non è un dato vecchio, è un dato **sbagliato**, e `## Oggi` — che legge `daily.first()` — sarebbe il giorno del fetch, cioè ieri. Un avviso in cima non ripara una tabella che mente: dice al lettore di diffidare di tutto invece di dirgli cosa non vale più.
+
+Quindi `domain/WeatherRecency.kt`, il compagno di `WeatherFreshness`: la freschezza dice **se fidarsi**, la recency dice **quali righe** non sono ancora successe. Toglie le ore prima di quella corrente e i giorni prima di oggi, **nel fuso della città**, e non sposta né inventa niente: quello che resta è ciò che quel fetch ha sempre detto delle ore a venire. Dopo il taglio ogni sezione futura torna vera, e `## Oggi` è di nuovo oggi — un giorno di previsione fatto ieri, che è una cosa legittima da stampare.
+
+Gira su **ogni** report, non solo su quelli recuperati: su un fetch appena atterrato è un no-op (ritorna la stessa istanza, c'è un test), ma su una **cache HIT** ripara un bug che c'era già — con `update_frequency_min = 120` un HIT può avere 119 minuti e `## Prossime ore` apriva con due ore finite.
+
+### La scadenza è nel dato, non in una costante
+
+Niente "mostralo fino a N ore". Un report vale finché **la sua previsione arriva al presente**: `WeatherRecency.coversNow`. Oltre l'orizzonte non è un dato vecchio, è il verbale di una settimana finita — `## Attuale` sarebbe una rilevazione di otto giorni fa, `## Oggi` il giorno di qualcun altro e le due tabelle vuote. Lì non c'è più niente su cui essere onesti e l'editor torna a mostrare il solo errore, com'era.
+
+**E il disk cache è dovuto crescere, o la risposta sarebbe stata "quattro ore".** `ReportDiskCache.prune` cancellava tutto sopra le 4h — "il doppio del TTL massimo, quindi non potrà mai essere riletto come hit". Vero finché un'entry poteva essere solo un hit. Adesso è anche il documento offline, quindi il taglio d'età va all'orizzonte delle previsioni (7 giorni) e il lavoro che faceva prima — impedire che la pseudo-città GPS, una cacheKey ogni ~1,1 km, lasci un file per ogni posto in cui si è passati — lo fa un **tetto sul numero** di file (16, i più recenti). Un'entry sfrattata costa un fetch se c'è rete e il fallback di *quella* città se non c'è: per questo il tetto è sul conteggio e non sull'età, che è esattamente ciò che al fallback serve.
+
+### Il badge non deve tacere per aver guardato l'ora sbagliata
+
+`## Stato` valuta l'AlertEngine con `now = location.localTime`, cioè **l'orologio del fetch**. Su un documento recuperato di tre ore quella finestra è chiusa: la pioggia delle 18:00 cade fuori dalle sei ore contate dalle 11:30, e il badge risponde *"Tutto regolare"*. Un badge che tace perché sta guardando le ore sbagliate è peggio che nessun badge — è l'unico modo in cui questa sezione può mentire. Quindi `toReadmeMarkdown` prende `now`, che per default resta `location.localTime` (giusto per un fetch appena atterrato, e nessun chiamante o test è cambiato) e che il documento recuperato passa vero. C'è un test che pretende entrambi i comportamenti sullo stesso report.
+
+`location.localTime` **non** viene ritoccato: è l'ora del fetch, e nel JSON `local_time` deve continuare a dire quella. Un unico campo vivo dentro un documento congelato farebbe sembrare fresco tutto il resto.
+
+### Cosa si vede
+
+```
+<!-- Nessuna connessione: il meteo non si è aggiornato. -->
+<!-- Qui sotto l'ultimo aggiornamento riuscito, delle 08:30 (3 ore fa). -->
+<!-- Tocca ( ↻ ) per riprovare. -->
+```
+```
+// ERROR: net::ERR_INTERNET_DISCONNECTED — check your connection
+// stale: last good fetch 3h ago
+// hint: tap ( ↻ ) to retry
+```
+
+Tre righe, tre fatti, una per riga: cos'è andato storto, cosa stai guardando, cosa puoi fare. L'età è in cima **prima** dei numeri, perché è lì che cambia cosa il lettore ne fa; l'orario esatto è anche in fondo, nel piè di pagina che c'era già, e nella barra di stato che è sempre visibile. La soglia è quella che l'app ha già: `WeatherFreshness`, il doppio dell'intervallo di sync — un HIT non può essere stale, quindi la nota compare solo su un documento recuperato.
+
+**I plurali sono plurali veri** (`<plurals>`, con il `many` che il CLDR chiede all'italiano): `1 ore fa` è il genere di dettaglio che fa smettere di fidarsi del resto della pagina.
+
+- [x] `WeatherStateProse`: gli otto `WeatherException` e l'età in parole, EN/IT
+- [x] Righe di stato del README in prosa (errore, caricamento, GPS, nessuna posizione); il JSON invariato
+- [x] `domain/WeatherRecency.kt`: `trim` + `coversNow`, con i test del fuso e dell'orizzonte
+- [x] Fallback all'ultimo fetch riuscito nel ViewModel + `staleFor` nello stato
+- [x] `ReportDiskCache`: età all'orizzonte delle previsioni, tetto di 16 entry
+- [x] `now` in `toReadmeMarkdown`, con il test del badge che tace
+- [x] Test end-to-end: cold start senza rete con e senza cache, e con una cache oltre l'orizzonte
+- [x] `HELP.md` (EN/IT), `README.md` (senza trattini), CHANGELOG, CLAUDE.md
+- [x] Suite verde (572 test, +12) e lint pulito
+
+**Quello che ho deciso di NON fare, e perché.** `## Attuale` resta `## Attuale` anche su un documento di tre ore: è l'unica sezione che è una *rilevazione passata* e non una previsione, e la tentazione era di riempirla con la riga oraria corrispondente presa dalle previsioni. Sarebbe stato inventare un'osservazione da una previsione — esattamente la bugia che questo progetto non si concede — quindi la sezione resta quella del fetch e sono le tre righe in cima a dire di quando è. Per lo stesso motivo `## Astronomia` di un documento di ieri stampa l'alba di ieri (uno o due minuti di differenza): è un dato del fetch, e correggerlo di soppiatto sarebbe stato riscrivere il documento invece di datarlo.
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

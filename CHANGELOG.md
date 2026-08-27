@@ -103,6 +103,21 @@ All notable changes to tweather are documented here. The format follows
   will be overcast (100% cloud)`. The number stays, because a verdict without the figure
   it was built from is an opinion. The dotted job names keep their place in
   `sky.crontab`, where they are code.
+- A failed update no longer empties the editor. Open the app with no connection and
+  `weather_data.json` and `README.md` showed two comment lines and nothing else, on a
+  phone that had a full week of forecast on disk (the home widget had never done this:
+  it keeps its last reading and marks it `# stale`). Both files now show the last fetch
+  that worked and say so above it: `README.md` in a sentence with the time and the age,
+  the JSON as `// stale: last good fetch 3h ago`. The hours and the days that have
+  already passed are dropped first, so `## Next hours` never opens with hours that are
+  over and `## Today` is today. Past the forecast's own horizon, when nothing in the
+  file is still about the present, the app shows the error alone as before.
+- `README.md` says what happened in words. The document that is otherwise entirely
+  prose used to report a failed update as `<!-- ERROR: net::ERR_INTERNET_DISCONNECTED —
+  check your connection -->`, which is Chrome's name for "the phone is offline". It now
+  reads `<!-- No connection: the weather could not be updated. -->`, localized like the
+  rest of the page, and the same for the loading, GPS and no-location lines.
+  `weather_data.json` keeps the error codes: they are useful, and it is code.
 
 ### Added
 

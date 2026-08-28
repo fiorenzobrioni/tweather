@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.logs
 
+import android.content.res.Resources
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -149,13 +150,18 @@ fun LogsScreen(
     // A tab that no longer exists cannot stay selected: switching the module off
     // while sitting on its file must not leave the strip pointing at nothing.
     val active = activeFile.coerceAtMost(files.lastIndex)
-    val lines = remember(commits, revisions, skyRuns, syntax, nowEpochSeconds, active, translate) {
+    // `resources` joins the remember keys: a per-app language change recreates the
+    // activity with new resources, and the file has to be rebuilt in the language
+    // it is now being read in.
+    val lines = remember(
+        commits, revisions, skyRuns, syntax, nowEpochSeconds, active, translate, resources
+    ) {
         when (active) {
-            0 -> buildLogLines(commits, syntax, nowEpochSeconds, translate)
+            0 -> buildLogLines(commits, syntax, nowEpochSeconds, resources, translate)
             1 -> buildForecastLines(
-                revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), translate
+                revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), resources, translate
             )
-            else -> SkyRunsLog.build(skyRuns, ZoneId.systemDefault(), syntax)
+            else -> SkyRunsLog.build(skyRuns, ZoneId.systemDefault(), syntax, resources)
         }
     }
     // One scroll position per file: switching tab must not land mid-file because
@@ -251,12 +257,15 @@ private fun buildLogLines(
     commits: List<CommitUi>,
     syntax: SyntaxColors,
     now: Long,
+    resources: Resources,
     translate: (String) -> String = { it }
 ): List<CanvasLine> {
     if (commits.isEmpty()) {
+        // The marker is the file's syntax and stays; the sentence after it is
+        // the one the reader has to understand (VISION §1.3, Fase 18).
         return listOf(
-            commentLine("// no commits yet", syntax),
-            commentLine("// refresh weather_data.json to record the first one", syntax)
+            commentLine("// " + resources.getString(R.string.note_no_commits), syntax),
+            commentLine("// " + resources.getString(R.string.note_first_commit), syntax)
         )
     }
     return buildList {
@@ -324,12 +333,13 @@ private fun buildForecastLines(
     syntax: SyntaxColors,
     now: Long,
     zone: ZoneId,
+    resources: Resources,
     translate: (String) -> String = { it }
 ): List<CanvasLine> {
     if (revisions.isEmpty()) {
         return listOf(
-            commentLine("// no forecast revisions yet", syntax),
-            commentLine("// significant changes to upcoming forecasts land here", syntax)
+            commentLine("// " + resources.getString(R.string.note_no_revisions), syntax),
+            commentLine("// " + resources.getString(R.string.note_revisions_land), syntax)
         )
     }
     return buildList {

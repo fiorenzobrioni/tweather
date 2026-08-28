@@ -54,6 +54,24 @@ All notable changes to tweather are documented here. The format follows
 
 ### Changed
 
+- **The comment channel now speaks the reader's language** when what it is saying is
+  a sentence. The rule that used to read "`//` comments stay English" mistook the
+  punctuation for the register: under the same slashes sat
+  `// GET https://api.open-meteo.com/v1/forecast`, which is a machine talking, and
+  `// hint: open cities.json and search a city`, which exists only to be understood.
+  Now the register decides. Code is still English everywhere — the file banners, the
+  JSON keys, the `$` commands, the git chrome, the verdicts, `net::ERR_*`, the
+  licences, `// active` and `// empty` — and so is `sky.crontab`'s aligned column of
+  evidence, whose localized reading has been the README's `## Astronomy` since it was
+  written. What moved is the prose: the editor's state lines, the search hints, every
+  explanation in `settings.config` and `alerts.rules`, the empty states of all three
+  log files, the crontab's header and its four closing notes, and the widget's two
+  lines for when it has nothing to show. The marker never moves and neither does the
+  level: an error reads `// ERROR: permesso negato — il gps resta spento`.
+- The moon phase in `sky.crontab` is now the same word `weather_data.json` uses two
+  tabs away. A phase is a weather value, and values have been translated since the
+  app learned Italian; the sky module had simply never asked.
+
 - Sunrise, sunset and daylight are now computed on the phone rather than read off the
   provider's response. They agree with it to within a minute, and they are now the same
   numbers everywhere in the app, correct without a connection and correct past the
@@ -73,6 +91,11 @@ All notable changes to tweather are documented here. The format follows
   install that predates this keeps the city it has been watching.
 
 ### Fixed
+
+- The GPS hint in `settings.config` used to end `in explorer`, a tab that has not been
+  called that since the pre-1.0 restyling: only its internal route kept the name, so
+  the line was sending the reader to look for a word that is nowhere on screen. It now
+  names `cities.json`, which is the file the entry actually lives in.
 
 - Re-adding a city you already have now refreshes its record instead of ignoring it.
   Searching "Milano" in Italian kept the file named `milan.json`, because it is the

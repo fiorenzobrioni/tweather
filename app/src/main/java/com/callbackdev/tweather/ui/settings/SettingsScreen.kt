@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.settings
 
+import android.content.res.Resources
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -399,7 +400,8 @@ fun SettingsScreen(
             } else {
                 resetArmed = true
             }
-        }
+        },
+        resources = resources
     )
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
@@ -441,8 +443,13 @@ private fun buildSettingsLines(
     onGpsLine: () -> Unit,
     resetArmed: Boolean,
     resetLabel: String,
-    onResetLine: () -> Unit
+    onResetLine: () -> Unit,
+    resources: Resources
 ): List<CanvasLine> = buildList {
+    // `// ` is the file's syntax and never translates; what follows it does when
+    // it is a sentence (Fase 18). The banner is not one — it is the artifact's own
+    // signature, like a shebang — and neither are the licences below.
+    fun note(id: Int, vararg args: Any) = "// " + resources.getString(id, *args)
     add(commentLine("// Tweather Configuration File", syntax))
     settings.lastModifiedEpochSeconds?.let { epoch ->
         // mockup line 2; appears once the user edits something for the first time
@@ -453,7 +460,7 @@ private fun buildSettingsLines(
 
     add(keyOpenLine("editor", 1, syntax))
     add(boolLine("line_numbers", settings.editor.lineNumbers, comma = true,
-        hint = "// click to toggle", syntax = syntax,
+        hint = note(R.string.note_click_toggle), syntax = syntax,
         onClickLabel = changeLabel("line_numbers")) {
         actions.onLineNumbers(!settings.editor.lineNumbers)
     })
@@ -465,7 +472,7 @@ private fun buildSettingsLines(
 
     add(keyOpenLine("data", 1, syntax))
     add(boolLine("show_details", settings.showDetails, comma = false,
-        hint = "// full weather_data.json", syntax = syntax,
+        hint = note(R.string.note_full_json), syntax = syntax,
         onClickLabel = changeLabel("show_details")) {
         actions.onShowDetails(!settings.showDetails)
     })
@@ -530,7 +537,11 @@ private fun buildSettingsLines(
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("notifications", 1, syntax))
-    add(notifStatusLine(notifState, settings.updateFrequencyMin, syntax, notifLabel, onNotifLine))
+    add(
+        notifStatusLine(
+            notifState, settings.updateFrequencyMin, syntax, notifLabel, onNotifLine, resources
+        )
+    )
     add(boolLine("severe_weather_alerts", settings.notifications.severeWeatherAlerts,
         comma = true, syntax = syntax,
         onClickLabel = changeLabel("severe_weather_alerts")) {
@@ -559,7 +570,7 @@ private fun buildSettingsLines(
     // fact about the forecast rather than a preference.
     add(keyOpenLine("sky", 1, syntax))
     add(boolLine("enabled", settings.skyEnabled, comma = true,
-        hint = "// sky.crontab in the editor", syntax = syntax,
+        hint = note(R.string.note_sky_in_editor), syntax = syntax,
         onClickLabel = changeLabel("enabled")) {
         actions.onSkyEnabled(!settings.skyEnabled)
     })
@@ -572,7 +583,7 @@ private fun buildSettingsLines(
                     append("\"${SkyLead.ofMinutes(settings.skyNotifyDefaultMin).label}\"")
                 }
                 withStyle(SpanStyle(color = syntax.comment)) {
-                    append(",  // every sky.crontab line without its own; 15m floor")
+                    append(",  // " + resources.getString(R.string.note_sky_notify_default))
                 }
             },
             indent = 2,
@@ -581,7 +592,7 @@ private fun buildSettingsLines(
         )
     )
     add(boolLine("notify_on_fail", settings.skyNotifyOnFail, comma = false,
-        hint = "// remind me even if it will not be visible", syntax = syntax,
+        hint = note(R.string.note_notify_invisible), syntax = syntax,
         onClickLabel = changeLabel("notify_on_fail")) {
         actions.onSkyNotifyOnFail(!settings.skyNotifyOnFail)
     })
@@ -624,13 +635,13 @@ private fun buildSettingsLines(
     add(punctLine("},", 1, syntax))
 
     add(keyOpenLine("location", 1, syntax))
-    add(gpsLine(gpsState, syntax, gpsLabel, onGpsLine))
+    add(gpsLine(gpsState, syntax, gpsLabel, onGpsLine, resources))
     if (gpsDeniedFlash) {
         // transient (~4 s), like the search screen's terminal errors
         add(
             CodeLine(
                 AnnotatedString(
-                    "// ERROR: permission denied — gps stays off",
+                    "// ERROR: " + resources.getString(R.string.note_err_gps_denied),
                     SpanStyle(color = syntax.diffDel)
                 ),
                 indent = 2
@@ -677,7 +688,7 @@ private fun buildSettingsLines(
     // Terminal prompt below the buffer: factory reset as a git command. First tap
     // arms it (confirm hint in diff-deletion red), second tap runs it.
     add(punctLine("", 0, syntax))
-    add(commentLine("// restore defaults (discards local changes):", syntax))
+    add(commentLine(note(R.string.note_restore_defaults), syntax))
     add(
         CodeLine(
             text = buildAnnotatedString {
@@ -685,7 +696,7 @@ private fun buildSettingsLines(
                 append("git restore settings.config")
                 if (resetArmed) {
                     withStyle(SpanStyle(color = syntax.diffDel)) {
-                        append("  // tap again to confirm")
+                        append("  // " + resources.getString(R.string.note_tap_again))
                     }
                 }
             },
@@ -734,17 +745,22 @@ private fun notifStatusLine(
     pollMinutes: Int,
     syntax: SyntaxColors,
     onClickLabel: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    resources: Resources
 ): CodeLine {
+    // `ERROR:` is a level, not a word: it stays outside the resource exactly as a
+    // `net::ERR_*` code would, and the sentence after it is the reader's.
     val (text, color) = when (state) {
         NotifLineState.Disabled ->
-            "// alerts disabled" to syntax.comment.copy(alpha = 0.6f)
+            "// " + resources.getString(R.string.note_alerts_disabled) to
+                syntax.comment.copy(alpha = 0.6f)
         NotifLineState.Armed ->
-            "// polling every $pollMinutes min" to syntax.comment.copy(alpha = 0.6f)
+            "// " + resources.getString(R.string.note_polling_every, pollMinutes) to
+                syntax.comment.copy(alpha = 0.6f)
         NotifLineState.MissingPermission ->
-            "// ERROR: notifications permission missing — tap to grant" to syntax.diffDel
+            "// ERROR: " + resources.getString(R.string.note_err_notif_missing) to syntax.diffDel
         NotifLineState.DeniedPermanently ->
-            "// ERROR: denied — open system settings" to syntax.diffDel
+            "// ERROR: " + resources.getString(R.string.note_err_denied) to syntax.diffDel
     }
     val clickable = state == NotifLineState.MissingPermission ||
         state == NotifLineState.DeniedPermanently
@@ -765,17 +781,25 @@ private fun gpsLine(
     state: GpsLineState,
     syntax: SyntaxColors,
     onClickLabel: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    resources: Resources
 ): CodeLine {
     val value = state == GpsLineState.On || state == GpsLineState.Revoked
     val (hint, hintColor) = when (state) {
-        GpsLineState.Off -> "// tap to enable" to syntax.comment.copy(alpha = 0.6f)
+        GpsLineState.Off ->
+            "// " + resources.getString(R.string.note_gps_tap_enable) to
+                syntax.comment.copy(alpha = 0.6f)
+        // It used to say `in explorer`, which is a tab nobody can see: the first
+        // tab lost that name in Fase 11b and only its nav route kept it. The
+        // translation pass is what walked past it — the entry lives in
+        // `cities.json`, and that is the file the reader is looking for.
         GpsLineState.On ->
-            "// current_location.json in explorer" to syntax.comment.copy(alpha = 0.6f)
+            "// " + resources.getString(R.string.note_gps_pinned) to
+                syntax.comment.copy(alpha = 0.6f)
         GpsLineState.DeniedPermanently ->
-            "// ERROR: denied — open system settings" to syntax.diffDel
+            "// ERROR: " + resources.getString(R.string.note_err_denied) to syntax.diffDel
         GpsLineState.Revoked ->
-            "// ERROR: permission revoked — tap to re-grant" to syntax.diffDel
+            "// ERROR: " + resources.getString(R.string.note_err_gps_revoked) to syntax.diffDel
     }
     return CodeLine(
         text = buildAnnotatedString {

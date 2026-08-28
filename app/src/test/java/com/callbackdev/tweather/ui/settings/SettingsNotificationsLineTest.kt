@@ -14,6 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /** The dynamic status line of settings.config's `notifications` block. */
 @RunWith(RobolectricTestRunner::class)
@@ -72,5 +73,27 @@ class SettingsNotificationsLineTest {
     fun permanentlyDeniedPointsToSystemSettings() {
         setScreen(NotifLineState.DeniedPermanently)
         onLine("// ERROR: denied — open system settings")
+    }
+
+    /**
+     * The seam, on the one line of `settings.config` that has to be acted on
+     * (Fase 18). `//` is the file's syntax and `ERROR:` is a level, so both read
+     * the same everywhere; what the reader has to do about it is a sentence, and
+     * sentences are theirs. The line stays tappable in either language.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun theErrorKeepsItsLevelAndExplainsItselfInItalian() {
+        var tapped = false
+        setScreen(NotifLineState.MissingPermission, onNotifLine = { tapped = true })
+        onLine("// ERROR: manca il permesso per le notifiche — tocca per concederlo").performClick()
+        assertTrue(tapped)
+    }
+
+    @Test
+    @Config(qualifiers = "it")
+    fun theQuietStatesSpeakItalianToo() {
+        setScreen(NotifLineState.Disabled)
+        onLine("// avvisi disattivati")
     }
 }

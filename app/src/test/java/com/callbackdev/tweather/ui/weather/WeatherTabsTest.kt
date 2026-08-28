@@ -18,6 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * The main screen's two-file tab bar (Fase 10): `weather_data.json` (default) and
@@ -203,4 +204,50 @@ class WeatherTabsTest {
         compose.onNodeWithText("weather_data.json").performClick()
         compose.onNodeWithText("// stale: last good fetch 3h ago").assertExists()
     }
+
+    /**
+     * `weather_data.json`'s state lines under the register rule (Fase 18).
+     *
+     * The three things that stay are the point: the `//`, which is the file's
+     * syntax; the `GET` line, which is the useful form of "it is fetching"; and the
+     * file name inside the sentence, which is what the reader would go looking for.
+     * `README.md` one tab away says the same two facts in prose, which is where the
+     * plain-language reading has lived since Fase 17.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun theStateLinesSpeakItalianWhileTheMachineLineDoesNot() {
+        compose.setContent {
+            TweatherTheme {
+                WeatherScreen(
+                    state = WeatherUiState(isLoading = true),
+                    onRefresh = {},
+                    activeFile = MainEditorFile.JSON,
+                    editorFiles = editorFiles(skyEnabled = false),
+                    onSelectTab = {}
+                )
+            }
+        }
+        compose.onNodeWithText("// scarico weather_data.json …").assertExists()
+        compose.onNodeWithText("// GET https://api.open-meteo.com/v1/forecast").assertExists()
+    }
+
+    @Test
+    @Config(qualifiers = "it")
+    fun theNoLocationStateSpeaksItalianOnTheJsonToo() {
+        compose.setContent {
+            TweatherTheme {
+                WeatherScreen(
+                    state = WeatherUiState(noLocation = true, isLoading = false),
+                    onRefresh = {},
+                    activeFile = MainEditorFile.JSON,
+                    editorFiles = editorFiles(skyEnabled = false),
+                    onSelectTab = {}
+                )
+            }
+        }
+        compose.onNodeWithText("// nessuna posizione configurata").assertExists()
+        compose.onNodeWithText("// suggerimento: apri cities.json e cerca una città").assertExists()
+    }
+
 }

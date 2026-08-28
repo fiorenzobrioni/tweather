@@ -447,4 +447,36 @@ class WidgetContentBuilderTest {
         assertTrue(build(timestampEpochSeconds = syncEpoch, updateFrequencyMin = 15, now = now).showsStale())
         assertFalse(build(timestampEpochSeconds = syncEpoch, updateFrequencyMin = 120, now = now).showsStale())
     }
+
+    // ---- the register rule (Fase 18) --------------------------------------
+
+    /**
+     * The widget's two empty-state lines are sentences to whoever is looking at a
+     * home screen, so they arrive already translated — the same way the values do.
+     * They come in as strings because this builder is a pure value, and the English
+     * written into the defaults is what a caller with no resources would get.
+     *
+     * That English is a second copy of `values/strings.xml`, so it is tied to it:
+     * see `WidgetNotesTest`. Here, what matters is that the words are the caller's
+     * to choose and the marker is not.
+     */
+    @Test
+    fun `the empty lines are the caller's words behind the file's own marker`() {
+        val content = WidgetContentBuilder.build(
+            snapshot = null,
+            timestampEpochSeconds = null,
+            temperature = TemperatureUnit.CELSIUS,
+            windSpeed = WindSpeedUnit.KMH,
+            tier = WidgetTier.Terminal(4),
+            noDataYet = "ancora nessun dato — apri tweather",
+            noData = "nessun dato"
+        )
+        assertEquals(
+            "# ancora nessun dato — apri tweather",
+            content.bodyLines.single().tokens.single().text
+        )
+        assertEquals("# nessun dato", content.smallLocation?.tokens?.single()?.text)
+        // The command line above them is a command and never moves.
+        assertEquals("tweather --now", content.headerTitle)
+    }
 }

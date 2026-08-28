@@ -1,8 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Default locale = English: automatic fallback for unsupported device languages.
-     Rule of the fake-editor design: "code" (JSON keys, filenames, terminal errors,
-     // comments) stays English everywhere; only chrome, accessibility text and
-     user-facing weather DATA values are localized. -->
+
+     L10n rule of the fake-editor design, three registers (PLANNING Fase 18). The
+     REGISTER decides the language, not the punctuation around it:
+
+       CODE  -> always English: JSON keys, filenames, job ids, rule variables and
+                operators, cron fields, $ commands, git chrome (commit, Author:, @@,
+                hashes), verdicts (pass / unstable / fail), levels (ERROR:, WARN:),
+                net::ERR_* codes, licenses, URLs, one-word markers (# stale) and the
+                file banners (// Tweather Configuration File).
+       DATA  -> localized: weather values, city names, day names, moon phases.
+       PROSE -> localized wherever it appears: README.md, HELP.md, first run,
+                notifications, accessibility text, AND the comment lines that are
+                sentences (// tap to enable, // hint: ..., the sky.crontab notes).
+
+     Two tests, in order: would translating it break a lookup, a filename, a
+     copy-paste or the alignment with a key printed elsewhere (then it is code)?
+     would git translate it (git translates "nothing to commit, working tree clean"
+     and never "commit")? One line may hold both registers: keep the tokens and
+     translate around them.
+
+     This replaces the old wording ("// comments stay English"), which mistook the
+     channel for the register.
+
+     Implemented in Fase 18. The screens take a `Resources` and put the marker in
+     front of a resource; the two builders that are pure values and mean to stay
+     that way — `SkyDocumentBuilder` and `WidgetContentBuilder` — take their
+     sentences in as strings instead, with an English fallback that `SkyNotesTest`
+     and `WidgetNotesTest` tie to this file word for word. `RegisterRuleTest`
+     checks every `note_*` at once: none carries its own marker or level, and every
+     one of them says something different in Italian. -->
 <resources>
     <string name="app_name" translatable="false">tweather</string>
 
@@ -178,6 +205,105 @@
     <string name="readme_status_severe">⚠️ %1$s expected around %2$s</string>
     <string name="readme_status_precip">🌧️ Rain likely around %1$s (%2$d%%)</string>
     <string name="readme_footer">Last updated %1$s · data by Open-Meteo</string>
+
+    <!-- THE COMMENT CHANNEL (Fase 18). The register rule: a comment line that is
+         a SENTENCE addressed to the reader is prose and localizes; a comment that
+         is a readout (a time, a count, a state name, a quantity) or a marker is
+         code and stays English, wherever it sits. Tokens inside a localized line
+         survive it: file names, keys, `ERROR:`, `WARN:`, `DST:`, `gps:`, `stale:`,
+         `commit`. What stays English on purpose: the file banners, `// GET …`,
+         `net::ERR_*` codes, the licences, `// active`/`// selected`/`// empty`,
+         every verdict and check line, and the whole aligned evidence column of
+         `sky.crontab` (the localized reading of those same facts is the README's
+         `## Astronomy`, built for it in Fase 16g). -->
+
+    <!-- The two-tap confirm, on all four `$` commands the app has. One sentence,
+         one string: four copies of it would drift the day one of them is reworded. -->
+    <string name="note_tap_again">tap again to confirm</string>
+
+    <!-- Two more settings hints, both sentences about what a key does. -->
+    <string name="note_sky_notify_default">every sky.crontab line without its own; 15m floor</string>
+    <string name="note_widget_sky_line">next sky job and its verdict</string>
+
+    <!-- weather_data.json: what the editor says when there is no document. -->
+    <string name="note_no_location">no location configured</string>
+    <string name="note_hint_search">hint: open cities.json and search a city</string>
+    <string name="note_gps_acquiring">acquiring position …</string>
+    <string name="note_fetching">fetching weather_data.json …</string>
+    <string name="note_stale">last good fetch %1$s ago</string>
+    <string name="note_hint_retry">hint: tap ( ↻ ) to retry</string>
+
+    <!-- cities.json -->
+    <string name="note_tap_add_city">tap to add &amp; switch</string>
+    <string name="note_clear_history">clear search history:</string>
+
+    <!-- settings.config. The hints that explain a setting are sentences; the
+         licences, the banner and `// Last modified:` are the file. -->
+    <string name="note_click_toggle">click to toggle</string>
+    <string name="note_full_json">full weather_data.json</string>
+    <string name="note_sky_in_editor">sky.crontab in the editor</string>
+    <string name="note_notify_invisible">remind me even if it will not be visible</string>
+    <string name="note_restore_defaults">restore defaults (discards local changes):</string>
+    <string name="note_alerts_disabled">alerts disabled</string>
+    <string name="note_polling_every">polling every %1$d min</string>
+    <string name="note_gps_tap_enable">tap to enable</string>
+    <string name="note_gps_pinned">current_location.json in cities.json</string>
+
+    <!-- The error states. `ERROR:` is a level and stays outside the string. -->
+    <string name="note_err_notif_missing">notifications permission missing — tap to grant</string>
+    <string name="note_err_denied">denied — open system settings</string>
+    <string name="note_err_gps_denied">permission denied — gps stays off</string>
+    <string name="note_err_gps_revoked">permission revoked — tap to re-grant</string>
+
+    <!-- alerts.rules -->
+    <string name="note_rules_builtin">builtin alerts (severe, precip, daily) live in settings.config</string>
+    <string name="note_rules_off">\"user_rules\" is false in settings.config — rules won\'t notify</string>
+    <string name="note_rules_none">no rules yet</string>
+    <string name="note_rules_max">max %1$d rules</string>
+    <string name="note_rules_run">run all rules against current data:</string>
+    <string name="note_rules_evaluating">evaluating against weather_data.json …</string>
+
+    <!-- history.diff, forecast.diff, sky_runs.log -->
+    <string name="note_no_commits">no commits yet</string>
+    <string name="note_first_commit">refresh weather_data.json to record the first one</string>
+    <string name="note_no_revisions">no forecast revisions yet</string>
+    <string name="note_revisions_land">significant changes to upcoming forecasts land here</string>
+    <string name="note_no_runs">no runs recorded yet</string>
+    <string name="note_first_run">a job is logged the first time a fetch sees it has passed</string>
+
+    <!-- sky.crontab: the whole-line notes. The per-row evidence column does not
+         move — see the header of this section. -->
+    <string name="note_sky_no_jobs">no jobs — the sky runs them anyway, this file just watches</string>
+    <string name="note_sky_all_added">every job in the catalog is already a line</string>
+    <string name="note_sky_run">evaluate every enabled job against the forecast in hand:</string>
+    <string name="note_sky_times">times are computed per occurrence, not fixed; see each line</string>
+    <string name="note_sky_dst_forward">the clock jumps forward 1h on %1$s</string>
+    <string name="note_sky_dst_back">the clock falls back 1h on %1$s</string>
+    <string name="note_sky_thresholds">pass ≤ %1$d%% cloud · fail above %2$d%% · rain ≥ %3$d%% fails it whatever the sky does</string>
+    <string name="note_sky_moon">a bright moon (≥ %1$d%%) unsettles a dark-sky job under a clear sky</string>
+    <string name="note_sky_light">light pollution is not modelled: the app does not know your sky</string>
+    <string name="note_sky_opinion">a verdict is the forecast\'s opinion, not an observation; it will change</string>
+
+    <!-- Why a job is not scheduled today, and why a verdict is missing. These are
+         sentences that explain, so they are the reader\'s; the verdict word and the
+         quantity beside them are not. -->
+    <string name="note_sky_polar_day">polar day: the sun stays above the horizon here</string>
+    <string name="note_sky_polar_night">polar night: the sun stays below the horizon here</string>
+    <string name="note_sky_moon_absent">the moon does not do that on this calendar day</string>
+    <string name="note_sky_no_darkness">the sun stays too high: no astronomical night</string>
+    <string name="note_sky_beyond_horizon">past the forecast horizon</string>
+    <string name="note_sky_no_data">no fetch yet</string>
+    <string name="note_sky_stale_data">no recent data</string>
+    <string name="note_sky_no_coverage">no forecast hour covers it</string>
+    <string name="note_sky_moonless_from">moonless from %1$s</string>
+    <string name="note_sky_moonless">moonless</string>
+    <string name="note_sky_moon_all_night">moon up all night</string>
+
+    <!-- The home widget and its picker. -->
+    <string name="note_widget_no_data_yet">no data yet — open tweather</string>
+    <string name="note_widget_no_data">no data</string>
+    <string name="note_widget_tap_pin">tap to pin</string>
+    <string name="note_widget_follows">follows the app</string>
 
     <!-- Weather conditions (WMO codes) -->
     <string name="cond_clear">Clear</string>

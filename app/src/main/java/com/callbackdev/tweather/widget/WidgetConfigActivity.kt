@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.widget
 
+import android.content.res.Resources
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.Intent
@@ -194,7 +195,8 @@ fun WidgetConfigScreen(
             onFollowApp = onFollowApp,
             onSelectGps = onSelectGps,
             onSelectCity = onSelectCity,
-            onToggleSkyLine = onToggleSkyLine
+            onToggleSkyLine = onToggleSkyLine,
+            resources = resources
         )
     }
 
@@ -255,7 +257,8 @@ private fun buildWidgetConfigLines(
     onFollowApp: () -> Unit,
     onSelectGps: () -> Unit,
     onSelectCity: (City) -> Unit,
-    onToggleSkyLine: () -> Unit
+    onToggleSkyLine: () -> Unit,
+    resources: Resources
 ): List<CanvasLine> = buildList {
     val pinnedId = state.resolvedPinnedId()
     val names = fileNames(state.cities)
@@ -278,14 +281,25 @@ private fun buildWidgetConfigLines(
             indent = 1
         )
     )
-    add(keyOpenLine("available_sources", 1, syntax, bracket = "[", hint = "// tap to pin"))
+    // The affordance is a sentence to the reader; `// selected` is a marker and
+    // stays, like `// active` in `cities.json` (Fase 18).
+    add(
+        keyOpenLine(
+            "available_sources", 1, syntax, bracket = "[",
+            hint = "// " + resources.getString(R.string.note_widget_tap_pin)
+        )
+    )
 
     // One entry per pinnable source; the last one carries no comma, JSON style.
     val entries = buildList {
         add(
             SourceEntry(
                 file = FollowAppFile,
-                hint = if (pinnedId == null) "// selected" else "// follows the app",
+                hint = if (pinnedId == null) {
+                    "// selected"
+                } else {
+                    "// " + resources.getString(R.string.note_widget_follows)
+                },
                 selected = pinnedId == null,
                 clickLabel = followAppLabel,
                 onClick = onFollowApp
@@ -356,7 +370,7 @@ private fun buildWidgetConfigLines(
                 withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
                 withStyle(SpanStyle(color = syntax.number)) { append(state.skyLine.toString()) }
                 withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
-                    append("  // next sky job and its verdict")
+                    append("  // " + resources.getString(R.string.note_widget_sky_line))
                 }
             },
             indent = 1,

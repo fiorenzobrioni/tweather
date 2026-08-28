@@ -3,6 +3,7 @@ package com.callbackdev.tweather.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.LocationSettings
 import com.callbackdev.tweather.data.ServiceLocator
@@ -85,7 +86,9 @@ object TweatherWidgetUpdater {
                         translate = translate,
                         updateFrequencyMin = settings.updateFrequencyMin,
                         now = now,
-                        skyLine = skyLine
+                        skyLine = skyLine,
+                        noDataYet = context.getString(R.string.note_widget_no_data_yet),
+                        noData = context.getString(R.string.note_widget_no_data)
                     )
                 }
                 manager.updateAppWidget(

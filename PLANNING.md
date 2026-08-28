@@ -680,7 +680,7 @@ Ecco il file, com'è uscito (Milano, 26 ago 2026, 18:30 locali):
 // this file is the schedule; whether the clouds allow it comes next
 ```
 
-**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e canale dei commenti sono codice. Il registro localizzato del cielo vive nel `README.md` (16e); qui sono localizzate solo le etichette di accessibilità.
+**Inglese, come ogni superficie di codice dell'app**: nomi dei job, espressioni cron e canale dei commenti sono codice. Il registro localizzato del cielo vive nel `README.md` (16e); qui sono localizzate solo le etichette di accessibilità. *(Corretto dalla **Fase 18**: "canale dei commenti" era la formulazione sbagliata, il canale non è una categoria. Restano codice i job, il cron, i verdetti, gli istanti e i numeri — cioè tutto quello che la colonna commento di una riga contiene davvero; le righe intere che sono frasi passano alla lingua del lettore.)*
 
 **Le soglie non ci sono ancora** perché non ci sono ancora i verdetti (16d). Il piede del file lo dice invece di tacerlo: *this file is the schedule; whether the clouds allow it comes next*.
 
@@ -1003,6 +1003,138 @@ Tre righe, tre fatti, una per riga: cos'è andato storto, cosa stai guardando, c
 - [x] Suite verde (572 test, +12) e lint pulito
 
 **Quello che ho deciso di NON fare, e perché.** `## Attuale` resta `## Attuale` anche su un documento di tre ore: è l'unica sezione che è una *rilevazione passata* e non una previsione, e la tentazione era di riempirla con la riga oraria corrispondente presa dalle previsioni. Sarebbe stato inventare un'osservazione da una previsione — esattamente la bugia che questo progetto non si concede — quindi la sezione resta quella del fetch e sono le tre righe in cima a dire di quando è. Per lo stesso motivo `## Astronomia` di un documento di ieri stampa l'alba di ieri (uno o due minuti di differenza): è un dato del fetch, e correggerlo di soppiatto sarebbe stato riscrivere il documento invece di datarlo.
+
+
+## Fase 18 — I registri: la lingua segue la frase, non le barre
+
+Domanda del committente (27 ago 2026), con davanti uno screenshot di `sky.crontab` su un telefono italiano: la regola "il codice resta inglese" si può ammorbidire almeno sui commenti, per non lasciare fuori chi non legge l'inglese, senza affogare la filosofia terminal/git del progetto?
+
+**Sì, e non come concessione: la regola scritta in Fase 6b contiene un errore di categoria.** Dice `commenti // → inglese`, ma `//` non è una categoria semantica, è punteggiatura. Sotto quel simbolo l'app ha sempre messo due cose diverse:
+
+```
+// GET https://api.open-meteo.com/v1/forecast                        ← la macchina che parla
+// light pollution is not modelled: the app does not know your sky   ← l'app che parla al lettore
+```
+
+La prima riga è **contenuto del file**: un identificatore, la stessa stringa che esiste altrove nel codice. La seconda è una frase che ha per unico scopo essere capita, e nella lingua sbagliata non fa niente. Stanno nello stesso canale per accidente tipografico, non per parentela.
+
+### L'argomento vero: git è localizzato
+
+Con `LANG=it_IT`, `git status` scrive "Sul branch main", "non c'è nulla di cui eseguire il commit": traduce le frasi e tiene i sostantivi, `branch`, `commit`, `HEAD`, `origin/main` restano. `gcc` fa lo stesso con le diagnostiche. **Gli strumenti su cui è costruita la metafora fanno già esattamente questo split**, quindi un `sky.crontab` con i job in inglese e le note in italiano non è un finto editor tradotto male: è com'è fatto un vero terminale italiano. La finzione non si indebolisce, diventa più fedele — oggi l'app è più inglese di git stesso, e non c'è nessun principio che lo giustifichi.
+
+Il progetto ci era già arrivato tre volte, senza generalizzare: il messaggio di una regola in `alerts.rules` non è localizzato perché "è contenuto dell'utente, nella sua lingua per definizione" (Fase 11), `$ tweather init` lo è perché "è l'unica schermata il cui scopo è farsi capire da chi non legge `git` per mestiere" (14c), `README.md` (10) e `HELP.md` (14d) idem. Il canale dei commenti era l'ultima superficie in cui l'app si rivolge al lettore in una lingua che il lettore potrebbe non leggere.
+
+### La regola nuova
+
+> **La sintassi è la finzione, la lingua è del lettore.** Il codice resta inglese perché è codice, non perché sta dentro un commento.
+
+Tre registri, e il registro decide la lingua — non il canale che lo circonda:
+
+| registro | cos'è | lingua |
+| --- | --- | --- |
+| **Codice** | chiavi, nomi file, id dei job, variabili e operatori delle regole, campi cron, comandi `$`, chrome git (`commit`, `Author:`, `@@`, hash), verdetti (`✓ pass`, `~ unstable`, `✗ fail`), livelli (`ERROR:`, `WARN:`), codici (`net::ERR_*`), licenze, URL | inglese, sempre |
+| **Dati** | valori meteo, nomi città, giorni della settimana, fasi lunari | localizzati (invariato dalla 6b) |
+| **Prosa** | frasi rivolte al lettore, **ovunque si trovino**: `README.md`, `HELP.md`, first run, notifiche, accessibilità **e le righe di commento che sono frasi** | localizzate |
+
+Due test operativi, in quest'ordine:
+
+1. **Tradurlo romperebbe qualcosa?** Un lookup, un nome file, un copia-incolla, l'allineamento con una chiave stampata altrove → è codice, resta inglese.
+2. **git lo tradurrebbe?** git traduce "nothing to commit, working tree clean" e non traduce `commit`. È l'intuizione giusta per ogni caso futuro.
+
+E la **regola della cucitura**, che serve perché quasi nessuna riga è pura: una riga può contenere due registri, e allora si tengono i token e si traduce intorno.
+
+```
+// ERROR: permission denied — gps stays off
+// ERROR: permesso negato — il gps resta spento
+
+// refresh weather_data.json to record the first one
+// aggiorna weather_data.json per registrare il primo
+```
+
+### Cosa cambia in `sky.crontab`, che è la schermata da cui è partita
+
+Cambiano solo le righe intere: l'intestazione `# times are computed per occurrence, not fixed; see each line`, il `// evaluate every enabled job against the forecast in hand:` sopra il comando, e i quattro `//` del blocco finale (soglie, luna, inquinamento luminoso, "un verdetto è l'opinione della previsione, non un'osservazione"). Numeri e simboli dentro quelle righe restano come sono: `≤ 25%`, `≥ 60%`, `≥ 70%`.
+
+Non cambia niente di quello che sta in colonna: `@daily`, `*/30 * * * *`, `@yearly`, `sun.rise`, `golden_hour.am`, `solstice.summer`, `[rm]`, `+ add job`, `$ tweather run sky`, e nel canale dei commenti `~ unstable`, `✓ pass`, `cloud 47%`, `+1m07s vs yesterday`, `in 297d`. `full moon` è un valore meteo, quindi si localizzava già dalla 6b.
+
+**Non è una coincidenza fortunata, è una conseguenza del criterio**: i commenti in colonna sono quasi sempre dati, quelli a riga intera quasi sempre prosa. Il che protegge l'allineamento, che è il costo reale di questa fase — l'italiano è più lungo del 15-20%, e questo repo ha già pagato quel prezzo una volta (`Giorno` → `Gg` nella tabella giornaliera, Fase 11c: tre caratteri erano la differenza tra vedere la colonna Stato e inseguirla in pan).
+
+### I casi di confine, decisi
+
+- **`# stale`, `# amended`** (marcatori di una parola): **inglesi**. Sono della famiglia dei verdetti, e `README.md` dice già la stessa cosa in prosa (Fase 17).
+- **`// ERROR:` / `// WARN:`**: il livello è un token e resta, la frase dopo si traduce. `net::ERR_*` e le righe `GET https://…` restano intere: lì il codice d'errore è la forma *utile* del fatto, dentro un file che è codice.
+- **Intestazioni di file** (`// Tweather Configuration File`, `// Tweather CI — user-defined notification rules`, `// tweather editor canvas`): **inglesi**. Sono la firma dell'artefatto, non un messaggio al lettore: la stessa cosa di uno shebang o di un header di licenza.
+- **`// hint:`**: si traduce anche l'etichetta. Non è un livello di log, è una parola che l'app si è inventata.
+- **`// polling every 60 min`**: parole tradotte, unità no.
+
+### Quello che questa fase NON è
+
+**Non è "rendere l'app amichevole a chi non è tecnico", e sarebbe disonesto scriverlo qui.** Un lettore italiano che non programma continua a vedere `weather_data.json`, `precip_chance`, `cloud_cover`, `solstice.summer`, `@daily`: i commenti sono una frazione di quello che c'è a schermo. Lo strato in lingua piana esiste già ed è progettato apposta — `README.md`, `HELP.md`, le notifiche, l'accessibilità — e thabit lo mette per iscritto (`VISION.md §3.3.7`: nessun termine CI è mai l'unico posto dove un fatto esiste).
+
+La motivazione giusta è un'altra, e regge da sola: **quando l'app parla al lettore, gli parla nella sua lingua.** Va tenuta stretta, perché con la motivazione sbagliata fra sei mesi lo stesso argomento chiederà di tradurre `precip_chance`, e lì la filosofia muore davvero.
+
+**E si applica al 100% o non si applica**: una regola smarcata all'80% non sembra una scelta, sembra una traduzione lasciata a metà. Per questo l'implementazione è una fase chiusa per app, non una rifinitura opportunistica.
+
+- [x] Regola dei tre registri in `CLAUDE.md`, con i due test e la regola della cucitura
+- [x] Intestazioni di `values/strings.xml` e `values-it/strings.xml` riscritte: enunciavano la vecchia regola parola per parola, ed erano il posto in cui la si legge scrivendo una stringa nuova
+- [x] Propagata a `tsteps` e `thabit` (`VISION.md §1.3`, `CLAUDE.md`, intestazioni delle risorse): è una regola di serie, non di questa app
+- [x] Corrette le due formulazioni che dicevano il contrario: `VISION_SKY.md` §4 ("English, like every other code surface") e la 16c qui sopra, che chiamavano codice il *canale* invece dei token che ci passano dentro
+- [x] `README.md` di root e `CHANGELOG.md` **non toccati, deliberatamente**: descrivono l'app spedita, e nel codice i commenti sono ancora inglesi. Aggiornarli adesso sarebbe il file che mente, che è la regola che questo progetto rispetta prima di tutte le altre; si aggiornano con l'implementazione
+- [x] Implementata in thabit per prima (`../thabit/PLANNING.md` Fase 15), perché era quella che ci guadagnava di più — i suoi commenti erano già quasi tutti frasi rivolte al lettore
+
+### L'implementazione qui (28 ago 2026)
+
+**Il problema di architettura era un altro rispetto a thabit.** Lì i documenti sono valori puri e la prosa è diventata un `@StringRes` che il renderer risolve. Qui i costruttori di righe (`buildSettingsLines`, `buildRulesLines`, `buildLogLines`, …) sono funzioni normali chiamate da un composable, e uno di essi — quello dei Logs — vive dentro un `remember`, quindi non può diventare `@Composable`. Ma il pattern giusto era già nel repo: `buildReadmeLines` prende un `Resources`, `buildLogLines` prende un `translate: (String) -> String`, `SkyLabels` è costruita da `Resources` e passata dentro. **Si passa il traduttore, il costruttore resta una funzione.**
+
+Quindi: **le schermate ricevono un `Resources`** e antepongono il marcatore a una risorsa (`fun note(id) = "// " + resources.getString(id)`, una riga per file). Nei Logs `resources` entra anche fra le chiavi del `remember`: un cambio di lingua per-app ricrea l'activity con risorse nuove, e il file va ricostruito nella lingua in cui adesso viene letto.
+
+**I due builder che sono valori puri restano tali**, e ricevono le frasi come stringhe: `SkyDocumentBuilder` via un `SkyNotes`, `WidgetContentBuilder` via due parametri. È la condizione per non trascinare Robolectric dentro `SkyVerdictRenderTest` e compagni, che sono test JVM puri e devono restarlo.
+
+**Il prezzo di quella scelta è una duplicazione dell'inglese**, e non l'ho lasciata correre: `SkyNotes.EN` e i default di `WidgetContentBuilder` sono legati a `values/strings.xml` da due test che li confrontano parola per parola. Toccarne uno solo fa diventare rossa la suite, che è l'unico motivo per cui la duplicazione può esistere.
+
+### La riga che il modulo cielo non muove, e perché
+
+`sky.crontab` ha una colonna allineata di **prove**: l'istante risolto, la parola del verdetto, la quantità da cui è nato (`cloud 47%`), la deriva (`+1m07s vs yesterday`). Quella colonna resta inglese per intero — è lo stesso vocabolario che `sky_runs.log` stampa e che le check line della history contengono, e una riga tradotta lascerebbe una colonna allineata a parlare due lingue. **La lettura localizzata di quegli stessi fatti esiste già ed è il `## Astronomia` del README**, scritto apposta nella Fase 16g.
+
+Si muove invece tutto ciò che *spiega*: perché un job non è in programma (`giorno polare: qui il sole resta sopra l'orizzonte`), perché manca un verdetto (`(nessun fetch ancora)`), cosa sta facendo la luna, le tre righe di intestazione e le quattro note in fondo.
+
+### Due cose trovate dalla traduzione, che non erano di traduzione
+
+**1. `// current_location.json in explorer` puntava a una scheda che non esiste più.** Il primo tab ha perso quel nome nella Fase 11b e solo la sua rotta di navigazione l'ha tenuto: la riga mandava il lettore a cercare una parola che non è scritta da nessuna parte. Ora dice `in cities.json`, che è il file in cui quell'entry vive davvero. Il test che congelava la vecchia riga è stato riscritto, non cancellato.
+
+**2. La fase lunare nel crontab era inglese** (`🌕 full moon, 99% lit`) mentre `weather_data.json` due tab più in là diceva `luna piena`. Non è una svista della Fase 18: una fase lunare è un **valore**, e i valori si localizzano dalla 6b. Il modulo cielo non l'aveva mai chiesto. Ora passa dallo stesso `WeatherTranslations` che usano schermata principale e widget.
+
+- [x] 47 risorse nuove EN/IT; parità verificata
+- [x] Tutte le superfici: `weather_data.json`, `cities.json`, `settings.config`, `alerts.rules`, `history.diff`, `forecast.diff`, `sky_runs.log`, `sky.crontab`, il widget e il suo selettore
+- [x] `RegisterRuleTest`: guardia sulla regola, non su una schermata — nessuna nota porta il proprio marcatore o il proprio livello, e ognuna dice qualcosa di diverso in italiano. Ha già trovato l'unico caso che resta identico (`current_location.json in cities.json`: due nomi di file e una preposizione uguale nelle due lingue), esentato con la motivazione scritta invece che ammorbidendo il test
+- [x] `SkyNotesTest` e `WidgetNotesTest`: le due guardie sulla duplicazione dell'inglese
+- [x] Test in italiano su ogni superficie, ognuno che asserisce **entrambe** le metà — la frase tradotta e il token inglese accanto. `SkyRunsLogTest` è passato a Robolectric, perché quello che asserisce adesso dipende da chi legge
+- [x] Suite a 593 (era 572), lint pulito, release minificata compilata
+### Il giro sul device (28 ago 2026): sei righe rimaste, e il motivo per cui erano rimaste
+
+Il committente ne ha vista **una** in uno screenshot di `settings.config`: `// every sky.crontab line without its own; 15m floor`, ancora inglese in mezzo a righe italiane. Rifatto il controllo per bene, ne sono saltate fuori **sei**, tutte della stessa classe.
+
+**Il motivo è il metodo, non la fretta, e va scritto perché è la lezione della fase.** Avevo cercato i commenti con un `grep '"//[^"]*"'`, che ancora `//` all'**inizio** del literal. Queste sei sono continuazioni: `append(",  // every …")`, `append("  // tap again to confirm")`. Un'ancora sbagliata e la lista sembra completa. È successo tre volte in questa serie, e ogni volta se n'è accorto un occhio umano davanti a uno screenshot.
+
+Le sei: la nota di `notify_default`, la conferma a due tocchi (`// tap again to confirm`, **la stessa frase su tutti e quattro i comandi `$` dell'app**, quindi una stringa sola) e la riga `sky_line` del selettore widget.
+
+**Quindi lo sweep è diventato un test.** `CommentChannelSweepTest` cammina sui sorgenti Kotlin, prende ogni literal che porta un marcatore di commento e fallisce su quelli che **leggono come una frase**: tre parole minuscole di fila dopo il marcatore. È il criterio che separa `// tap again to confirm` da `// active`, `// gps`, `// CC BY 4.0` e `// 15 | 30 | 60 | 120`, ed è tarato sul repo — con la regola applicata gira su tutto `src/main/java` e trova due sole eccezioni, entrambe legittime e in allowlist con la motivazione scritta.
+
+Verificato che non passi a vuoto: rimessa una delle sei righe al suo posto sbagliato, il test diventa rosso; ripristinata, torna verde. Una guardia che non ho visto fallire non è una guardia.
+
+- [x] Le sei righe mancate, con `note_tap_again` condivisa dai quattro comandi
+- [x] `CommentChannelSweepTest`: lo sweep come test, con l'allowlist come verbale di cosa resta inglese e perché
+- [x] Suite a 596, lint pulito, release minificata compilata
+
+**Una cosa lasciata com'è, e non per svista.** Nel crontab la riga di `moon.today` legge `# 🌕 luna piena, 99% lit`: la fase è un valore e si localizza, `lit` no. È l'etichetta di una quantità, esattamente come `cloud` in `cloud 57%` sulla riga sopra, e tradurne una sola renderebbe la colonna incoerente; tradurle tutte vuol dire muovere la colonna delle prove, che è la cosa che questa fase ha deciso di non muovere. Il README dice lo stesso fatto in italiano (`illuminata al 99%`), che è il registro localizzato del cielo dalla 16g. Segnalata al committente come scelta reversibile di una riga.
+
+- [ ] Poi tsteps, ultima della serie
+
+### Una nota sulla guardia (ago 2026, chiudendo la serie)
+
+`RegisterRuleTest` elencava le sue note **a mano**. Quando la Fase 20 di tsteps è venuta a copiarla, il confronto con `strings.xml` ha detto che di 61 note ne sorvegliava 50: undici erano state aggiunte senza mai finire nell'elenco, e la guardia era verde perché guardava altrove. Nessuna delle undici era sbagliata — passano tutte gli invarianti, il che è la buona notizia — ma è esattamente il modo in cui una regola smette di valere al 100% senza che niente diventi rosso.
+
+Ora la lista si prende **per riflessione** su `R.string`: quello che non si tiene aggiornato non si può dimenticare, e una nota scritta domani è sorvegliata il giorno che esiste. Con lei è arrivato un test che l'allowlist non marcisca (un nome esentato che non è più una nota è un'esenzione che nessuno ha più riletto) e uno che verifica che la riflessione non torni a mani vuote, il che farebbe passare tutto il resto per vuoto.
 
 
 ## Note trasversali

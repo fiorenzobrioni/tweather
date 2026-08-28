@@ -430,10 +430,14 @@ shadows: depth comes from 1px borders instead. The one exception is the home wid
 CVE-2021-0567 the launcher refuses to load font resources into a widget layout, so it
 falls back to the system monospace. The badges above are tinted with the same palette.
 
-English and Italian, following the system per-app language. The rule is that "code"
-stays English (JSON keys, filenames, `//` comments, git headers, terminal output) while
-the chrome and the weather *values* are translated. The screenshots on this page were
-taken in Italian, which is what that split looks like on a device.
+English and Italian, following the system per-app language, split the way a real
+terminal splits them. Code stays code: the JSON keys, the file names, the `$` commands,
+the git headers, the verdicts, the error codes. Anything written to be understood speaks
+your language, the comment lines included, and the marker in front of them never moves:
+an error reads `// ERROR: permesso negato: il gps resta spento`. `git status` on an
+Italian phone says "Sul branch main" and keeps the word `branch`, and so do the logs
+here. The screenshots on this page were taken in Italian, which is what that split looks
+like on a device.
 
 ---
 

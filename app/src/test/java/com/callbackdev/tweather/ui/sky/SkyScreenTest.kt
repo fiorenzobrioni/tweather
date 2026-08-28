@@ -24,6 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * `sky.crontab` as a screen (Fase 16c): the token taps, the two-tap `[rm]`, the
@@ -156,6 +157,20 @@ class SkyScreenTest {
         setScreen(context = null)
         compose.onNodeWithText("# no location configured").assertIsDisplayed()
         compose.onNodeWithText("# hint: open cities.json and search a city").assertIsDisplayed()
+    }
+
+    /**
+     * The seam on the file the sky module opens with (Fase 18). The `#` is what a
+     * crontab comments with and never translates; the two sentences under it do,
+     * and `cities.json` inside one of them is a file name and comes through.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun `with no location it says so in Italian, file name included`() {
+        setScreen(context = null)
+        compose.onNodeWithText("# nessuna posizione configurata").assertIsDisplayed()
+        compose.onNodeWithText("# suggerimento: apri cities.json e cerca una città")
+            .assertIsDisplayed()
     }
 
     @Test

@@ -18,6 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /** The `alerts.rules` file: token editing, picker, dry run (Fase 11). */
 @RunWith(RobolectricTestRunner::class)
@@ -228,6 +229,22 @@ class RulesScreenTest {
         compose.onNodeWithText("\"user_rules\": true  // alerts.rules").assertExists()
         compose.onNodeWithText("alerts.rules").performClick()
         assertEquals(1, selected)
+    }
+
+
+    /**
+     * `alerts.rules` under the register rule (Fase 18). The banner is the file's
+     * own signature and stays; the cross-reference under it is a sentence and
+     * moves, with `settings.config` and the three builtin kinds coming through it
+     * unchanged — they are what the reader would go looking for.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun `the banner stays and the sentence under it speaks Italian`() {
+        setScreen(rules = emptyList())
+        onLine("// Tweather CI — user-defined notification rules")
+        onLine("// gli avvisi predefiniti (severe, precip, daily) stanno in settings.config")
+        onLine("// ancora nessuna regola")
     }
 
 }

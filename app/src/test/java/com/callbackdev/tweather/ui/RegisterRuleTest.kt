@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
  * The per-screen tests check that a line is drawn; this checks the thing the rule
  * is actually about — that what moved is prose and what stayed is code — and it
  * checks it for **every** note at once, which is the only way to notice the day
- * somebody adds a forty-eighth and writes it in English.
+ * somebody adds one more and writes it in English.
  */
 @RunWith(RobolectricTestRunner::class)
 class RegisterRuleTest {
@@ -26,29 +26,28 @@ class RegisterRuleTest {
     private val resources: Resources
         get() = ApplicationProvider.getApplicationContext<Context>().resources
 
-    /** Every `note_*` string the app prints in the comment channel. */
-    private val notes: List<Int> = listOf(
-        R.string.note_no_location, R.string.note_hint_search, R.string.note_gps_acquiring,
-        R.string.note_fetching, R.string.note_hint_retry, R.string.note_tap_add_city,
-        R.string.note_clear_history, R.string.note_click_toggle, R.string.note_full_json,
-        R.string.note_sky_in_editor, R.string.note_notify_invisible,
-        R.string.note_restore_defaults, R.string.note_alerts_disabled,
-        R.string.note_gps_tap_enable, R.string.note_gps_pinned,
-        R.string.note_err_notif_missing, R.string.note_err_denied,
-        R.string.note_err_gps_denied, R.string.note_err_gps_revoked,
-        R.string.note_rules_builtin, R.string.note_rules_off, R.string.note_rules_none,
-        R.string.note_rules_run, R.string.note_rules_evaluating, R.string.note_no_commits,
-        R.string.note_first_commit, R.string.note_no_revisions, R.string.note_revisions_land,
-        R.string.note_no_runs, R.string.note_first_run, R.string.note_sky_no_jobs,
-        R.string.note_sky_all_added, R.string.note_sky_run, R.string.note_sky_times,
-        R.string.note_sky_light, R.string.note_sky_opinion, R.string.note_sky_polar_day,
-        R.string.note_sky_polar_night, R.string.note_sky_moon_absent,
-        R.string.note_sky_no_darkness, R.string.note_sky_beyond_horizon,
-        R.string.note_sky_no_data, R.string.note_sky_stale_data, R.string.note_sky_no_coverage,
-        R.string.note_sky_moonless, R.string.note_sky_moon_all_night,
-        R.string.note_widget_no_data_yet, R.string.note_widget_no_data,
-        R.string.note_widget_tap_pin, R.string.note_widget_follows
-    )
+    /**
+     * Every `note_*` string the app prints in the comment channel, taken by
+     * **reflection** over `R.string`.
+     *
+     * This list used to be written out by hand, and by the time tsteps' Fase 20
+     * came to copy it, eleven of the sixty-one notes had been added without ever
+     * being added here: the guard was green and watching fifty of them. A list
+     * that has to be remembered is a list that gets forgotten, so now there is
+     * nothing to keep in sync — a note written tomorrow is guarded the moment it
+     * exists.
+     */
+    private val notes: List<Pair<String, Int>> = R.string::class.java.declaredFields
+        .filter { it.name.startsWith("note_") }
+        .map { it.name to it.getInt(null) }
+        .sortedBy { it.first }
+
+    @Test
+    fun `the sweep found the notes at all`() {
+        // A reflective list that silently came back empty would make every other
+        // test in this class pass by vacuum.
+        assertTrue("suspiciously few notes: ${notes.size}", notes.size >= 55)
+    }
 
     /**
      * The marker is the file's syntax and is added by the renderer, never by the
@@ -57,9 +56,10 @@ class RegisterRuleTest {
      */
     @Test
     fun `no note carries its own comment marker`() {
-        notes.forEach { id ->
+        notes.forEach { (name, id) ->
             val text = resources.getString(id)
-            assertTrue("'$text' carries its own marker", !text.startsWith("//") && !text.startsWith("#"))
+            assertTrue("$name carries its own marker: '$text'",
+                !text.startsWith("//") && !text.startsWith("#"))
         }
     }
 
@@ -70,9 +70,10 @@ class RegisterRuleTest {
      */
     @Test
     fun `no note carries its own level`() {
-        notes.forEach { id ->
+        notes.forEach { (name, id) ->
             val text = resources.getString(id)
-            assertTrue("'$text' carries a level", !text.startsWith("ERROR") && !text.startsWith("WARN"))
+            assertTrue("$name carries a level: '$text'",
+                !text.startsWith("ERROR") && !text.startsWith("WARN"))
         }
     }
 
@@ -86,11 +87,11 @@ class RegisterRuleTest {
      * inventing a difference (`dentro cities.json`) to satisfy a test would be
      * writing worse Italian to make a green tick.
      */
-    private val identicalOnPurpose: Set<Int> = setOf(R.string.note_gps_pinned)
+    private val identicalOnPurpose: Set<String> = setOf("note_gps_pinned")
 
     /**
-     * Every other note is actually translated. A rule kept forty-nine times out of
-     * fifty does not read as a decision, it reads as a job somebody abandoned
+     * Every other note is actually translated. A rule kept sixty times out of
+     * sixty-one does not read as a decision, it reads as a job somebody abandoned
      * halfway — which is the failure mode Fase 18 wrote itself against.
      */
     @Test
@@ -102,10 +103,19 @@ class RegisterRuleTest {
                     setLocale(java.util.Locale.ENGLISH)
                 }
             ).resources
-        val unchanged = notes.filter { id ->
-            id !in identicalOnPurpose && resources.getString(id) == english.getString(id)
-        }.map { english.getString(it) }
+        val unchanged = notes.filter { (name, id) ->
+            name !in identicalOnPurpose && resources.getString(id) == english.getString(id)
+        }.map { it.first }
         assertEquals("these notes were never translated: $unchanged", emptyList<String>(), unchanged)
+    }
+
+    /** The allowlist must not rot into a list of names nobody looked at. */
+    @Test
+    fun `every allowlisted name still exists`() {
+        val known = notes.map { it.first }.toSet()
+        identicalOnPurpose.forEach {
+            assertTrue("'$it' is allowlisted but is no longer a note", it in known)
+        }
     }
 
     /**

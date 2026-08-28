@@ -1130,6 +1130,13 @@ Verificato che non passi a vuoto: rimessa una delle sei righe al suo posto sbagl
 
 - [ ] Poi tsteps, ultima della serie
 
+### Una nota sulla guardia (ago 2026, chiudendo la serie)
+
+`RegisterRuleTest` elencava le sue note **a mano**. Quando la Fase 20 di tsteps è venuta a copiarla, il confronto con `strings.xml` ha detto che di 61 note ne sorvegliava 50: undici erano state aggiunte senza mai finire nell'elenco, e la guardia era verde perché guardava altrove. Nessuna delle undici era sbagliata — passano tutte gli invarianti, il che è la buona notizia — ma è esattamente il modo in cui una regola smette di valere al 100% senza che niente diventi rosso.
+
+Ora la lista si prende **per riflessione** su `R.string`: quello che non si tiene aggiornato non si può dimenticare, e una nota scritta domani è sorvegliata il giorno che esiste. Con lei è arrivato un test che l'allowlist non marcisca (un nome esentato che non è più una nota è un'esenzione che nessuno ha più riletto) e uno che verifica che la riflessione non torni a mani vuote, il che farebbe passare tutto il resto per vuoto.
+
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

@@ -217,6 +217,14 @@
          `sky.crontab` (the localized reading of those same facts is the README's
          `## Astronomy`, built for it in Fase 16g). -->
 
+    <!-- The two-tap confirm, on all four `$` commands the app has. One sentence,
+         one string: four copies of it would drift the day one of them is reworded. -->
+    <string name="note_tap_again">tap again to confirm</string>
+
+    <!-- Two more settings hints, both sentences about what a key does. -->
+    <string name="note_sky_notify_default">every sky.crontab line without its own; 15m floor</string>
+    <string name="note_widget_sky_line">next sky job and its verdict</string>
+
     <!-- weather_data.json: what the editor says when there is no document. -->
     <string name="note_no_location">no location configured</string>
     <string name="note_hint_search">hint: open cities.json and search a city</string>

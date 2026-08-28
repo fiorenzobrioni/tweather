@@ -96,4 +96,18 @@ class SearchClearHistoryTest {
         onLine("// cancella la cronologia delle ricerche:").assertIsDisplayed()
         onLine("$ history -c").assertIsDisplayed()
     }
+
+    /**
+     * The two-tap confirm is the same sentence on all four `$` commands the app
+     * has, so it is one string — and it is the one the reader has to understand
+     * before touching anything destructive.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun `the armed command asks again in Italian, and stays the same command`() {
+        setScreen()
+        onLine("$ history -c").performClick()
+        onLine("$ history -c  // tocca di nuovo per confermare").assertIsDisplayed()
+        assertEquals("the confirm must still take a second tap", 0, cleared)
+    }
 }

@@ -172,7 +172,7 @@ fun buildSkyLines(
                     append("tweather run sky")
                     if (runArmed) {
                         withStyle(SpanStyle(color = syntax.diffDel)) {
-                            append("  // tap again to confirm")
+                            append("  // " + resources.getString(R.string.note_tap_again))
                         }
                     }
                 },

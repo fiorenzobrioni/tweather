@@ -583,7 +583,7 @@ private fun buildSettingsLines(
                     append("\"${SkyLead.ofMinutes(settings.skyNotifyDefaultMin).label}\"")
                 }
                 withStyle(SpanStyle(color = syntax.comment)) {
-                    append(",  // every sky.crontab line without its own; 15m floor")
+                    append(",  // " + resources.getString(R.string.note_sky_notify_default))
                 }
             },
             indent = 2,
@@ -696,7 +696,7 @@ private fun buildSettingsLines(
                 append("git restore settings.config")
                 if (resetArmed) {
                     withStyle(SpanStyle(color = syntax.diffDel)) {
-                        append("  // tap again to confirm")
+                        append("  // " + resources.getString(R.string.note_tap_again))
                     }
                 }
             },

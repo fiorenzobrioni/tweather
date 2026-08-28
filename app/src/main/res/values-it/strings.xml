@@ -194,6 +194,15 @@
          localizzata di quegli stessi fatti è ## Astronomia del README, scritta
          apposta nella Fase 16g). -->
 
+    <!-- La conferma a due tocchi, su tutti e quattro i comandi $ dell\'app. Una
+         frase, una stringa: quattro copie divergerebbero il giorno che una viene
+         riscritta. -->
+    <string name="note_tap_again">tocca di nuovo per confermare</string>
+
+    <!-- Altri due hint di impostazioni, frasi su cosa fa una chiave. -->
+    <string name="note_sky_notify_default">ogni riga di sky.crontab che non ha il suo; minimo 15m</string>
+    <string name="note_widget_sky_line">il prossimo job del cielo e il suo verdetto</string>
+
     <!-- weather_data.json: cosa dice l\'editor quando non c\'è un documento. -->
     <string name="note_no_location">nessuna posizione configurata</string>
     <string name="note_hint_search">suggerimento: apri cities.json e cerca una città</string>

@@ -1110,7 +1110,24 @@ Si muove invece tutto ciò che *spiega*: perché un job non è in programma (`gi
 - [x] `SkyNotesTest` e `WidgetNotesTest`: le due guardie sulla duplicazione dell'inglese
 - [x] Test in italiano su ogni superficie, ognuno che asserisce **entrambe** le metà — la frase tradotta e il token inglese accanto. `SkyRunsLogTest` è passato a Robolectric, perché quello che asserisce adesso dipende da chi legge
 - [x] Suite a 593 (era 572), lint pulito, release minificata compilata
-- [ ] Verifica su device: le righe da riguardare a 360dp sono la nota `reminders` di `settings.config`, le tre di intestazione del crontab e le quattro in fondo (l'italiano è più lungo del 15-20% e quelle sono righe intere), e il commento in coda al widget
+### Il giro sul device (28 ago 2026): sei righe rimaste, e il motivo per cui erano rimaste
+
+Il committente ne ha vista **una** in uno screenshot di `settings.config`: `// every sky.crontab line without its own; 15m floor`, ancora inglese in mezzo a righe italiane. Rifatto il controllo per bene, ne sono saltate fuori **sei**, tutte della stessa classe.
+
+**Il motivo è il metodo, non la fretta, e va scritto perché è la lezione della fase.** Avevo cercato i commenti con un `grep '"//[^"]*"'`, che ancora `//` all'**inizio** del literal. Queste sei sono continuazioni: `append(",  // every …")`, `append("  // tap again to confirm")`. Un'ancora sbagliata e la lista sembra completa. È successo tre volte in questa serie, e ogni volta se n'è accorto un occhio umano davanti a uno screenshot.
+
+Le sei: la nota di `notify_default`, la conferma a due tocchi (`// tap again to confirm`, **la stessa frase su tutti e quattro i comandi `$` dell'app**, quindi una stringa sola) e la riga `sky_line` del selettore widget.
+
+**Quindi lo sweep è diventato un test.** `CommentChannelSweepTest` cammina sui sorgenti Kotlin, prende ogni literal che porta un marcatore di commento e fallisce su quelli che **leggono come una frase**: tre parole minuscole di fila dopo il marcatore. È il criterio che separa `// tap again to confirm` da `// active`, `// gps`, `// CC BY 4.0` e `// 15 | 30 | 60 | 120`, ed è tarato sul repo — con la regola applicata gira su tutto `src/main/java` e trova due sole eccezioni, entrambe legittime e in allowlist con la motivazione scritta.
+
+Verificato che non passi a vuoto: rimessa una delle sei righe al suo posto sbagliato, il test diventa rosso; ripristinata, torna verde. Una guardia che non ho visto fallire non è una guardia.
+
+- [x] Le sei righe mancate, con `note_tap_again` condivisa dai quattro comandi
+- [x] `CommentChannelSweepTest`: lo sweep come test, con l'allowlist come verbale di cosa resta inglese e perché
+- [x] Suite a 596, lint pulito, release minificata compilata
+
+**Una cosa lasciata com'è, e non per svista.** Nel crontab la riga di `moon.today` legge `# 🌕 luna piena, 99% lit`: la fase è un valore e si localizza, `lit` no. È l'etichetta di una quantità, esattamente come `cloud` in `cloud 57%` sulla riga sopra, e tradurne una sola renderebbe la colonna incoerente; tradurle tutte vuol dire muovere la colonna delle prove, che è la cosa che questa fase ha deciso di non muovere. Il README dice lo stesso fatto in italiano (`illuminata al 99%`), che è il registro localizzato del cielo dalla 16g. Segnalata al committente come scelta reversibile di una riga.
+
 - [ ] Poi tsteps, ultima della serie
 
 ## Note trasversali

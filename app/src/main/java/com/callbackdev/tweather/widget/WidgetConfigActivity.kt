@@ -370,7 +370,7 @@ private fun buildWidgetConfigLines(
                 withStyle(SpanStyle(color = syntax.comment)) { append(": ") }
                 withStyle(SpanStyle(color = syntax.number)) { append(state.skyLine.toString()) }
                 withStyle(SpanStyle(color = syntax.comment.copy(alpha = 0.6f))) {
-                    append("  // next sky job and its verdict")
+                    append("  // " + resources.getString(R.string.note_widget_sky_line))
                 }
             },
             indent = 1,

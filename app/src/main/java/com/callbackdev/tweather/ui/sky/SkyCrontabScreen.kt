@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.sky
 
+import android.content.res.Resources
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -71,16 +72,20 @@ fun buildSkyLines(
     syntax: SyntaxColors,
     actions: SkyActions,
     labels: SkyLabels,
+    resources: Resources,
     onStartEdit: (SkyEdit?) -> Unit
 ): List<CanvasLine> = buildList {
+    // The `#` is what a crontab comments with and never translates; the sentence
+    // after it does (Fase 18).
+    fun note(id: Int) = resources.getString(id)
     val runArmed = editing == SkyEdit.ConfirmRun
     val document = state.document
     if (document == null) {
         // Same surface as the editor's other two files with no city (Fase 14b), in
         // the comment channel this file uses: `#`, because that is what a crontab
         // comments with.
-        add(commentLine("# no location configured", syntax))
-        add(commentLine("# hint: open cities.json and search a city", syntax))
+        add(commentLine("# " + note(R.string.note_no_location), syntax))
+        add(commentLine("# " + note(R.string.note_hint_search), syntax))
         return@buildList
     }
 
@@ -88,7 +93,7 @@ fun buildSkyLines(
     add(CodeLine(AnnotatedString("")))
 
     if (document.rows.isEmpty()) {
-        add(commentLine("# no jobs — the sky runs them anyway, this file just watches", syntax))
+        add(commentLine("# " + note(R.string.note_sky_no_jobs), syntax))
     }
     document.rows.forEach { row ->
         val subscription = state.subscriptions.first { it.jobId == row.job.id }
@@ -117,7 +122,7 @@ fun buildSkyLines(
 
     add(CodeLine(AnnotatedString("")))
     if (document.available.isEmpty()) {
-        add(commentLine("# every job in the catalog is already a line", syntax))
+        add(commentLine("# " + note(R.string.note_sky_all_added), syntax))
     } else {
         add(
             CodeLine(
@@ -159,7 +164,7 @@ fun buildSkyLines(
     // one place the verdicts line up under each other.
     if (document.rows.any { it.enabled }) {
         add(CodeLine(AnnotatedString("")))
-        add(commentLine("// evaluate every enabled job against the forecast in hand:", syntax))
+        add(commentLine("// " + note(R.string.note_sky_run), syntax))
         add(
             CodeLine(
                 text = buildAnnotatedString {

@@ -1080,8 +1080,38 @@ La motivazione giusta è un'altra, e regge da sola: **quando l'app parla al lett
 - [x] Propagata a `tsteps` e `thabit` (`VISION.md §1.3`, `CLAUDE.md`, intestazioni delle risorse): è una regola di serie, non di questa app
 - [x] Corrette le due formulazioni che dicevano il contrario: `VISION_SKY.md` §4 ("English, like every other code surface") e la 16c qui sopra, che chiamavano codice il *canale* invece dei token che ci passano dentro
 - [x] `README.md` di root e `CHANGELOG.md` **non toccati, deliberatamente**: descrivono l'app spedita, e nel codice i commenti sono ancora inglesi. Aggiornarli adesso sarebbe il file che mente, che è la regola che questo progetto rispetta prima di tutte le altre; si aggiornano con l'implementazione
-- [ ] Implementazione: fase a sé, una per app. **thabit per prima**, perché è quella che ci guadagna di più — i suoi commenti sono già quasi tutti frasi rivolte al lettore (`# tap the command to confirm`, `# a reminder is a nudge — it can arrive a few minutes late`, `# empty to turn it off`, `# how often?`)
-- [ ] Da mettere in conto quando si implementa qui: ~86 letterali di commento e ~70 asserzioni di test che ne congelano il testo inglese. Il pattern per ripararle esiste già (`WeatherReadmeTest` con `@Config(qualifiers="it")`), quindi è lavoro noioso e non lavoro difficile; e ogni riga tradotta va riguardata a 360dp prima di considerarla fatta
+- [x] Implementata in thabit per prima (`../thabit/PLANNING.md` Fase 15), perché era quella che ci guadagnava di più — i suoi commenti erano già quasi tutti frasi rivolte al lettore
+
+### L'implementazione qui (28 ago 2026)
+
+**Il problema di architettura era un altro rispetto a thabit.** Lì i documenti sono valori puri e la prosa è diventata un `@StringRes` che il renderer risolve. Qui i costruttori di righe (`buildSettingsLines`, `buildRulesLines`, `buildLogLines`, …) sono funzioni normali chiamate da un composable, e uno di essi — quello dei Logs — vive dentro un `remember`, quindi non può diventare `@Composable`. Ma il pattern giusto era già nel repo: `buildReadmeLines` prende un `Resources`, `buildLogLines` prende un `translate: (String) -> String`, `SkyLabels` è costruita da `Resources` e passata dentro. **Si passa il traduttore, il costruttore resta una funzione.**
+
+Quindi: **le schermate ricevono un `Resources`** e antepongono il marcatore a una risorsa (`fun note(id) = "// " + resources.getString(id)`, una riga per file). Nei Logs `resources` entra anche fra le chiavi del `remember`: un cambio di lingua per-app ricrea l'activity con risorse nuove, e il file va ricostruito nella lingua in cui adesso viene letto.
+
+**I due builder che sono valori puri restano tali**, e ricevono le frasi come stringhe: `SkyDocumentBuilder` via un `SkyNotes`, `WidgetContentBuilder` via due parametri. È la condizione per non trascinare Robolectric dentro `SkyVerdictRenderTest` e compagni, che sono test JVM puri e devono restarlo.
+
+**Il prezzo di quella scelta è una duplicazione dell'inglese**, e non l'ho lasciata correre: `SkyNotes.EN` e i default di `WidgetContentBuilder` sono legati a `values/strings.xml` da due test che li confrontano parola per parola. Toccarne uno solo fa diventare rossa la suite, che è l'unico motivo per cui la duplicazione può esistere.
+
+### La riga che il modulo cielo non muove, e perché
+
+`sky.crontab` ha una colonna allineata di **prove**: l'istante risolto, la parola del verdetto, la quantità da cui è nato (`cloud 47%`), la deriva (`+1m07s vs yesterday`). Quella colonna resta inglese per intero — è lo stesso vocabolario che `sky_runs.log` stampa e che le check line della history contengono, e una riga tradotta lascerebbe una colonna allineata a parlare due lingue. **La lettura localizzata di quegli stessi fatti esiste già ed è il `## Astronomia` del README**, scritto apposta nella Fase 16g.
+
+Si muove invece tutto ciò che *spiega*: perché un job non è in programma (`giorno polare: qui il sole resta sopra l'orizzonte`), perché manca un verdetto (`(nessun fetch ancora)`), cosa sta facendo la luna, le tre righe di intestazione e le quattro note in fondo.
+
+### Due cose trovate dalla traduzione, che non erano di traduzione
+
+**1. `// current_location.json in explorer` puntava a una scheda che non esiste più.** Il primo tab ha perso quel nome nella Fase 11b e solo la sua rotta di navigazione l'ha tenuto: la riga mandava il lettore a cercare una parola che non è scritta da nessuna parte. Ora dice `in cities.json`, che è il file in cui quell'entry vive davvero. Il test che congelava la vecchia riga è stato riscritto, non cancellato.
+
+**2. La fase lunare nel crontab era inglese** (`🌕 full moon, 99% lit`) mentre `weather_data.json` due tab più in là diceva `luna piena`. Non è una svista della Fase 18: una fase lunare è un **valore**, e i valori si localizzano dalla 6b. Il modulo cielo non l'aveva mai chiesto. Ora passa dallo stesso `WeatherTranslations` che usano schermata principale e widget.
+
+- [x] 47 risorse nuove EN/IT; parità verificata
+- [x] Tutte le superfici: `weather_data.json`, `cities.json`, `settings.config`, `alerts.rules`, `history.diff`, `forecast.diff`, `sky_runs.log`, `sky.crontab`, il widget e il suo selettore
+- [x] `RegisterRuleTest`: guardia sulla regola, non su una schermata — nessuna nota porta il proprio marcatore o il proprio livello, e ognuna dice qualcosa di diverso in italiano. Ha già trovato l'unico caso che resta identico (`current_location.json in cities.json`: due nomi di file e una preposizione uguale nelle due lingue), esentato con la motivazione scritta invece che ammorbidendo il test
+- [x] `SkyNotesTest` e `WidgetNotesTest`: le due guardie sulla duplicazione dell'inglese
+- [x] Test in italiano su ogni superficie, ognuno che asserisce **entrambe** le metà — la frase tradotta e il token inglese accanto. `SkyRunsLogTest` è passato a Robolectric, perché quello che asserisce adesso dipende da chi legge
+- [x] Suite a 593 (era 572), lint pulito, release minificata compilata
+- [ ] Verifica su device: le righe da riguardare a 360dp sono la nota `reminders` di `settings.config`, le tre di intestazione del crontab e le quattro in fondo (l'italiano è più lungo del 15-20% e quelle sono righe intere), e il commento in coda al widget
+- [ ] Poi tsteps, ultima della serie
 
 ## Note trasversali
 

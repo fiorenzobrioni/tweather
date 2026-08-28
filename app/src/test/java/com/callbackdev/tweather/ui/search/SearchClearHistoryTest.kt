@@ -13,6 +13,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /** The `$ history -c` command that ends cities.json. */
 @RunWith(RobolectricTestRunner::class)
@@ -80,5 +81,19 @@ class SearchClearHistoryTest {
         // Wording matters here: the line must not read as "this deletes my cities".
         onLine("// clear search history:").assertIsDisplayed()
         onLine("\"Milano, Lombardia\",").assertIsDisplayed()
+    }
+
+    /**
+     * And it must not read that way in Italian either — which is the whole point of
+     * Fase 18: a warning nobody can read warns nobody. The `$` command under it is
+     * a command and stays exactly as it is.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun `the warning is in Italian and the command underneath is not`() {
+        setScreen()
+
+        onLine("// cancella la cronologia delle ricerche:").assertIsDisplayed()
+        onLine("$ history -c").assertIsDisplayed()
     }
 }

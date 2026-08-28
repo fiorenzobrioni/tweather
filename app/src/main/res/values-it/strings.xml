@@ -12,8 +12,13 @@
                  notifiche, accessibilità E le righe di commento che sono frasi.
 
      Una riga può contenere due registri: si tengono i token e si traduce intorno
-     (// ERROR: permesso negato, il gps resta spento). Decisa, NON ancora
-     implementata: i commenti sono ancora inglesi hardcoded nei sorgenti. -->
+     (// ERROR: permesso negato, il gps resta spento).
+
+     Implementata nella Fase 18. Le schermate ricevono un Resources e mettono il
+     marcatore davanti a una risorsa; i due builder che sono valori puri e devono
+     restarlo — SkyDocumentBuilder e WidgetContentBuilder — ricevono invece le
+     frasi come stringhe, con un fallback inglese che SkyNotesTest e
+     WidgetNotesTest legano a values/strings.xml parola per parola. -->
 <resources>
     <!-- Bottom navigation -->
     <!-- "Editor" anche in italiano: è il termine che usa qualunque IDE localizzato -->
@@ -176,6 +181,98 @@
     <string name="readme_status_severe">⚠️ %1$s in arrivo verso le %2$s</string>
     <string name="readme_status_precip">🌧️ Probabile pioggia verso le %1$s (%2$d%%)</string>
     <string name="readme_footer">Aggiornato alle %1$s · dati Open-Meteo</string>
+
+    <!-- IL CANALE DEI COMMENTI (Fase 18). Regola dei registri: una riga di
+         commento che è una FRASE rivolta al lettore è prosa e si localizza; un
+         commento che è una lettura (un orario, un conteggio, il nome di uno
+         stato, una quantità) o un marcatore è codice e resta inglese, ovunque
+         stia. I token dentro una riga localizzata sopravvivono: nomi di file,
+         chiavi, ERROR:, WARN:, DST:, gps:, stale:, commit. Restano inglesi
+         apposta: le intestazioni dei file, // GET …, i codici net::ERR_*, le
+         licenze, // active / // selected / // empty, ogni verdetto e check line,
+         e tutta la colonna allineata delle prove di sky.crontab (la lettura
+         localizzata di quegli stessi fatti è ## Astronomia del README, scritta
+         apposta nella Fase 16g). -->
+
+    <!-- weather_data.json: cosa dice l\'editor quando non c\'è un documento. -->
+    <string name="note_no_location">nessuna posizione configurata</string>
+    <string name="note_hint_search">suggerimento: apri cities.json e cerca una città</string>
+    <string name="note_gps_acquiring">acquisizione posizione …</string>
+    <string name="note_fetching">scarico weather_data.json …</string>
+    <string name="note_stale">ultimo aggiornamento riuscito %1$s fa</string>
+    <string name="note_hint_retry">suggerimento: tocca ( ↻ ) per riprovare</string>
+
+    <!-- cities.json -->
+    <string name="note_tap_add_city">tocca per aggiungere e passare</string>
+    <string name="note_clear_history">cancella la cronologia delle ricerche:</string>
+
+    <!-- settings.config. Gli hint che spiegano un\'impostazione sono frasi; le
+         licenze, l\'intestazione e // Last modified: sono il file. -->
+    <string name="note_click_toggle">tocca per cambiare</string>
+    <string name="note_full_json">il weather_data.json completo</string>
+    <string name="note_sky_in_editor">sky.crontab nell\'editor</string>
+    <string name="note_notify_invisible">avvisami anche se non sarà visibile</string>
+    <string name="note_restore_defaults">ripristina i valori predefiniti (scarta le modifiche locali):</string>
+    <string name="note_alerts_disabled">avvisi disattivati</string>
+    <string name="note_polling_every">controllo ogni %1$d min</string>
+    <string name="note_gps_tap_enable">tocca per attivare</string>
+    <string name="note_gps_pinned">current_location.json in cities.json</string>
+
+    <!-- Gli stati di errore. ERROR: è un livello e resta fuori dalla stringa. -->
+    <string name="note_err_notif_missing">manca il permesso per le notifiche — tocca per concederlo</string>
+    <string name="note_err_denied">negato — apri le impostazioni di sistema</string>
+    <string name="note_err_gps_denied">permesso negato — il gps resta spento</string>
+    <string name="note_err_gps_revoked">permesso revocato — tocca per riconcederlo</string>
+
+    <!-- alerts.rules -->
+    <string name="note_rules_builtin">gli avvisi predefiniti (severe, precip, daily) stanno in settings.config</string>
+    <string name="note_rules_off">\"user_rules\" è false in settings.config — le regole non notificano</string>
+    <string name="note_rules_none">ancora nessuna regola</string>
+    <string name="note_rules_max">massimo %1$d regole</string>
+    <string name="note_rules_run">esegui tutte le regole sui dati attuali:</string>
+    <string name="note_rules_evaluating">valuto su weather_data.json …</string>
+
+    <!-- history.diff, forecast.diff, sky_runs.log -->
+    <string name="note_no_commits">ancora nessun commit</string>
+    <string name="note_first_commit">aggiorna weather_data.json per registrare il primo</string>
+    <string name="note_no_revisions">ancora nessuna revisione delle previsioni</string>
+    <string name="note_revisions_land">qui atterrano i cambiamenti importanti alle previsioni</string>
+    <string name="note_no_runs">ancora nessuna run registrata</string>
+    <string name="note_first_run">un job viene registrato la prima volta che un fetch lo vede passato</string>
+
+    <!-- sky.crontab: le note a riga intera. La colonna delle prove di ogni riga
+         non si muove — vedi l\'intestazione di questa sezione. -->
+    <string name="note_sky_no_jobs">nessun job — il cielo li esegue lo stesso, questo file guarda e basta</string>
+    <string name="note_sky_all_added">ogni job del catalogo è già una riga</string>
+    <string name="note_sky_run">valuta ogni job attivo sulla previsione che c\'è:</string>
+    <string name="note_sky_times">gli orari sono calcolati per occorrenza, non fissi; vedi ogni riga</string>
+    <string name="note_sky_dst_forward">l\'orologio va avanti di 1h il %1$s</string>
+    <string name="note_sky_dst_back">l\'orologio torna indietro di 1h il %1$s</string>
+    <string name="note_sky_thresholds">pass ≤ %1$d%% nuvole · fail sopra %2$d%% · pioggia ≥ %3$d%% lo fa fallire comunque</string>
+    <string name="note_sky_moon">una luna luminosa (≥ %1$d%%) rende instabile un job di cielo buio anche col sereno</string>
+    <string name="note_sky_light">l\'inquinamento luminoso non è modellato: l\'app non conosce il tuo cielo</string>
+    <string name="note_sky_opinion">un verdetto è l\'opinione della previsione, non un\'osservazione; cambierà</string>
+
+    <!-- Perché un job non è in programma oggi, e perché manca un verdetto. Sono
+         frasi che spiegano, quindi sono del lettore; il verdetto e la quantità
+         accanto no. -->
+    <string name="note_sky_polar_day">giorno polare: qui il sole resta sopra l\'orizzonte</string>
+    <string name="note_sky_polar_night">notte polare: qui il sole resta sotto l\'orizzonte</string>
+    <string name="note_sky_moon_absent">la luna non lo fa in questo giorno di calendario</string>
+    <string name="note_sky_no_darkness">il sole resta troppo alto: niente notte astronomica</string>
+    <string name="note_sky_beyond_horizon">oltre l\'orizzonte della previsione</string>
+    <string name="note_sky_no_data">nessun fetch ancora</string>
+    <string name="note_sky_stale_data">nessun dato recente</string>
+    <string name="note_sky_no_coverage">nessuna ora di previsione lo copre</string>
+    <string name="note_sky_moonless_from">senza luna dalle %1$s</string>
+    <string name="note_sky_moonless">senza luna</string>
+    <string name="note_sky_moon_all_night">luna alta tutta la notte</string>
+
+    <!-- Il widget e il suo selettore. -->
+    <string name="note_widget_no_data_yet">ancora nessun dato — apri tweather</string>
+    <string name="note_widget_no_data">nessun dato</string>
+    <string name="note_widget_tap_pin">tocca per fissare</string>
+    <string name="note_widget_follows">segue l\'app</string>
 
     <!-- Condizioni meteo (codici WMO) -->
     <string name="cond_clear">Sereno</string>

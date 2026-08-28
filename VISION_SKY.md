@@ -221,7 +221,10 @@ $ tweather run sky
   per-line comment channel carries nothing else — while the **whole-sentence** lines
   localize like any other prose: the file header (`# times are computed per occurrence,
   not fixed`), the `// evaluate every enabled job …` line above the command, and the four
-  notes at the foot. Decided, not yet implemented.
+  notes at the foot, plus the sentences that explain why a job is not scheduled or
+  why a verdict is missing, and the moon-phase word (a value, so localized since
+  Fase 6b — this module had simply never asked). Implemented in Fase 18: they reach
+  the pure document as a [SkyNotes] value, so the builder still knows no Android.
 
 ### Editing it
 

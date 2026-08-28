@@ -140,7 +140,8 @@ fun WeatherScreen(
         } ?: emptyList()
         head + when (activeFile) {
             MainEditorFile.JSON -> buildScreenLines(
-                state, syntax, WeatherTranslations.translator(resources), locale, displayOptions
+                state, syntax, WeatherTranslations.translator(resources), locale, displayOptions,
+                resources
             )
             MainEditorFile.README -> buildReadmeLines(
                 state, syntax, resources, locale, displayOptions, skySummary
@@ -150,7 +151,8 @@ fun WeatherScreen(
             // an `else` so that adding a fourth file breaks the compile here, which
             // is where a fourth file would need a document.
             MainEditorFile.SKY -> buildScreenLines(
-                state, syntax, WeatherTranslations.translator(resources), locale, displayOptions
+                state, syntax, WeatherTranslations.translator(resources), locale, displayOptions,
+                resources
             )
         }
     }
@@ -287,25 +289,32 @@ private fun buildScreenLines(
     syntax: SyntaxColors,
     translate: (String) -> String,
     locale: Locale,
-    displayOptions: DisplayOptions
+    displayOptions: DisplayOptions,
+    resources: Resources
 ): List<CodeLine> = buildList {
+    // The register rule (Fase 18): the `//` and the markers are the file's syntax
+    // and never move; the sentence after each of them is the reader's. What stays
+    // English on this screen is what stays English in the file — the `GET` line
+    // and the `net::ERR_*` code, which are the useful form of those two facts.
+    // `README.md` says both of them in prose, one tab away (Fase 17).
+    fun note(id: Int, vararg args: Any) = "// " + resources.getString(id, *args)
     if (state.noLocation) {
-        // Terminal output, so English like every other comment line here (the
-        // localization rule: code stays English, prose and values translate).
-        add(commentLine("// no location configured", syntax))
-        add(commentLine("// hint: open cities.json and search a city", syntax))
+        add(commentLine(note(R.string.note_no_location), syntax))
+        add(commentLine(note(R.string.note_hint_search), syntax))
     } else if (state.acquiringFix) {
-        add(commentLine("// gps: acquiring position …", syntax))
+        add(commentLine("// gps: " + resources.getString(R.string.note_gps_acquiring), syntax))
     } else if (state.isLoading) {
-        add(commentLine("// fetching weather_data.json …", syntax))
+        add(commentLine(note(R.string.note_fetching), syntax))
         add(commentLine("// GET https://api.open-meteo.com/v1/forecast", syntax))
     }
     state.error?.let { add(commentLine("// ERROR: ${it.terminalMessage}", syntax)) }
     // The document below is the last fetch that worked (Fase 17). `system_info`
     // carries the timestamp two screens down; up here it is the age, which is the
     // form of it a reader can act on.
-    state.staleFor?.let { add(commentLine("// stale: last good fetch ${codeAge(it)} ago", syntax)) }
-    state.error?.let { add(commentLine("// hint: tap ( ↻ ) to retry", syntax)) }
+    state.staleFor?.let {
+        add(commentLine("// stale: " + resources.getString(R.string.note_stale, codeAge(it)), syntax))
+    }
+    state.error?.let { add(commentLine(note(R.string.note_hint_retry), syntax)) }
     state.report?.let {
         if (isNotEmpty()) add(CodeLine(AnnotatedString("")))
         addAll(buildJsonLines(it.toDisplayJson(translate, locale, displayOptions), syntax))

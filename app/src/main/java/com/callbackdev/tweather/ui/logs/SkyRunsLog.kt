@@ -1,5 +1,7 @@
 package com.callbackdev.tweather.ui.logs
 
+import android.content.res.Resources
+import com.callbackdev.tweather.R
 import com.callbackdev.tweather.domain.sky.SkyRun
 import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.ui.components.CanvasLine
@@ -35,11 +37,16 @@ object SkyRunsLog {
     /** One observed run, with the commit that observed it. */
     data class Row(val run: SkyRun, val observedAtEpochSeconds: Long)
 
-    fun build(rows: List<Row>, zone: ZoneId, syntax: SyntaxColors): List<CanvasLine> {
+    fun build(
+        rows: List<Row>,
+        zone: ZoneId,
+        syntax: SyntaxColors,
+        resources: Resources
+    ): List<CanvasLine> {
         if (rows.isEmpty()) {
             return listOf(
-                commentLine("# no runs recorded yet", syntax),
-                commentLine("# a job is logged the first time a fetch sees it has passed", syntax)
+                commentLine("# " + resources.getString(R.string.note_no_runs), syntax),
+                commentLine("# " + resources.getString(R.string.note_first_run), syntax)
             )
         }
         val nameWidth = rows.maxOf { it.run.jobId.length }

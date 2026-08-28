@@ -117,6 +117,78 @@ data class SkyContext(
     val staleAfter: Duration = WeatherFreshness.staleAfter(updateFrequencyMin)
 }
 
+/**
+ * The sentences `sky.crontab` prints, already in the reader's language.
+ *
+ * The register rule (`PLANNING.md` Fase 18) splits this file's comment channel in
+ * two, and the split runs *inside* it. The **evidence column** — the resolved
+ * instant, the verdict word, the quantity behind it, the drift — is a readout and
+ * stays English: it is the same vocabulary `sky_runs.log` prints and the check
+ * lines match, and one translated fragment would leave an aligned column speaking
+ * two languages. The **explanations** — why a job is not scheduled, why there is no
+ * verdict, what the moon is doing, and every whole-line note — exist only to be
+ * understood, so they are prose and they are here.
+ *
+ * They arrive as strings rather than through a `Resources` because
+ * [SkyDocumentBuilder] is a pure value with no Android in it and its tests are
+ * plain JVM tests. [EN] is the one place the English lives in Kotlin, and
+ * `SkyNotesTest` asserts it says exactly what `values/strings.xml` says — so the
+ * two copies cannot drift apart without the suite going red.
+ */
+data class SkyNotes(
+    val times: String,
+    val dstForward: (String) -> String,
+    val dstBack: (String) -> String,
+    val footer: List<String>,
+    val polarDay: String,
+    val polarNight: String,
+    val moonAbsent: String,
+    val noDarkness: String,
+    val beyondHorizon: String,
+    val noFetchYet: String,
+    val staleData: String,
+    val noCoverage: String,
+    val moonlessFrom: (String) -> String,
+    val moonless: String,
+    val moonAllNight: String,
+    /**
+     * A moon phase is a weather **value**, and values have localized since Fase 6b
+     * — this module had simply never asked, so `full moon` sat in the crontab while
+     * `weather_data.json` two tabs away said `luna piena`.
+     */
+    val moonPhase: (String) -> String
+) {
+    companion object {
+        /** The English, in one place, tied to `values/strings.xml` by a test. */
+        val EN: SkyNotes = SkyNotes(
+            times = "times are computed per occurrence, not fixed; see each line",
+            dstForward = { "the clock jumps forward 1h on $it" },
+            dstBack = { "the clock falls back 1h on $it" },
+            footer = listOf(
+                "pass ≤ ${SkyVerdictEngine.CLOUD_PASS_PCT}% cloud · " +
+                    "fail above ${SkyVerdictEngine.CLOUD_FAIL_PCT}% · " +
+                    "rain ≥ ${SkyVerdictEngine.PRECIP_FAIL_PCT}% fails it whatever the sky does",
+                "a bright moon (≥ ${SkyVerdictEngine.MOON_WASH_PCT}%) unsettles a dark-sky job " +
+                    "under a clear sky",
+                "light pollution is not modelled: the app does not know your sky",
+                "a verdict is the forecast's opinion, not an observation; it will change"
+            ),
+            polarDay = "polar day: the sun stays above the horizon here",
+            polarNight = "polar night: the sun stays below the horizon here",
+            moonAbsent = "the moon does not do that on this calendar day",
+            noDarkness = "the sun stays too high: no astronomical night",
+            beyondHorizon = "past the forecast horizon",
+            noFetchYet = "no fetch yet",
+            staleData = "no recent data",
+            noCoverage = "no forecast hour covers it",
+            moonlessFrom = { "moonless from $it" },
+            moonless = "moonless",
+            moonAllNight = "moon up all night",
+            moonPhase = { it }
+        )
+    }
+}
+
 object SkyDocumentBuilder {
 
     /**
@@ -130,7 +202,11 @@ object SkyDocumentBuilder {
      * up under each other, with the window each one was computed over spelled out
      * rather than abbreviated to fit a column.
      */
-    fun dryRun(document: SkyDocument, context: SkyContext): List<String> =
+    fun dryRun(
+        document: SkyDocument,
+        context: SkyContext,
+        notes: SkyNotes = SkyNotes.EN
+    ): List<String> =
         document.rows.filter { it.enabled }.map { row ->
             buildString {
                 append("// ").append(row.job.id.padEnd(document.nameColumnWidth + 1))
@@ -142,7 +218,7 @@ object SkyDocumentBuilder {
                     return@buildString
                 }
                 append(window(row, context).padEnd(WINDOW_COLUMN))
-                append(render(row.verdict))
+                append(render(row.verdict, notes))
             }
         }
 
@@ -173,7 +249,8 @@ object SkyDocumentBuilder {
          * The README and the widget line pass nothing — they render no `--notify`
          * token, so the fallback would only be a value they compute and discard.
          */
-        defaultLeadMinutes: Int? = null
+        defaultLeadMinutes: Int? = null,
+        notes: SkyNotes = SkyNotes.EN
     ): SkyDocument {
         val known = subscriptions.mapNotNull { subscription ->
             SkyJobCatalog.byId(subscription.jobId)?.let { it to subscription }
@@ -201,21 +278,26 @@ object SkyDocumentBuilder {
                 enabled = true,
                 expression = job.expression,
                 lead = lead,
-                comment = comment(job, occurrence, verdict, context),
+                comment = comment(job, occurrence, verdict, context, notes),
                 verdict = verdict,
                 at = at?.start,
                 until = at?.end
             )
         }
         return SkyDocument(
-            header = header(rows, ordered.map { it.first }, context),
+            header = header(rows, ordered.map { it.first }, context, notes),
             rows = rows,
             available = SkyJobCatalog.all.filter { job -> known.none { it.first.id == job.id } },
-            footer = FOOTER
+            footer = notes.footer.map { "// $it" }
         )
     }
 
-    private fun header(rows: List<SkyRow>, jobs: List<SkyJob>, context: SkyContext): List<String> =
+    private fun header(
+        rows: List<SkyRow>,
+        jobs: List<SkyJob>,
+        context: SkyContext,
+        notes: SkyNotes
+    ): List<String> =
         buildList {
             // `·` and not an em dash: the file already separates with `·` on the
             // next line, and the dash was the one typographic mark it borrowed for a
@@ -229,8 +311,8 @@ object SkyDocumentBuilder {
                 nextToFire(jobs, rows, context)?.let { append(" · next: ").append(it) }
             }
             add(counts)
-            add("# times are computed per occurrence, not fixed; see each line")
-            dstNote(context)?.let { add(it) }
+            add("# " + notes.times)
+            dstNote(context, notes)?.let { add(it) }
         }
 
     /** `sun.set in 2h 14m ✓` — the header's one concession to being a queue. */
@@ -259,7 +341,7 @@ object SkyDocumentBuilder {
      * Rendered for today and tomorrow, because tonight's jobs are already resolving
      * into a day whose clock is about to move.
      */
-    private fun dstNote(context: SkyContext): String? {
+    private fun dstNote(context: SkyContext, notes: SkyNotes): String? {
         val today = context.now.atZone(context.zone).toLocalDate()
         return listOf(today, today.plusDays(1)).firstNotNullOfOrNull { date ->
             val hours = Duration.between(
@@ -270,8 +352,8 @@ object SkyDocumentBuilder {
             // while the day gets an hour LONGER: a `+` would have been right twice
             // and wrong twice depending on which of the two the reader meant.
             when {
-                hours < 24 -> "# DST: the clock jumps forward 1h on ${date.format(MonthDay)}"
-                hours > 24 -> "# DST: the clock falls back 1h on ${date.format(MonthDay)}"
+                hours < 24 -> "# DST: " + notes.dstForward(date.format(MonthDay))
+                hours > 24 -> "# DST: " + notes.dstBack(date.format(MonthDay))
                 else -> null
             }
         }
@@ -312,7 +394,8 @@ object SkyDocumentBuilder {
         job: SkyJob,
         occurrence: SkyOccurrence?,
         verdict: SkyVerdict?,
-        context: SkyContext
+        context: SkyContext,
+        notes: SkyNotes
     ): String {
         // `moon.today` is the odd one: it is not an EVENT the sky has scheduled, it
         // is a statement about the day you are in. Resolved as "the next occurrence"
@@ -320,12 +403,14 @@ object SkyDocumentBuilder {
         // naming tomorrow. It answers for today, and it answers without a clock,
         // because the phase is not something that happens at noon.
         if (job.id == SkyJobCatalog.MoonToday.id) {
-            return moonSummary(context.now, context)
+            return moonSummary(context.now, context, notes)
         }
         return when (occurrence) {
             null -> "?"
-            is SkyOccurrence.None -> "∅ not scheduled  // ${reason(occurrence.reason)}"
-            is SkyOccurrence.At -> instant(job, occurrence, verdict, context)
+            // `∅ not scheduled` is the state name and stays; the `//` after it
+            // introduces a sentence, so that half is the reader's (Fase 18).
+            is SkyOccurrence.None -> "∅ not scheduled  // ${reason(occurrence.reason, notes)}"
+            is SkyOccurrence.At -> instant(job, occurrence, verdict, context, notes)
         }
     }
 
@@ -334,17 +419,17 @@ object SkyDocumentBuilder {
      * from. §7 of `VISION_SKY.md` asks for the number by name: a verdict whose
      * evidence is invisible is an opinion, and this app does not print opinions.
      */
-    fun render(verdict: SkyVerdict): String = buildString {
+    fun render(verdict: SkyVerdict, notes: SkyNotes = SkyNotes.EN): String = buildString {
         append(verdict.kind.glyph).append(" ").append(verdict.kind.word)
         // Parentheses, not a `//`: on a row the verdict can be followed by the job's
         // own trivia (the sunrise drift, the moonless hour), and `// no fetch yet`
         // with three more words after it reads as a comment that failed to comment.
         // `//` stays for the `∅` lines, where nothing ever follows.
         when (verdict.note) {
-            SkyVerdictNote.BEYOND_HORIZON -> append(" (past the forecast horizon)")
-            SkyVerdictNote.NO_DATA -> append(" (no fetch yet)")
-            SkyVerdictNote.STALE_DATA -> append(" (no recent data)")
-            SkyVerdictNote.NO_COVERAGE -> append(" (no forecast hour covers it)")
+            SkyVerdictNote.BEYOND_HORIZON -> append(" (${notes.beyondHorizon})")
+            SkyVerdictNote.NO_DATA -> append(" (${notes.noFetchYet})")
+            SkyVerdictNote.STALE_DATA -> append(" (${notes.staleData})")
+            SkyVerdictNote.NO_COVERAGE -> append(" (${notes.noCoverage})")
             // Naming the clouds for a night the MOON ruined would be a different lie
             // of the same size.
             SkyVerdictNote.MOONLIGHT -> append("  moon ${verdict.moonPct}% and up")
@@ -360,7 +445,8 @@ object SkyDocumentBuilder {
         job: SkyJob,
         occurrence: SkyOccurrence.At,
         verdict: SkyVerdict?,
-        context: SkyContext
+        context: SkyContext,
+        notes: SkyNotes
     ): String = buildString {
         val zone = context.zone
         val start = occurrence.start.atZone(zone)
@@ -383,7 +469,7 @@ object SkyDocumentBuilder {
         // the answer to the question the file is opened with. The sunrise drift used
         // to sit between them, so `✓ pass` arrived third on the line behind a figure
         // in seconds that nobody came for.
-        verdict?.let { append("   ").append(render(it)) }
+        verdict?.let { append("   ").append(render(it, notes)) }
 
         when (job.id) {
             // How much later the sun comes up than it did yesterday. The one number
@@ -392,13 +478,13 @@ object SkyDocumentBuilder {
             SkyJobCatalog.SunRise.id, SkyJobCatalog.SunSet.id ->
                 driftVsYesterday(job, occurrence.start, context)?.let { append("   ").append(it) }
             SkyJobCatalog.MoonPhase.id ->
-                append("   ").append(quarterName(occurrence.start))
+                append("   ").append(quarterName(occurrence.start, notes))
             // The `moonless from 23:11` suffix and a MOONLIGHT verdict are the same
             // sentence twice: one says when the moon goes, the other how bright it
             // is. When the verdict has already named the moon, the suffix stands down.
             SkyJobCatalog.DarknessWindow.id ->
                 if (verdict?.note != SkyVerdictNote.MOONLIGHT) {
-                    moonlessFrom(occurrence, context)?.let { append("   ").append(it) }
+                    moonlessFrom(occurrence, context, notes)?.let { append("   ").append(it) }
                 }
         }
     }
@@ -415,18 +501,18 @@ object SkyDocumentBuilder {
         return "$sign${seconds / 60}m${(seconds % 60).toString().padStart(2, '0')}s vs yesterday"
     }
 
-    private fun moonSummary(at: Instant, context: SkyContext): String {
+    private fun moonSummary(at: Instant, context: SkyContext, notes: SkyNotes): String {
         val day = SkyAlmanac.lunarDay(
             at.atZone(context.zone).toLocalDate(), context.zone, context.coordinates
         )
         val phase = MoonPhase.at(at)
-        return "${phase.emoji} ${phase.label.lowercase()}, " +
+        return "${phase.emoji} ${notes.moonPhase(phase.label).lowercase()}, " +
             "${(day.illuminatedFraction * 100).toInt()}% lit"
     }
 
-    private fun quarterName(at: Instant): String {
+    private fun quarterName(at: Instant, notes: SkyNotes): String {
         val phase = MoonPhase.at(at)
-        return "${phase.emoji} ${phase.label.lowercase()}"
+        return "${phase.emoji} ${notes.moonPhase(phase.label).lowercase()}"
     }
 
     /**
@@ -434,30 +520,35 @@ object SkyDocumentBuilder {
      * catalog at all. When the moon is up for the whole window the line says so
      * rather than leaving the reader to assume the dark is usable.
      */
-    private fun moonlessFrom(occurrence: SkyOccurrence.At, context: SkyContext): String? {
+    private fun moonlessFrom(
+        occurrence: SkyOccurrence.At,
+        context: SkyContext,
+        notes: SkyNotes
+    ): String? {
         val end = occurrence.end ?: return null
         val night = occurrence.start.atZone(context.zone).toLocalDate()
         val moonset = listOf(night, night.plusDays(1))
             .mapNotNull { SkyAlmanac.lunarDay(it, context.zone, context.coordinates).moonset }
             .firstOrNull { !it.isBefore(occurrence.start) && it.isBefore(end) }
         return when {
-            moonset != null -> "moonless from ${moonset.atZone(context.zone).format(ClockTime)}"
+            moonset != null ->
+                notes.moonlessFrom(moonset.atZone(context.zone).format(ClockTime))
             // Below the horizon for the whole window: the dark is genuinely dark.
-            isMoonDown(occurrence.start, context) -> "moonless"
-            else -> "moon up all night"
+            isMoonDown(occurrence.start, context) -> notes.moonless
+            else -> notes.moonAllNight
         }
     }
 
     private fun isMoonDown(at: Instant, context: SkyContext): Boolean =
         AstronomyEngine.moonAltitude(at, context.coordinates) < 0
 
-    private fun reason(reason: SkyNotScheduled): String = when (reason) {
+    private fun reason(reason: SkyNotScheduled, notes: SkyNotes): String = when (reason) {
         // Worded for whichever job asks. Written the obvious way — "the sun does not
         // set" — the reason showed up under `sun.rise` too, where it is nonsense.
-        SkyNotScheduled.POLAR_DAY -> "polar day: the sun stays above the horizon here"
-        SkyNotScheduled.POLAR_NIGHT -> "polar night: the sun stays below the horizon here"
-        SkyNotScheduled.MOON_ABSENT -> "the moon does not do that on this calendar day"
-        SkyNotScheduled.NO_DARKNESS -> "the sun stays too high: no astronomical night"
+        SkyNotScheduled.POLAR_DAY -> notes.polarDay
+        SkyNotScheduled.POLAR_NIGHT -> notes.polarNight
+        SkyNotScheduled.MOON_ABSENT -> notes.moonAbsent
+        SkyNotScheduled.NO_DARKNESS -> notes.noDarkness
     }
 
     private fun humanGap(gap: Duration): String {
@@ -472,20 +563,14 @@ object SkyDocumentBuilder {
     /**
      * What the file must say about itself every time it is opened.
      *
-     * The thresholds are HERE rather than in `settings.config` (`VISION_SKY.md` §7
-     * asked that they not be invisible, not that they be adjustable), and the last
-     * line is the module's whole epistemic position in nine words: the app never
-     * looks at the sky, it reads a forecast.
+     * The thresholds are stated HERE rather than in `settings.config`
+     * (`VISION_SKY.md` §7 asked that they not be invisible, not that they be
+     * adjustable), and the last line is the module's whole epistemic position in
+     * nine words: the app never looks at the sky, it reads a forecast.
      */
-    private val FOOTER = listOf(
-        "// pass ≤ ${SkyVerdictEngine.CLOUD_PASS_PCT}% cloud · " +
-            "fail above ${SkyVerdictEngine.CLOUD_FAIL_PCT}% · " +
-            "rain ≥ ${SkyVerdictEngine.PRECIP_FAIL_PCT}% fails it whatever the sky does",
-        "// a bright moon (≥ ${SkyVerdictEngine.MOON_WASH_PCT}%) unsettles a dark-sky job " +
-            "under a clear sky",
-        "// light pollution is not modelled: the app does not know your sky",
-        "// a verdict is the forecast's opinion, not an observation; it will change"
-    )
+    // The lines themselves live in [SkyNotes], because they are four sentences and
+    // sentences are the reader's (Fase 18). The `//` is added here: the marker is
+    // the file's syntax and does not translate.
 
     /** A commented-out line keeps its columns by moving the `#` into the padding. */
     const val DISABLED_PREFIX = "#"

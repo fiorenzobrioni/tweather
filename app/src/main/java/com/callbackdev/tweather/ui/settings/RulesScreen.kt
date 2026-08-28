@@ -192,14 +192,18 @@ private fun buildRulesLines(
     runArmed: Boolean,
     onRunLine: () -> Unit
 ): List<CanvasLine> = buildList {
+    // The banner is the artifact's signature and stays; the sentences below it are
+    // the reader's (Fase 18). `severe`, `precip` and `daily` are the builtin kinds,
+    // so they survive the translation around them.
+    fun note(id: Int, vararg args: Any) = "// " + resources.getString(id, *args)
     add(commentLine("// Tweather CI — user-defined notification rules", syntax))
     // The one cross-reference left of the (rejected) builtin unification
-    add(commentLine("// builtin alerts (severe, precip, daily) live in settings.config", syntax))
+    add(commentLine(note(R.string.note_rules_builtin), syntax))
     if (!userRulesEnabled) {
         add(
             CodeLine(
                 AnnotatedString(
-                    "// WARN: \"user_rules\" is false in settings.config — rules won't notify",
+                    "// WARN: " + resources.getString(R.string.note_rules_off),
                     SpanStyle(color = syntax.diffDel)
                 )
             )
@@ -208,7 +212,7 @@ private fun buildRulesLines(
     add(CodeLine(AnnotatedString("")))
 
     if (rules.isEmpty()) {
-        add(commentLine("// no rules yet", syntax))
+        add(commentLine(note(R.string.note_rules_none), syntax))
     }
     rules.forEachIndexed { i, rule ->
         if (i > 0) add(CodeLine(AnnotatedString("")))
@@ -225,13 +229,13 @@ private fun buildRulesLines(
             )
         )
     } else {
-        add(commentLine("// max $MaxRules rules", syntax))
+        add(commentLine(note(R.string.note_rules_max, MaxRules), syntax))
     }
 
     // The dry run: evaluate everything against current data, notify nothing.
     if (rules.isNotEmpty()) {
         add(CodeLine(AnnotatedString("")))
-        add(commentLine("// run all rules against current data:", syntax))
+        add(commentLine(note(R.string.note_rules_run), syntax))
         add(
             CodeLine(
                 text = buildAnnotatedString {
@@ -251,7 +255,7 @@ private fun buildRulesLines(
         )
         when (dryRun) {
             DryRunUi.Running ->
-                add(commentLine("// evaluating against weather_data.json …", syntax))
+                add(commentLine(note(R.string.note_rules_evaluating), syntax))
             is DryRunUi.Error ->
                 add(
                     CodeLine(

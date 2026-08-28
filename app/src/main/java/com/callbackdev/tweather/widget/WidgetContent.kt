@@ -81,7 +81,19 @@ object WidgetContentBuilder {
          * LAST in the transcript, so it is the first line the budget drops: the
          * temperature is why a weather widget exists and this line is not.
          */
-        skyLine: String? = null
+        skyLine: String? = null,
+        /**
+         * The two lines the widget shows when it has nothing to show.
+         *
+         * Sentences to whoever is looking at a home screen, so they arrive already
+         * in the reader's language, the same way [translate] brings the values
+         * (Fase 18). They come in as strings rather than as a `Resources` because
+         * this builder is a pure value and its tests want to stay that way; the
+         * English here is the fallback a caller that has no resources would get,
+         * and the app always passes the resource.
+         */
+        noDataYet: String = "no data yet — open tweather",
+        noData: String = "no data"
     ): WidgetContent {
         val prompt = TerminalLine(
             listOf(
@@ -95,10 +107,10 @@ object WidgetContentBuilder {
             return WidgetContent(
                 headerTitle = HEADER,
                 promptLine = prompt,
-                bodyLines = listOf(comment("# no data yet — open tweather")),
+                bodyLines = listOf(comment("# $noDataYet")),
                 emoji = null,
                 smallTemp = token("--°", TokenRole.NUMBER),
-                smallLocation = comment("# no data")
+                smallLocation = comment("# $noData")
             )
         }
 
@@ -159,7 +171,7 @@ object WidgetContentBuilder {
             ),
             // plain, not comment: at 11sp a city name is data, and the comment gray
             // only clears ~3:1 against the Dracula/Monokai backgrounds
-            smallLocation = city?.let { token(it, TokenRole.PLAIN) } ?: comment("# no data")
+            smallLocation = city?.let { token(it, TokenRole.PLAIN) } ?: comment("# $noData")
         )
     }
 

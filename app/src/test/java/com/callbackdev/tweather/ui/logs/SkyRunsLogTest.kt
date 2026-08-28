@@ -1,5 +1,11 @@
 package com.callbackdev.tweather.ui.logs
 
+import org.robolectric.annotation.Config
+import org.robolectric.RobolectricTestRunner
+import org.junit.runner.RunWith
+import androidx.test.core.app.ApplicationProvider
+import android.content.res.Resources
+import android.content.Context
 import com.callbackdev.tweather.domain.sky.SkyRun
 import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.ui.components.CodeLine
@@ -15,8 +21,18 @@ import org.junit.Test
  * `sky_runs.log` (Fase 16e): a journal transcript, not a diff. It records outcomes,
  * not changes, and calling it a diff would be the same kind of lie the crontab
  * avoided when it refused to write a fixed minute field.
+ *
+ * Robolectric since Fase 18: the file's two empty-state lines are sentences, so
+ * what they say now depends on who is reading, and a test that asserts them has to
+ * be able to ask. Everything else it checks — the job ids, the verdicts, the check
+ * lines — is code and reads the same in both languages, which the last test here
+ * is what proves.
  */
+@RunWith(RobolectricTestRunner::class)
 class SkyRunsLogTest {
+
+    private val resources: Resources
+        get() = ApplicationProvider.getApplicationContext<Context>().resources
 
     private val rome: ZoneId = ZoneId.of("Europe/Rome")
 
@@ -35,7 +51,7 @@ class SkyRunsLogTest {
     )
 
     private fun render(vararg rows: SkyRunsLog.Row): List<String> =
-        SkyRunsLog.build(rows.toList(), rome, ObsidianSyntax)
+        SkyRunsLog.build(rows.toList(), rome, ObsidianSyntax, resources)
             .filterIsInstance<CodeLine>()
             .map { it.text.text }
 
@@ -113,5 +129,22 @@ class SkyRunsLogTest {
             lines.map { it.indexOf("✓") }.distinct().size,
             1
         )
+    }
+
+    /**
+     * The split, on one file (Fase 18). The two lines that explain an empty journal
+     * are sentences and move; everything the journal actually records — the job id,
+     * the verdict word, the `obs` marker — is code and does not.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun `the empty state speaks Italian and the journal itself does not`() {
+        val empty = render()
+        assertTrue(empty.toString(), empty.any { it.contains("ancora nessuna run registrata") })
+
+        val recorded = render(row("sun.set", "2026-08-26T20:12"))
+        assertTrue(recorded.toString(), recorded.any { it.contains("sun.set") })
+        assertTrue(recorded.toString(), recorded.any { it.contains("✓") })
+        assertTrue(recorded.toString(), recorded.any { it.contains("obs") })
     }
 }

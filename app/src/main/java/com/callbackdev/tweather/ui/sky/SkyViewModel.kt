@@ -45,10 +45,16 @@ data class SkyUiState(
      */
     val defaultLeadMinutes: Int? = null,
     /** The `$ tweather run sky` block, once the command has been confirmed. */
-    val dryRun: List<String>? = null
+    val dryRun: List<String>? = null,
+    /**
+     * The file's sentences in the reader's language (Fase 18). Built once from the
+     * application's resources and carried on the state, so the document — a pure
+     * value — never has to know what a locale is.
+     */
+    val notes: SkyNotes = SkyNotes.EN
 ) {
     val document: SkyDocument? = context?.let {
-        SkyDocumentBuilder.build(subscriptions, it, defaultLeadMinutes)
+        SkyDocumentBuilder.build(subscriptions, it, defaultLeadMinutes, notes)
     }
 }
 
@@ -59,7 +65,13 @@ class SkyViewModel(
     private val settingsStore: SettingsStore,
     private val clock: Clock = Clock.systemUTC(),
     /** Re-arms the reminder alarm; no-op in tests, which have no AlarmManager. */
-    private val onSubscriptionsChanged: suspend () -> Unit = {}
+    private val onSubscriptionsChanged: suspend () -> Unit = {},
+    /**
+     * The file's sentences, already in the reader's language. Built once by the
+     * factory from the application's resources: a per-app language change restarts
+     * the app, so there is nothing to observe here.
+     */
+    private val notes: SkyNotes = SkyNotes.EN
 ) : ViewModel() {
 
     private val dryRun = MutableStateFlow<List<String>?>(null)
@@ -79,9 +91,10 @@ class SkyViewModel(
             subscriptions = subscriptions,
             context = source.toSkyContext(updateFrequencyMin),
             defaultLeadMinutes = defaultLead,
-            dryRun = run
+            dryRun = run,
+            notes = notes
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SkyUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SkyUiState(notes = notes))
 
     /** True while the file has any line at all — the status bar's count. */
     val jobCount: StateFlow<Int> = store.subscriptions
@@ -136,7 +149,7 @@ class SkyViewModel(
         val state = uiState.value
         val document = state.document ?: return
         val context = state.context ?: return
-        dryRun.value = SkyDocumentBuilder.dryRun(document, context)
+        dryRun.value = SkyDocumentBuilder.dryRun(document, context, state.notes)
     }
 
     /** Any edit invalidates the block: a dry run is a snapshot, not a live panel. */
@@ -172,7 +185,8 @@ class SkyViewModel(
                     cityStore = ServiceLocator.cityStore(context),
                     repository = ServiceLocator.weatherRepository(context),
                     settingsStore = ServiceLocator.settingsStore(context),
-                    onSubscriptionsChanged = { SkyAlarmScheduler.reschedule(context) }
+                    onSubscriptionsChanged = { SkyAlarmScheduler.reschedule(context) },
+                    notes = skyNotes(context.resources)
                 )
             }
         }

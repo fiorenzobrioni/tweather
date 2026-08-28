@@ -14,6 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 class LogsTabsTest {
@@ -136,5 +137,24 @@ class LogsTabsTest {
         }
         compose.onNodeWithText("forecast.diff").performClick()
         compose.onNodeWithText("// no forecast revisions yet").assertExists()
+    }
+
+    /**
+     * The Logs under the register rule (Fase 18): the two lines that explain an
+     * empty file are sentences and move, while the file names in the tab strip are
+     * file names and do not — and neither does `commit`, which is a git noun git
+     * itself keeps in every language it ships.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun emptyFilesExplainThemselvesInItalian() {
+        compose.setContent {
+            TweatherTheme {
+                LogsScreen(commits = emptyList(), revisions = emptyList())
+            }
+        }
+        compose.onNodeWithText("// ancora nessun commit").assertExists()
+        compose.onNodeWithText("// aggiorna weather_data.json per registrare il primo").assertExists()
+        compose.onNodeWithText("history.diff").assertExists()
     }
 }

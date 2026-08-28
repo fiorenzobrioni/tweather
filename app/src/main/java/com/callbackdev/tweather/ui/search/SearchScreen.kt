@@ -214,7 +214,7 @@ private fun buildSearchLines(
             )
         }
         if (state.results.isNotEmpty()) {
-            add(commentLine("// tap to add & switch", syntax, indent = 2))
+            add(commentLine("// " + resources.getString(R.string.note_tap_add_city), syntax, indent = 2))
         }
         add(punctLine("],", 1, syntax))
     }
@@ -287,7 +287,7 @@ private fun buildSearchLines(
     // deliberately nothing else — the saved cities are files, not history.
     if (recents.isNotEmpty()) {
         add(punctLine("", 0, syntax))
-        add(commentLine("// clear search history:", syntax))
+        add(commentLine("// " + resources.getString(R.string.note_clear_history), syntax))
         add(
             CodeLine(
                 text = buildAnnotatedString {

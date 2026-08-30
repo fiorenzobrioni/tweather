@@ -18,19 +18,19 @@ It is a real weather app underneath: live data, background alerts, notification 
 you write yourself, a home-screen widget. The editor is the interface, not a skin over
 a list of cards.
 
-| `weather_data.json` | `history.diff` | `settings.config` |
+| `weather_data.json` | `sky.crontab` | `settings.config` |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/main-json.jpg" width="250" alt="The forecast rendered as syntax-highlighted JSON"> | <img src="docs/screenshots/logs-history.jpg" width="250" alt="Update history as a git diff"> | <img src="docs/screenshots/settings.jpg" width="250" alt="Settings as an editable config file"> |
+| <img src="docs/screenshots/Screenshot_20260829_182807_tweather.jpg" width="250" alt="The forecast rendered as syntax-highlighted JSON"> | <img src="docs/screenshots/Screenshot_20260829_182922_tweather.jpg" width="250" alt="Astronomical events as a crontab, with cloud verdicts"> | <img src="docs/screenshots/Screenshot_20260829_183044_tweather.jpg" width="250" alt="Settings as an editable config file"> |
 
 ---
 
 ## The idea
 
-Four tabs at the bottom, seven files behind them. Three of those tabs carry a second
-file on an editor tab bar, in the place an editor would put it: the JSON has the city's
-`README.md` next to it, the settings have `alerts.rules`, the log has a second diff.
-The active file is remembered per screen, the way a workspace remembers the last file
-you had open.
+Four tabs at the bottom, ten files behind them. Three of those tabs carry two extra
+files on an editor tab bar, in the place an editor would put them: the JSON has the
+city's `README.md` and `sky.crontab` next to it, the settings have `alerts.rules` and
+`HELP.md`, the log has `forecast.diff` and `sky_runs.log`. The active file is
+remembered per screen, the way a workspace remembers the last file you had open.
 
 ### `weather_data.json`: the forecast
 
@@ -39,17 +39,23 @@ channel, so a failure reads like a compiler message instead of a toast.
 
 ```json
 {
-  "location": { "city": "Milan", "local_time": "2026-08-19 08:41" },
+  "location": { "city": "Milano", "local_time": "2026-08-29 18:27" },
   "current_conditions": {
     "status": "Mostly clear 🌤️",
-    "temp_c": 22.8,
-    "feels_like_c": 24.5,
-    "humidity_pct": 75,
+    "temp_c": 30.1,
+    "feels_like_c": 30.9,
+    "humidity_pct": 42,
     "uv_index": 1,
-    "wind": { "speed_kph": 8.7, "direction": "E" }
+    "wind": { "speed_kph": 7.7, "direction": "SW" },
+    "precipitation": { "last_hour_mm": 0.0, "chance_pct": 0 }
   },
-  "air_quality": { "aqi_index": 52, "status": "Moderate 🟡" },
-  "astronomical": { "sunrise": "06:29", "sunset": "20:24", "moon_phase": "First Quarter 🌓" }
+  "air_quality": { "aqi_index": 64, "status": "Moderate 🟡" },
+  "pollen_report": { "grass": "Low", "tree": "Low" },
+  "astronomical": {
+    "sunrise": "06:40", "sunset": "20:06",
+    "moon_phase": "Full Moon 🌕",
+    "daylight_duration": "13h 25m"
+  }
 }
 ```
 
@@ -62,7 +68,7 @@ In a real repository the README is the human summary of the machine-readable con
 so here it is the second tab of the editor: the same weather, written out as prose and
 tables instead of a data structure.
 
-<img src="docs/screenshots/main-md.jpg" width="250" alt="The city README as highlighted markdown source, with an aligned hourly table">
+<img src="docs/screenshots/Screenshot_20260829_182815_tweather.jpg" width="250" alt="The city README as highlighted markdown source, with an aligned hourly table">
 
 It is shown as markdown **source** with syntax highlighting, GitHub's "Code" view
 rather than its Preview. A rendered preview would have to abandon JetBrains Mono, the
@@ -108,15 +114,16 @@ The input field *is* the `"search_term"` value, quotes included, with a blinking
 underscore for a cursor. Geocoding results appear as you type and land in
 `"saved_cities"`, the array of cities as fake filenames.
 
+<img src="docs/screenshots/Screenshot_20260829_183010_tweather.jpg" width="250" alt="The cities.json search screen, with saved cities and recent searches">
+
 ```json
 {
-  "search_term": "mil_",
+  "search_term": "Cerca località ",
   "saved_cities": [
-    "current_location.json",  // gps
-    "milan.json",             // active
-    "verona.json"                         [rm]
+    "firenze.json",           [rm]
+    "milano.json"   // active [rm]
   ],
-  "recent_searches": [ "verona", "milan" ]
+  "recent_searches": [ "Firenze, Toscana", "Milano, Lombardia" ]
 }
 ```
 
@@ -133,17 +140,21 @@ Booleans flip on tap, strings and numbers cycle, and the trailing hint tells you
 allowed values. Resetting is a command with a two-tap confirm:
 `$ git restore settings.config`.
 
+<img src="docs/screenshots/Screenshot_20260829_183044_tweather.jpg" width="250" alt="Settings as an editable config file with theme profiles, units and notifications">
+
 ### `alerts.rules`: Weather CI
 
 Every fetch is already a commit. Rules are the pipeline that runs on each one, and a
 notification is a failed check.
 
+<img src="docs/screenshots/Screenshot_20260829_183054_tweather.jpg" width="250" alt="A user-defined notification rule in alerts.rules">
+
 ```
-rule "umbrella" {   [rm]
+rule "rule_1" {   [rm]
   enabled: true
-  if:  next_6h.precip_chance_max  >=  70
-  and: today.high_c  >  25   [rm]
-  notify: "Umbrella: {trigger.value}% rain at {trigger.time}"
+  if:  next_6h.precip_chance_max  >=  60
+  + and …
+  notify: "Take an umbrella — {trigger.value}% rain at {trigger.time}"
 }
 
 + add rule
@@ -180,6 +191,16 @@ condition goes false again, the forecast ones fire once per half-day.
 Evaluation rides the fetch the alerts already schedule, so the whole feature costs no
 extra battery: no new job, no extra request, no extra wakeup.
 
+### `HELP.md`: the in-app guide
+
+The third file behind the Settings tab. It explains what the four tabs are, what the
+borrowed words mean (commit, diff, branch, CI), where the data comes from and why the
+app looks the way it does. Written for someone who does not read `git` for a living,
+and fully localized. A one-off `// new here? open HELP.md` line at the top of the
+editor points at it once and goes away as soon as the file has been opened.
+
+<img src="docs/screenshots/Screenshot_20260829_183058_tweather.jpg" width="250" alt="The in-app HELP.md guide, explaining tabs and borrowed terms">
+
 ### `sky.crontab`: what the sky has scheduled
 
 `weather_data.json` says what the atmosphere is doing now. `sky.crontab` says what the
@@ -190,14 +211,18 @@ turns, a meteor shower peaks on a date you could have known ten years ahead. So 
 file is a crontab. Every job carries a build verdict from the forecast the app already
 has.
 
-```
-# sky.crontab · Milan, Lombardy (Europe/Rome)
-# 7 jobs · next: golden_hour.pm in 1h 2m ✓
+<img src="docs/screenshots/Screenshot_20260829_182922_tweather.jpg" width="250" alt="sky.crontab showing golden hours, blue hours, moon phase and meteor showers with pass/fail verdicts">
 
-@daily   sun.set              [rm]  # 20:12   ✓ pass  cloud 8%   −1m46s vs yesterday
-@daily   golden_hour.pm       [rm]  # 19:32..20:12   ✓ pass  cloud 8%
-@daily   darkness.window      [rm]  # 22:01..04:49   ~ unstable  moon 99% and up
-@yearly  meteor.perseids.peak [rm]  # 2027-08-13 00:32..04:22   ? unknown
+```
+# sky.crontab · Milano, Lombardia (Europe/Rome)
+# 6 jobs · next: golden_hour.pm in 57m ✓
+
+@daily   golden_hour.am       [rm]  # Ago …
+@daily   golden_hour.pm       [rm]  # 19:27..20:06   ✓ pass  cloud …
+@daily   blue_hour.am         [rm]  # Ago …
+@daily   blue_hour.pm         [rm]  # 20:25..20:37   ✓ pass  cloud …
+*/30 * * * *   moon.phase      [rm]  # Set 4 09:51   🌕 …
+@yearly  meteor.perseids.peak [rm]  # 2027-08-13   ? unknown
 
 // pass ≤ 25% cloud · fail above 65% · rain ≥ 70% fails it whatever the sky does
 // a verdict is the forecast's opinion, not an observation; it will change
@@ -236,11 +261,18 @@ until you ask for it, and only ever for the active city.
 The third file in the log. Not a `.diff`, because it records outcomes rather than
 changes, and calling it a diff would be the same kind of lie the crontab avoided.
 
+<img src="docs/screenshots/Screenshot_20260829_183035_tweather.jpg" width="250" alt="sky_runs.log with pass/fail/skipped entries grouped by day">
+
 ```
-# Aug 26
-20:12  sun.set          ✓ pass       cloud   8%  obs +12m
-20:43  blue_hour.pm     ✗ fail       cloud  92%  obs +6m
-# 1 passed · 1 failed
+# Ago 28
+07:12  golden_hour.am   ✓ pass       cloud   4%  obs +41m
+06:33  sun.rise         – skipped              obs +41m
+# 1 passed · 1 skipped
+
+# Ago 27
+07:11  golden_hour.am   ✗ fail       cloud 100%  obs +46m
+06:32  sun.rise         – skipped              obs +46m
+# 1 failed · 1 skipped
 ```
 
 `obs` is how far the observing fetch was from the event. It is printed because a
@@ -255,17 +287,19 @@ Every fetch is committed. The diff is computed between consecutive snapshots of 
 same city, so you can see exactly what moved and when. A rule that fired on that data
 appears as a check line on its commit.
 
+<img src="docs/screenshots/Screenshot_20260829_183022_tweather.jpg" width="250" alt="history.diff showing consecutive weather commits with flat key paths">
+
 ```diff
-commit 5bc71bd [Milan, Lombardy]
+commit 6542428 [Milano, Lombardia]
 Author: System <sys@tweather.app>
-Date:   1 min ago
-✓ rule "umbrella" fired
+Date:   just now
 diff --git a/weather_data.json b/weather_data.json
-   "location": "Milan, Lombardy"
--  "current.temp_c": 29.6
-+  "current.temp_c": 22.8
--  "current.humidity_pct": 48
-+  "current.humidity_pct": 75
+   "location": "Milano, Lombardia"
+   "current.status": "Prevalentemente sereno 🌤️"
+   "current.temp_c": 30.1
+   "current.feels_like_c": 31.2
+   "current.humidity_pct": 42
+   "current.pressure_mb": 1011.8
 ```
 
 ### `forecast.diff`: how the forecast changed
@@ -274,20 +308,20 @@ The second file in the log answers a different question. `history.diff` diffs
 *observations*, one moment against the moment before. This one diffs *predictions* for
 the same future day: how much has tomorrow changed since the app last looked?
 
-<img src="docs/screenshots/logs-forecast.jpg" width="250" alt="Successive predictions for the same future day, diffed against each other">
+<img src="docs/screenshots/Screenshot_20260829_183029_tweather.jpg" width="250" alt="Successive predictions for the same future day, diffed against each other">
 
 ```diff
-commit 391f43f [Verona, Veneto]
+commit 8df7629 [Firenze, Toscana]
 Author: System <sys@tweather.app>
-Date:   1 hour ago
---- a/forecast_2026-08-20.json (Aug 18 21:38)
-+++ b/forecast_2026-08-20.json (06:52)
+Date:   2 mins ago
+--- a/forecast_2026-08-30.json (Aug 28 14:06)
++++ b/forecast_2026-08-30.json (18:27)
 @@ tomorrow @@
-   "status": "Thunderstorm with hail ⛈️"
-   "high_c": 28.9
--  "low_c": 21.0
-+  "low_c": 19.3
-   "precip_pct": 100
+   "status": "Sereno ☀️"
+   "high_c": 32.7
+-  "low_c": 19.7
++  "low_c": 17.8
+   "precip_pct": 0
 ```
 
 The horizon is tomorrow and the day after, because day six always changes and nobody
@@ -397,6 +431,10 @@ it as a GitHub Release together with the R8 mapping for that exact build.
 
 Kotlin 2.2, Jetpack Compose with Material 3, single module, no DI framework.
 
+The first run asks where you are — your position, a city search, or skip — via
+`$ tweather init`. Skipping lands on an editor that says `// no location configured`
+and offers the search.
+
 | Concern | Choice |
 | --- | --- |
 | Dependency injection | a hand-rolled `ServiceLocator`, the app being small enough that Hilt would cost more than it saves |
@@ -430,14 +468,15 @@ shadows: depth comes from 1px borders instead. The one exception is the home wid
 CVE-2021-0567 the launcher refuses to load font resources into a widget layout, so it
 falls back to the system monospace. The badges above are tinted with the same palette.
 
-English and Italian, following the system per-app language, split the way a real
-terminal splits them. Code stays code: the JSON keys, the file names, the `$` commands,
-the git headers, the verdicts, the error codes. Anything written to be understood speaks
-your language, the comment lines included, and the marker in front of them never moves:
-an error reads `// ERROR: permesso negato: il gps resta spento`. `git status` on an
-Italian phone says "Sul branch main" and keeps the word `branch`, and so do the logs
-here. The screenshots on this page were taken in Italian, which is what that split looks
-like on a device.
+English and Italian, following the system per-app language, split by register rather
+than by punctuation. Code stays code everywhere: the JSON keys, the file names, the `$`
+commands, the git headers, the verdicts, the error codes, and `sky.crontab`'s aligned
+column of evidence. Anything written to be understood speaks your language — the comment
+lines included — and the marker in front of them never moves: an error reads
+`// ERROR: permesso negato — il gps resta spento`. `git status` on an Italian phone
+says "Sul branch main" and keeps the word `branch`, and so do the logs here. The
+screenshots on this page were taken in Italian, which is what that split looks like on a
+device.
 
 ---
 

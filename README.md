@@ -401,7 +401,7 @@ Requires JDK 21. No signing setup, no API key, no local properties: clone and bu
 
 ```bash
 ./gradlew :app:assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:testDebugUnitTest    # 317 unit tests, JVM only (Robolectric)
+./gradlew :app:testDebugUnitTest    # 598 unit tests, JVM only (Robolectric)
 ./gradlew :app:lintDebug
 ```
 
@@ -431,7 +431,7 @@ it as a GitHub Release together with the R8 mapping for that exact build.
 
 Kotlin 2.2, Jetpack Compose with Material 3, single module, no DI framework.
 
-The first run asks where you are — your position, a city search, or skip — via
+The first run asks where you are (your position, a city search, or skip) via
 `$ tweather init`. Skipping lands on an editor that says `// no location configured`
 and offers the search.
 
@@ -471,8 +471,8 @@ falls back to the system monospace. The badges above are tinted with the same pa
 English and Italian, following the system per-app language, split by register rather
 than by punctuation. Code stays code everywhere: the JSON keys, the file names, the `$`
 commands, the git headers, the verdicts, the error codes, and `sky.crontab`'s aligned
-column of evidence. Anything written to be understood speaks your language — the comment
-lines included — and the marker in front of them never moves: an error reads
+column of evidence. Anything written to be understood speaks your language (the comment
+lines included), and the marker in front of them never moves: an error reads
 `// ERROR: permesso negato — il gps resta spento`. `git status` on an Italian phone
 says "Sul branch main" and keeps the word `branch`, and so do the logs here. The
 screenshots on this page were taken in Italian, which is what that split looks like on a

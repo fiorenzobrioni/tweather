@@ -364,7 +364,7 @@ Segnalazione del committente (21 ago 2026, screenshot del `README.md` di Cavenag
 - [x] `RuleVariables.kt`: nuova variabile `today.uv_max` per `alerts.rules` — una regola "metti la crema" deve poter scattare al mattino, quando l'indice istantaneo è ancora basso
 - [x] Test: mapper (6 → `"High ☀️"`), README golden (5 = massimo di oggi, **non** 4 = istantaneo del campione), `today.uv_max`, JSON con e senza dettagli; fixture del campione e degli snapshot aggiornate
 - [x] Nessun impatto su `WeatherSnapshots.flattenForecast`: il diff dei Logs continua a seguire stato/max/min/pioggia, l'UV non entra nei commit (scelta, non dimenticanza)
-- [ ] Verifica manuale su device (committente): `## Oggi` mostra il massimo del giorno anche di sera
+- [x] Verifica manuale su device (committente): `## Oggi` mostra il massimo del giorno anche di sera — **fatta** (29 ago 2026, giro di verifica pre-2.0.0)
 
 ---
 
@@ -1128,7 +1128,7 @@ Verificato che non passi a vuoto: rimessa una delle sei righe al suo posto sbagl
 
 **Una cosa lasciata com'è, e non per svista.** Nel crontab la riga di `moon.today` legge `# 🌕 luna piena, 99% lit`: la fase è un valore e si localizza, `lit` no. È l'etichetta di una quantità, esattamente come `cloud` in `cloud 57%` sulla riga sopra, e tradurne una sola renderebbe la colonna incoerente; tradurle tutte vuol dire muovere la colonna delle prove, che è la cosa che questa fase ha deciso di non muovere. Il README dice lo stesso fatto in italiano (`illuminata al 99%`), che è il registro localizzato del cielo dalla 16g. Segnalata al committente come scelta reversibile di una riga.
 
-- [ ] Poi tsteps, ultima della serie
+- [x] Poi tsteps, ultima della serie — **fatta**: la Fase 20 di tsteps ha chiuso il giro, e la regola dei tre registri vale ora al 100% su tutte e tre le app della serie
 
 ### Una nota sulla guardia (ago 2026, chiudendo la serie)
 
@@ -1136,6 +1136,24 @@ Verificato che non passi a vuoto: rimessa una delle sei righe al suo posto sbagl
 
 Ora la lista si prende **per riflessione** su `R.string`: quello che non si tiene aggiornato non si può dimenticare, e una nota scritta domani è sorvegliata il giorno che esiste. Con lei è arrivato un test che l'allowlist non marcisca (un nome esentato che non è più una nota è un'esenzione che nessuno ha più riletto) e uno che verifica che la riflessione non torni a mani vuote, il che farebbe passare tutto il resto per vuoto.
 
+
+## Fase 19 — v2.0.0 su GitHub (ago 2026)
+
+Il giro sul device del committente (29 ago 2026) è tornato pulito su tutte le superfici che la 13, la 16f e la 18 avevano lasciato in attesa, e con lui sono arrivati gli screenshot veri in `docs/screenshots/`. Le due caselle rimaste aperte in questo file erano quelle, e si chiudono qui.
+
+**Perché 2.0.0 e non 1.1.0.** Il semver di un'app senza API pubblica non ha un contratto da rompere, quindi il numero non lo decide il compilatore: lo decide cosa trova in mano chi aggiorna. Dalla 1.0.0 tweather ha preso **un modulo intero** che prima non esisteva (il cielo: `sky.crontab` come terzo tab dell'editor, `sky_runs.log` come terzo file dei Log, i promemoria `--notify` con la loro sveglia inesatta), un **primo avvio diverso** (`$ tweather init`, e soprattutto la città seminata che non c'è più — "nessuna città" è diventato uno stato vero), un file che prima non c'era (`HELP.md`), il comportamento offline della Fase 17 e la regola dei tre registri della 18, che cambia **la lingua in cui l'app parla** a chi la legge in italiano. Chi apre la 2.0.0 dopo la 1.0.0 apre un'altra applicazione: la minor sarebbe stata una scortesia verso il changelog.
+
+**Il percorso di aggiornamento è coperto, e vale la pena metterlo a verbale** perché è l'unica cosa che una release può rompere in modo silenzioso:
+
+- **Room va da 3 a 4** (la colonna `sky_runs` della 16e). `MIGRATION_3_4` esiste ed è registrata in `ServiceLocator`, insieme alle due precedenti: nessun `fallbackToDestructiveMigration` in questo repo, quindi la storia dei commit di chi aggiorna resta dov'è.
+- **`CityStore.migrateFirstRun(hasHistory)`** (Fase 14b) è ciò che impedisce alla 2.0.0 di presentare `$ tweather init` a chi usa l'app da mesi: distingue un'installazione usata da una fresca guardando se i Log hanno anche un solo commit, e chi aggiorna tiene la città che stava guardando.
+- **La firma non cambia**: stessa chiave di release della 1.0.0, quindi l'APK si installa sopra senza disinstallare e senza perdere città né impostazioni.
+
+- [x] `versionCode` 1 → **2**, `versionName` **2.0.0** in `app/build.gradle.kts`
+- [x] `CHANGELOG.md`: la sezione `[Unreleased]` — che era già scritta fase per fase — diventa `[2.0.0] — 2026-08-30`, con il link al tag in fondo accanto a quello della 1.0.0
+- [x] Caselle di verifica su device chiuse: l'UV di `## Oggi` (Fase 13) e il secondo giro dei registri (Fase 18). Chiusa anche la riga d'ordine della 18 (`Poi tsteps`): la Fase 20 di tsteps ha chiuso il giro, e la regola dei tre registri vale ora al 100% sulle tre app della serie
+- [x] Suite e lint rieseguiti prima del tag: **598 test verdi**, lint **0 errori** (47 warning, la baseline del repo). Sono la stessa doppia guardia che `release.yml` rimette prima di firmare: qui servono a non scoprire una suite rossa dopo aver spinto un tag
+- [x] `README.md`: il conteggio dei test nel blocco Build era fermo a 317, cioè a una release fa. Corretto a 598 — è la vetrina del repo, e un numero vecchio lì è l'unico posto in cui questo file può mentire
 
 ## Note trasversali
 

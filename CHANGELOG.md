@@ -4,7 +4,7 @@ All notable changes to tweather are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0.0] — 2026-08-30
 
 ### Added
 
@@ -184,4 +184,5 @@ First release. Everything below is new.
 - Fully localized, Italian and English, via the system per-app language picker: JSON
   keys stay English like real code, values and prose translate.
 
+[2.0.0]: https://github.com/fiorenzobrioni/tweather/releases/tag/v2.0.0
 [1.0.0]: https://github.com/fiorenzobrioni/tweather/releases/tag/v1.0.0

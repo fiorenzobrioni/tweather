@@ -100,10 +100,18 @@ everything else is measured against them:
 
 | Role | Light | Dark |
 |---|---|---|
-| `surface` | `#FCFAF6` | `#141311` |
+| `surface` | `#FCF9F3` | `#16130E` |
+| `primary` | `#835400` | `#FFB958` |
 
-The two surfaces sit 17.8:1 apart, which is the headroom every token in §2.3 is
-measured inside.
+The two surfaces sit 17.6:1 apart, which is the headroom every token in §2.3 is
+measured inside. Both, and the other 34 roles, are **generated**: `tools/gen_scheme.py`
+takes each source color's hue and chroma in CIELAB LCh, sets L\* to the tone Material
+names for the role, and clamps the chroma until the result fits in sRGB. Material's own
+tone IS L\*, so the tone is exact and only the chroma is an approximation of HCT — a fine
+trade for a scheme nobody sees unless they turn dynamic color off, and the reason
+`PaletteContrastTest` asserts the outcome instead of trusting the method. The neutral
+palettes are pinned to chroma 3 and 7 respectively: that is the difference between a
+surface that reads as warm paper and one that reads as beige.
 
 Amber as the primary is a deliberate risk. It is the least-used hue in a category that is
 overwhelmingly blue, it is the color of the thing this app knows about that others do not,
@@ -124,9 +132,9 @@ and the color is the third carrier, not the first.
 
 | Verdict | ink (light) | container (light) | ink (dark) | container (dark) |
 |---|---|---|---|---|
-| pass | `#0F5C30` 7.8:1 | `#D7EBDD` | `#7FD69A` 10.6:1 | `#173D28` |
-| unstable | `#7A5200` 6.6:1 | `#F7E6BF` | `#F2C063` 11.1:1 | `#3D2F08` |
-| fail | `#8E1B10` 8.7:1 | `#F9DEDA` | `#FFB4AB` 10.9:1 | `#4A1712` |
+| pass | `#0F5C30` 7.7:1 | `#D7EBDD` | `#7FD69A` 10.6:1 | `#173D28` |
+| unstable | `#7A5200` 6.6:1 | `#F7E6BF` | `#F2C063` 11.0:1 | `#3D2F08` |
+| fail | `#8E1B10` 8.6:1 | `#F9DEDA` | `#FFB4AB` 10.9:1 | `#4A1712` |
 | unknown | `#4F5359` 7.4:1 | `#E7E7E4` | `#A8ADB6` 8.2:1 | `#2B2B2E` |
 
 Ratios are against the surface of §2.2; ink-on-container is 5.6:1 or better in both
@@ -182,15 +190,26 @@ that screen — one engine, one sunrise, and a test that says so.
 Solar altitude picks the band; within a band the app interpolates on altitude so the
 transition is continuous and a reader watching at sunset sees it move.
 
+The rows are **anchors**, not buckets: a solar altitude between two of them renders as the
+blend of the two, which is what makes a sunset move instead of snapping through seven
+states. `SkyPaletteTest` holds that (no half-degree step may change the sky by more than
+0.15, and the midpoint between two anchors must be neither of them).
+
 | Band | Altitude | top | mid | bottom |
 |---|---|---|---|---|
-| Day | > 12° | `#4E8FBF` | `#7FB4D6` | `#C7DDEB` |
-| Low sun | 6°..12° | `#5583B0` | `#93B5CE` | `#E0CFB4` |
-| Golden hour | −0.833°..6° | `#5C7FA8` | `#E0A45C` | `#F3D3A0` |
-| Civil / blue hour | −6°..−0.833° | `#2A3E63` | `#4B5F8F` | `#8A7FA8` |
-| Nautical | −12°..−6° | `#1B2540` | `#2C3A5E` | `#46527A` |
-| Astronomical | −18°..−12° | `#121A2E` | `#18223C` | `#232E4B` |
-| Night | < −18° | `#0E1320` | `#131A2A` | `#1A2233` |
+| Day | ≥ 12° | `#4E8FBF` | `#7FB4D6` | `#C7DDEB` |
+| Low sun | 8° | `#5583B0` | `#93B5CE` | `#E0CFB4` |
+| Golden hour | 4° | `#5C7FA8` | `#E0A45C` | `#F3D3A0` |
+| Horizon | 0° | `#54739C` | `#D68F45` | `#F0C68C` |
+| Civil / blue hour | −6° | `#2A3E63` | `#4B5F8F` | `#8A7FA8` |
+| Nautical | −12° | `#1B2540` | `#2C3A5E` | `#46527A` |
+| Astronomical | −18° | `#121A2E` | `#18223C` | `#232E4B` |
+| Night | ≤ −90° | `#0E1320` | `#131A2A` | `#1A2233` |
+
+The golden hour has **two** anchors, and that is a fix rather than a flourish: with one
+anchor at the horizon, 3° above it rendered as the midpoint between a cool low sun and the
+amber — a washed-out tan, and not what anybody means by the golden hour. Rendering the
+palette and looking at it is what found that. No test would have.
 
 The bands are the same in the light and dark schemes. The sky is not a surface: it does
 not follow the reader's theme, because at 23:00 it is dark outside whatever the phone is
@@ -199,16 +218,24 @@ what makes it safe.
 
 ### 3.3 Cloud and rain
 
-Cloud cover mixes each stop toward `#8E9298` by `0.7 × cloudPct`, so a fully overcast day
-keeps 30% of its band and stays recognizably morning or evening. Precipitation probability
-above 50% multiplies value by `1 − 0.25 × (p − 50)/50`. Both are applied after the band
-interpolation and before the moon lift, in that order, and the order is part of the spec:
-clouds hide the moon, not the other way round.
+Cloud cover **desaturates each stop toward its own brightness** by `0.7 × cloudPct` and
+then dims it by `0.15 × cloudPct`, so a fully overcast day keeps 30% of its color and
+stays recognizably morning or evening.
+
+The first draft of this section mixed every stop toward one fixed grey, and implementing
+it found the hole: a fixed grey is brighter than a night sky, so an overcast midnight came
+out brighter than a clear dusk. Clouds take the color out of a sky, not a fixed amount of
+light into it. `SkyPaletteTest` now asserts both halves of that.
+
+Precipitation probability above 50% multiplies value by `1 − 0.25 × (p − 50)/50`. Both are
+applied after the band interpolation and before the moon lift, in that order, and the moon
+lift is itself **scaled by `(1 − cloud)`**: clouds hide the moon, and without that factor
+an overcast full-moon night rendered brighter than a clear one.
 
 ### 3.4 The moon
 
-At night only (altitude < −6°), each stop is lifted toward `#2A3550` by
-`illumination × clamp(moonAltitude/40°, 0, 1)`. A full moon high in a clear sky makes a
+At night only (altitude < −6°), and only while the moon is above the horizon, each stop is
+lifted toward `#2A3550` by `illumination × clamp(moonAltitude/40°, 0, 1) × (1 − cloud)`. A full moon high in a clear sky makes a
 visibly lighter canvas, which is both true and the reason the sky section says the dark
 window is spoiled.
 
@@ -225,8 +252,10 @@ when the activity is not resumed. No particles, no parallax, no video.
 Text over the canvas is `#FFFFFF` (secondary text `#FFFFFF` at 70% alpha) over a bottom
 scrim from `rgba(16,18,22,0.00)` to `rgba(16,18,22,0.55)` covering the text band. The rule
 that makes this safe is testable and tested: **for the brightest possible canvas (Day band,
-0% cloud, bottom stop), white on the scrimmed band is ≥ 4.5:1.** If a future band breaks
-it, the test fails rather than the reader squinting.
+0% cloud, bottom stop `#C7DDEB`), white on the scrimmed band is 5.29:1** — above the 4.5:1
+floor, and the alpha was chosen for that reason: 0.50 gives 4.53:1 and leaves no headroom
+for a future band, 0.45 gives 3.95:1 and fails. If a band is ever added that breaks it,
+`ScrimContractTest` fails rather than the reader squinting.
 
 ---
 
@@ -443,23 +472,40 @@ ui/theme/
   ChiaroTheme.kt    the entry point
 ```
 
-Three tests keep this document from rotting, in the series' habit of turning a design rule
+Four tests keep this document from rotting, in the series' habit of turning a design rule
 into something CI can fail:
 
 - **`PaletteContrastTest`** asserts every ratio printed in §2.3 and the monotonicity of the
   two ramps. If a token is re-picked, the numbers in this file must be re-measured.
 - **`ScrimContractTest`** asserts §3.6 against the brightest band.
 - **`NoRawColorTest`** sweeps the UI sources and fails on a hex literal outside
-  `ui/theme/`.
+  `ui/theme/`. It caught its first violation the day it was written — the canvas' own
+  scrim color, which now lives in `SkyPalette` where `ScrimContractTest` guards the value
+  the canvas actually paints with instead of a copy of it.
+- **`SkyPaletteTest`** holds the canvas' claims: darker after sunset, continuous at every
+  altitude, an anchor renders as itself and a midpoint as neither, an overcast midnight is
+  not a dusk, and an overcast full moon does not out-shine a clear one.
+
+And one thing that is not a test, because it cannot be. **`tools/palette_sheet.py`**
+renders the palette to an HTML sheet, reading the hexes out of the Kotlin sources so it
+can never drift from them. Run it and look at the result whenever a color moves: it is
+what found that the golden hour was not golden at 3°, which every contrast and
+monotonicity test in the suite had passed without complaint.
 
 ---
 
 ## 13. Open items
 
-1. **The icon family** (VISION §4.5) — adopt a permissively licensed set, commission, or
-   draw. Requirements: 24dp grid, 2dp stroke, two tones, optical sizes 24/32/48, animated
-   variants for rain, snow, wind, sun and moon, full WMO coverage plus the sky events. The
-   only line in this document that code cannot satisfy.
+1. ~~The icon family~~ — **decided: Meteocons** (github.com/basmilius/meteocons), MIT,
+   around 475 hand-drawn weather icons with animated and static variants in four styles.
+   It satisfies §4.5 outright, and the only obligation is preserving the copyright
+   notices, which costs one file in `licenses/`. What ships today is not yet that:
+   converting several hundred SVGs into Android vector drawables wants Android Studio's
+   importer and a look at the result, so it belongs to Fase 2 where the icons first
+   appear on a screen. Until then `ui/icons/ChiaroIcons` maps every WMO bucket to
+   Material's own outlined set, behind the same function call, so Fase 2 changes the
+   bodies there and nothing else in the app. What must not happen is the thing tweather
+   could get away with: emoji.
 2. **Dynamic color default** — on, as written here. Worth revisiting after the first
    screenshots: a wallpaper-derived scheme makes every store screenshot a different app.
    Likely resolution: dynamic on device, the Chiaro scheme in the store assets.

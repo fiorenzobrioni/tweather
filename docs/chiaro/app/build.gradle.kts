@@ -116,6 +116,9 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    // The stand-in weather icon set until Fase 2 imports Meteocons (ui/icons/ChiaroIcons).
+    // R8 keeps only what is referenced, which is a dozen glyphs.
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)

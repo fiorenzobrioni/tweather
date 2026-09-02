@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Chiaro</string>
+    <!-- The brand, so it does not travel: a name is not prose. -->
+    <string name="app_name" translatable="false">Chiaro</string>
     <string name="skeleton_note">The screens arrive with Fase 2.</string>
 </resources>

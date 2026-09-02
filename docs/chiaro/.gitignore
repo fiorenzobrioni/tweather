@@ -38,6 +38,10 @@ desktop.ini
 # Kotlin
 .kotlin/
 
+# The tools/ scripts
+__pycache__/
+*.pyc
+
 # Profiling
 *.hprof
 

@@ -90,22 +90,74 @@ parte (`tools/seed_edits.py`) con la motivazione accanto:
 
 ---
 
-## Fase 1 — Il sistema di design in Compose
+## Fase 1 — Il sistema di design in Compose ✅
 
-`DESIGN.md` è scritto; questa fase lo rende codice. Nessuna schermata.
+`DESIGN.md` era scritto; questa fase lo rende codice, e in tre punti lo ha corretto.
 
-- [ ] `ui/theme/`: `Color.kt`, `Scheme.kt` (dynamic color + schema Chiaro),
-      `ChiaroColors.kt` (i token semantici), `SkyPalette.kt`, `Type.kt`, `Shape.kt`,
-      `Motion.kt`, `ChiaroTheme.kt`
-- [ ] Inter come font variabile, cifre tabulari dove il DESIGN le richiede
-- [ ] Le tre guardie: `PaletteContrastTest` (i rapporti stampati nel DESIGN),
-      `ScrimContractTest`, `NoRawColorTest`
-- [ ] Il kit componenti dell'§8, con preview in chiaro e scuro
-- [ ] Decisione sul set di icone (§13.1 del DESIGN): adottare, commissionare, disegnare
+- [x] `ui/theme/`: `Scheme.kt` (**generato**), `ChiaroColors.kt` (i token semantici),
+      `SkyPalette.kt`, `Type.kt`, `Shape.kt`, `Motion.kt`, `ChiaroTheme.kt`
+- [x] Inter variabile impacchettato (OFL in `licenses/`), cifre tabulari dove servono
+- [x] Le guardie: `PaletteContrastTest`, `ScrimContractTest`, `NoRawColorTest`,
+      più `SkyPaletteTest` — **23 test, verdi**
+- [x] I componenti primitivi dell'§8: `SkyCanvas`, `DaylightRibbon`, `VerdictChip`,
+      `FreshnessChip`, `MetricTile`, `RainSparkline`, `TemperatureRangeBar`, con preview
+- [x] Decisione icone: **Meteocons** (MIT), con `ui/icons/ChiaroIcons` come seam
+- [x] `tools/palette_sheet.py`: il foglio della palette, letto dai sorgenti Kotlin
+
+### Lo schema non si sceglie a mano, si genera
+
+`tools/gen_scheme.py` produce i 36 ruoli Material dalle tre tinte sorgente: prende tinta e
+croma di ognuna in CIELAB LCh, mette L\* alla tonalità che Material nomina per quel ruolo,
+e abbassa la croma finché il colore sta dentro sRGB. Il tono di Material **è** L\*, quindi
+il tono è esatto e solo la croma approssima HCT — motivo per cui `PaletteContrastTest`
+verifica il risultato invece di fidarsi del metodo. I neutri hanno la croma fissata a 3 e
+7: è la differenza fra una superficie che legge come carta calda e una che legge beige.
+
+### Le tre cose che il DESIGN diceva male, e come si è visto
+
+1. **Le nuvole non mescolano verso un grigio fisso.** Lo diceva la §3.3, e a implementarla
+   una mezzanotte coperta usciva più chiara di un crepuscolo sereno: un grigio fisso è più
+   luminoso di un cielo notturno. Le nuvole tolgono il *colore* al cielo, non ci mettono
+   dentro una quantità fissa di luce. Ora ogni stop si desatura verso la propria
+   luminosità (0,7 × nuvole) e poi si smorza (0,15 × nuvole). Trovato da `SkyPaletteTest`.
+2. **La luna va scalata dalle nuvole.** La §3.4 applicava il sollevamento lunare dopo il
+   mix nuvoloso senza scalarlo, e una notte di luna piena coperta usciva più chiara di una
+   serena. Ora il sollevamento è moltiplicato per `(1 − nuvole)`. Stesso test.
+3. **L'ora d'oro non era dorata.** Con una sola ancora sull'orizzonte, a 3° il canvas era
+   il punto medio fra un sole basso freddo e l'ambra: un beige slavato. Ora le ancore
+   dorate sono **due** (4° e 0°). Questo **nessun test lo ha trovato**: contrasto,
+   monotonia e continuità passavano tutti. L'ha trovato guardare il foglio della palette,
+   che è il motivo per cui `tools/palette_sheet.py` è committato e non era uno scratch.
+
+### Altre decisioni della fase
+
+- **`NoRawColorTest` ha beccato la prima violazione il giorno in cui è stato scritto**: il
+  colore dello scrim, che avevo messo nel componente che lo disegna. Ora sta in
+  `SkyPalette` e `ScrimContractTest` verifica il valore che il canvas usa davvero invece
+  di una sua copia. La guardia ha già ripagato il costo di scriverla.
+- **Font impacchettato, non scaricato.** Un downloadable font è una dipendenza a runtime
+  da Play Services: un'app che rende male su un telefono senza Google rende male. Costa
+  880 KB e serve `@OptIn(ExperimentalTextApi::class)` per le `variationSettings`, senza le
+  quali Android sintetizza i pesi sbavando i contorni — esattamente il difetto che
+  scegliere Inter doveva evitare.
+- **Le icone sono un seam, non un set.** Meteocons è deciso (MIT, ~475 icone), ma
+  convertire centinaia di SVG in vector drawable vuole l'importer di Android Studio e uno
+  sguardo al risultato: è Fase 2. Fino ad allora `ChiaroIcons` mappa i bucket WMO sul set
+  outlined di Material, dietro la stessa funzione. Quello che non deve succedere è la cosa
+  che tweather poteva permettersi: le emoji.
+- **`MetricTile.meaning` è un parametro obbligatorio.** La regola "ogni numero dice cosa
+  farne" la fa rispettare il compilatore, non una code review.
+- **Il canvas non segue il tema del lettore**, ed è l'unica eccezione a "ruoli, mai hex":
+  alle 23:00 fuori è buio comunque. A renderla sicura è il contratto di scrim.
+- **`app_name` è `translatable="false"`.** Il lint l'ha chiesto e ha ragione: la regola di
+  Chiaro è "tutto si localizza" perché tutto sullo schermo è prosa o dato, ma il **nome**
+  non è né l'uno né l'altro. Un marchio non viaggia. È l'unica eccezione e sta scritta
+  accanto alla stringa, non in un documento lontano.
 
 ## Fase 2 — Oggi
 
-- [ ] `SkyCanvas` (gradiente calcolato, ribbon, scrim), `heroTemperature`
+- [ ] Import di Meteocons come vector drawable, dietro `ChiaroIcons` (deviazione Fase 1)
+- [ ] Composizione della schermata sui primitivi della Fase 1
 - [ ] **La frase**: `AlertEngine` + `WeatherRecency` → una riga di prosa in cima
 - [ ] Strip orario + sparkline pioggia, timeline "il resto della giornata"
 - [ ] La settimana con le barre di range su scala condivisa

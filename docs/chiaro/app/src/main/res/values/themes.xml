@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The activity draws its own Compose theme; this exists so the window has a
+         sane background before the first frame. DayNight, because Chiaro follows the
+         system in both directions (VISION.md §4.1). -->
+    <style name="Theme.Chiaro" parent="android:Theme.DeviceDefault.DayNight" />
+</resources>

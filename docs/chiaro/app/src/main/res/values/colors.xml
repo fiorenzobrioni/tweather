@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Placeholder launcher background. The brand's color is Fase 1 (DESIGN.md §2). -->
+    <color name="ic_launcher_background">#F4F1EA</color>
+</resources>

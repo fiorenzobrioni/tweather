@@ -553,13 +553,22 @@ bigger?**
 
 ---
 
-## 12. Open decisions
+## 12. Decisions
 
-1. **The name.** "Chiaro" is proposed (§ the title): it means both *clear sky* and *clear to
-   understand*, which are the product's two promises. A Play listing under this name needs a
-   trademark and store-collision check first — an unrelated ICT company already ships an app called
-   "Chiaro App". Alternates kept warm: **Sereno** (nearby collision: "Meteo: Cielo Sereno"),
-   **Vega**, **Aperto**.
+The first is settled and recorded here with its reason, as the series does. The rest are open.
+
+1. **The name: Chiaro — decided, and deliberately not translated.** It means both *clear sky* and
+   *clear to understand*, which are the product's two promises, and one word carries both. The
+   English translation was considered and rejected: **Clear** is a common adjective already worn by
+   several unrelated apps, it can never be owned, and a name that generic contributes nothing on a
+   store page — a search for it returns everybody else. "Chiaro" as a single bare word appears to be
+   unused in the weather category, it is pronounceable by a non-Italian reader, and short foreign
+   words have a long history as app brands precisely because they are distinctive rather than
+   descriptive. Discoverability is bought by the store subtitle, not by the name: *Chiaro — Meteo e
+   cielo* / *Chiaro — Weather & Sky* carries the search terms while the name carries the identity.
+   Still to do before a listing: a trademark check (an unrelated ICT company ships an app called
+   "Chiaro App", different class, but the check is not optional). Alternates kept warm if that check
+   fails: **Sereno** (nearby collision: "Meteo: Cielo Sereno"), **Vega**, **Aperto**.
 2. **The family.** If the reskin extends to the siblings, the daylight line reads best as
    **Chiaro** (weather) · **Passo** (steps) · **Ritmo** (habits): one Italian word each, meaningful
    in its own domain, and the exact opposite pole of the terminal line.

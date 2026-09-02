@@ -28,7 +28,13 @@ questa fase è dove quella tesi si dimostra o cade.
       `applicationIdSuffix ".debug"` per l'installazione affiancata
 - [x] `signingConfig` release dietro le quattro proprietà `CHIARO_KEYSTORE*`, con
       `-PsignReleaseWithDebugKey` come opt-in per gli smoke test
+- [x] Overlay `src/debug/res`: l'etichetta del launcher è `Chiaro (dev)`, così le due
+      icone si distinguono quando sono installate affiancate
 - [x] CI: test di tutti i moduli e lint **prima** degli APK
+- [x] `release.yml`: sul tag `v*`, test + lint, APK firmato con la chiave vera dai
+      GitHub Secrets, pubblicato insieme al mapping R8 come GitHub Release
+- [x] `LICENSE` (GPL-3.0), `CHANGELOG.md` (Keep a Changelog, sezione per tag) e
+      `licenses/` con l'OFL di Inter
 - [x] `:app` minimo che compila e produce un APK installabile
 - [x] **248 test verdi**: 141 in `:core:domain` (16 classi), 107 in `:core:data`
       (15 classi), zero failure, zero skipped
@@ -203,7 +209,11 @@ verifica il risultato invece di fidarsi del metodo. I neutri hanno la croma fiss
 
 ## Fase 10 — Store e v1.0.0
 
-- [ ] Icona definitiva, screenshot, scheda, `release.yml`, tag
+- [ ] Icona definitiva, screenshot, scheda dello store
+- [ ] Sezione `## [1.0.0]` nel `CHANGELOG.md` **prima** del tag: `release.yml` la legge
+      e la usa come corpo della Release
+- [ ] Chiave di release generata fuori dal repo, quattro `CHIARO_KEYSTORE*` in
+      `~/.gradle/gradle.properties` e i quattro Secrets sul repo, poi il tag `v1.0.0`
 
 ---
 

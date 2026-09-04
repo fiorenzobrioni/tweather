@@ -4,6 +4,27 @@ All notable changes to tweather are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- The device position is asked for differently, and the difference is battery. A
+  position the system already holds is now the answer whenever it is recent enough,
+  instead of being a fallback consulted only after a fresh acquisition had already
+  timed out: on the ordinary cold start behind a position tweather already knows, no
+  radio is powered up at all. The one the reader asks for, from the FAB or the first
+  time the source is switched on, is still a real acquisition.
+
+### Fixed
+
+- A last known position with no age limit could be yesterday's, or the city you flew
+  home from, and it was shown as where you are now. It is bounded at 24 hours, read
+  from a monotonic clock, and taken from the freshest provider rather than only the
+  one an acquisition would have used.
+- The reverse geocoder was handed the full-precision coordinates while everything
+  else in the app rounds to about a kilometre first. It gets the rounded pair now:
+  on most devices that lookup is a network service.
+
 ## [2.0.0] — 2026-08-30
 
 ### Added
@@ -184,5 +205,6 @@ First release. Everything below is new.
 - Fully localized, Italian and English, via the system per-app language picker: JSON
   keys stay English like real code, values and prose translate.
 
+[Unreleased]: https://github.com/fiorenzobrioni/tweather/compare/v2.0.0...HEAD
 [2.0.0]: https://github.com/fiorenzobrioni/tweather/releases/tag/v2.0.0
 [1.0.0]: https://github.com/fiorenzobrioni/tweather/releases/tag/v1.0.0

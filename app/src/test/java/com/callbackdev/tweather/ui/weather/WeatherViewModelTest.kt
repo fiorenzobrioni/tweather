@@ -17,6 +17,7 @@ import com.callbackdev.tweather.data.remote.OpenMeteoGeocodingApi
 import com.callbackdev.tweather.domain.WeatherException
 import com.callbackdev.tweather.domain.model.Coordinates
 import com.callbackdev.tweather.domain.model.GeoFix
+import com.callbackdev.tweather.domain.model.toGpsCity
 import com.callbackdev.tweather.data.remote.dto.CurrentDto
 import com.callbackdev.tweather.data.remote.dto.DailyDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
@@ -70,8 +71,12 @@ class WeatherViewModelTest {
         @Volatile
         var calls = 0
 
-        override suspend fun currentFix(timeout: Duration): GeoFix {
+        @Volatile
+        var lastMaxAge: Duration? = null
+
+        override suspend fun currentFix(maxAge: Duration, timeout: Duration): GeoFix {
             calls++
+            lastMaxAge = maxAge
             return fix()
         }
     }
@@ -190,6 +195,29 @@ class WeatherViewModelTest {
         vm.refresh()
         awaitState(vm) { !it.isLoading }
         assertTrue(provider.calls > callsAfterFirstLoad)
+    }
+
+    /**
+     * Fase 20. The FAB is a gesture and gets a real acquisition; the cold-start
+     * revalidation behind an already-rendered fix takes whatever the system already
+     * holds, which usually costs no radio at all. Same call, different contract, and
+     * the difference IS the battery saving.
+     */
+    @Test
+    fun `the reader's refresh and the silent revalidation ask for different things`() {
+        runBlocking {
+            cityStore.setUseGps(true)
+            cityStore.updateGpsCity(milanFix.toGpsCity())
+        }
+        val provider = FakeLocationProvider { milanFix }
+        val vm = viewModel(provider)
+        // Cold start behind a persisted fix: the revalidation, and it is patient.
+        awaitState(vm) { it.error is WeatherException.NoNetwork }
+        assertEquals(LocationProvider.SilentMaxAge, provider.lastMaxAge)
+
+        vm.refresh()
+        awaitState(vm) { !it.isLoading }
+        assertEquals(LocationProvider.Now, provider.lastMaxAge)
     }
 
     @Test

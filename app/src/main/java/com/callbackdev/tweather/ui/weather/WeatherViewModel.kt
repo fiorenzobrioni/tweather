@@ -245,7 +245,10 @@ class WeatherViewModel(
                 it.copy(isLoading = true, acquiringFix = true, error = null, noLocation = false)
             }
             try {
-                val fix = locationProvider.currentFix().toGpsCity()
+                // The reader asked out loud (first selection, or the FAB): nothing
+                // the system already holds will do.
+                val fix = locationProvider.currentFix(maxAge = LocationProvider.Now)
+                    .toGpsCity()
                 currentKey = fix.sourceKey
                 city = fix
                 _uiState.update { it.copy(acquiringFix = false) }
@@ -257,12 +260,21 @@ class WeatherViewModel(
         }
     }
 
-    /** Background re-acquisition behind a just-rendered stale fix (cold start). */
+    /**
+     * Background re-acquisition behind a just-rendered stale fix (cold start).
+     *
+     * Nobody is watching this one, so since Fase 20 it asks for a position that may
+     * be a few minutes old — which the system usually already has, at no cost in
+     * radio — and waits eight seconds rather than fifteen for one it does not.
+     */
     private fun revalidateFix() {
         gpsJob?.cancel()
         gpsJob = viewModelScope.launch {
             try {
-                val fix = locationProvider.currentFix().toGpsCity()
+                val fix = locationProvider.currentFix(
+                    maxAge = LocationProvider.SilentMaxAge,
+                    timeout = LocationProvider.SilentTimeout
+                ).toGpsCity()
                 if (fix.sourceKey != currentKey) {
                     currentKey = fix.sourceKey
                     city = fix

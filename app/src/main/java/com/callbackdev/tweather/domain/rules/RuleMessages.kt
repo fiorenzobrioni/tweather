@@ -24,6 +24,14 @@ object RuleMessages {
     private val Placeholder = Regex("""\{([A-Za-z0-9_.]+)\}""")
     private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
 
+    /** The two names the trigger carries; every other name is a [RuleVariables] id.
+     * Written down because a screen that offers them must spell them the same way. */
+    const val TriggerValue = "trigger.value"
+    const val TriggerTime = "trigger.time"
+
+    /** A name as it is written inside a message: the one place that knows the braces. */
+    fun placeholder(name: String): String = "{$name}"
+
     fun interpolate(
         message: String,
         trigger: RuleTrigger,
@@ -44,13 +52,13 @@ object RuleMessages {
     ): String = Placeholder.replace(message) { match ->
         val name = match.groupValues[1]
         when (name) {
-            "trigger.value" -> {
+            TriggerValue -> {
                 val kind = rule.conditions.firstOrNull()
                     ?.let { RuleVariables.byId(it.variable)?.kind }
                     ?: RuleVariableKind.NUMBER
                 RuleVariables.formatValue(kind, triggerValue, units)
             }
-            "trigger.time" -> (triggerAt ?: now).format(ClockTime)
+            TriggerTime -> (triggerAt ?: now).format(ClockTime)
             else -> {
                 val variable = RuleVariables.canonicalId(name)?.let { RuleVariables.byId(it) }
                 val resolved = variable?.resolve?.invoke(report, now)

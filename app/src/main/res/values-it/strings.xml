@@ -71,6 +71,7 @@
     <string name="cd_edit_threshold">Cambia la soglia</string>
     <string name="cd_edit_message">Modifica il messaggio di notifica</string>
     <string name="cd_pick_variable">Usa %1$s</string>
+    <string name="cd_insert_placeholder">Inserisci %1$s nel messaggio</string>
     <string name="cd_add_condition">Aggiungi una condizione and</string>
     <string name="cd_remove_condition">Rimuovi la condizione and</string>
     <string name="cd_run_rules">Esegui tutte le regole sui dati attuali</string>
@@ -107,7 +108,7 @@
         <item>- **commit** - un aggiornamento dei dati. Ogni volta che l\'app scarica il meteo ne registra uno, con l\'ora e che cosa è cambiato.</item>
         <item>- **diff** - la differenza fra due aggiornamenti. Le righe con `+` sono i valori nuovi, quelle con `-` i vecchi.</item>
         <item>- **branch** (`⎇`) - la città attiva, in fondo nella barra di stato. Toccala per cambiarla.</item>
-        <item>- **CI** - nel software è il sistema che controlla il codice a ogni modifica. Qui `alerts.rules` fa lo stesso col meteo: scrivi una regola (\"pioggia sopra il 70%\") e l\'app ti avvisa quando si avvera.</item>
+        <item>- **CI** - nel software è il sistema che controlla il codice a ogni modifica. Qui `alerts.rules` fa lo stesso col meteo: scrivi una regola (\"pioggia sopra il 70%\") e l\'app ti avvisa quando si avvera. Il messaggio che manda è tuo: un nome tra graffe dentro al messaggio diventa quel numero quando la regola scatta, e mentre lo scrivi il file elenca tutti i nomi che puoi usare, uno per riga.</item>
         <item>- **crontab** - su un computer, l\'elenco dei lavori da far partire a orari fissi. `sky.crontab` è quello del cielo: l\'alba, l\'ora d\'oro, uno sciame di meteore. Nessuno li programma, ma sono puntuali, e l\'app li scrive allo stesso modo. Una riga può anche avvisarti poco prima della sua ora: l\'avviso è approssimato di qualche minuto, apposta, perché uno preciso costerebbe batteria tutto il giorno.</item>
         <item></item>
         <item>## Da dove arrivano i dati</item>
@@ -239,6 +240,7 @@
     <string name="note_rules_none">ancora nessuna regola</string>
     <string name="note_rules_max">massimo %1$d regole</string>
     <string name="note_rules_run">esegui tutte le regole sui dati attuali:</string>
+    <string name="note_rules_message">tocca un valore per metterlo nel messaggio — diventa il numero quando la regola scatta</string>
     <string name="note_rules_evaluating">valuto su weather_data.json …</string>
 
     <!-- history.diff, forecast.diff, sky_runs.log -->

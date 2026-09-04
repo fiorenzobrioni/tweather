@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.ui.theme.TweatherTheme
@@ -46,13 +47,77 @@ fun TerminalInput(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
+    BasicTextField(
+        value = value,
+        onValueChange = { onValueChange(it.replace("\n", "")) },
+        modifier = modifier.promptSemantics(placeholder),
+        textStyle = terminalTextStyle(),
+        singleLine = true,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primaryContainer),
+        decorationBox = { innerTextField ->
+            TerminalDecoration(value, prompt, placeholder, innerTextField)
+        }
+    )
+}
+
+/**
+ * The same field with the caret in the caller's hands. `alerts.rules` completes a
+ * `{placeholder}` into the message being typed, and "put this where the cursor is"
+ * is a question only the selection can answer — a `String` field keeps that to
+ * itself, so the one line that needs it takes a [TextFieldValue] instead.
+ */
+@Composable
+fun TerminalInput(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    modifier: Modifier = Modifier,
+    prompt: String = ">",
+    placeholder: String = "",
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = { onValueChange(it.copy(text = it.text.replace("\n", ""))) },
+        modifier = modifier.promptSemantics(placeholder),
+        textStyle = terminalTextStyle(),
+        singleLine = true,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primaryContainer),
+        decorationBox = { innerTextField ->
+            TerminalDecoration(value.text, prompt, placeholder, innerTextField)
+        }
+    )
+}
+
+@Composable
+private fun terminalTextStyle() =
+    MaterialTheme.typography.bodySmall.copy(color = TweatherTheme.syntax.string)
+
+/** The placeholder Text is a sibling drawn behind the field, so it names the field
+ * here for screen readers (like Material text fields do). */
+private fun Modifier.promptSemantics(placeholder: String) = semantics {
+    if (placeholder.isNotEmpty()) contentDescription = placeholder
+}
+
+/** The prompt glyph, the idle cursor, and the field between them. */
+@Composable
+private fun TerminalDecoration(
+    text: String,
+    prompt: String,
+    placeholder: String,
+    innerTextField: @Composable () -> Unit
+) {
     val syntax = TweatherTheme.syntax
     val textStyle = MaterialTheme.typography.bodySmall
 
     // Created only while the idle cursor is actually drawn (empty field): an
     // InfiniteTransition keeps the frame clock ticking every vsync for as long as
     // it exists, even though the underscore only changes twice a second.
-    val cursorAlpha = if (value.isEmpty()) {
+    val cursorAlpha = if (text.isEmpty()) {
         val blink = rememberInfiniteTransition(label = "cursor-blink")
         blink.animateFloat(
             initialValue = 1f,
@@ -72,50 +137,34 @@ fun TerminalInput(
         1f
     }
 
-    BasicTextField(
-        value = value,
-        onValueChange = { onValueChange(it.replace("\n", "")) },
-        modifier = modifier.semantics {
-            // The placeholder Text below is a sibling drawn behind the field, so it
-            // names the field here for screen readers (like Material text fields do).
-            if (placeholder.isNotEmpty()) contentDescription = placeholder
-        },
-        textStyle = textStyle.copy(color = syntax.string),
-        singleLine = true,
-        keyboardOptions = keyboardOptions,
-        keyboardActions = keyboardActions,
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primaryContainer),
-        decorationBox = { innerTextField ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (prompt.isNotEmpty()) {
-                    Text(
-                        text = prompt,
-                        style = textStyle,
-                        color = syntax.comment
-                    )
-                    Spacer(Modifier.width(8.dp))
-                }
-                Box {
-                    if (value.isEmpty() && placeholder.isNotEmpty()) {
-                        Text(
-                            text = placeholder,
-                            style = textStyle,
-                            color = syntax.comment.copy(alpha = 0.6f)
-                        )
-                    }
-                    innerTextField()
-                }
-                if (value.isEmpty()) {
-                    Text(
-                        text = "_",
-                        style = textStyle,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.alpha(cursorAlpha)
-                    )
-                }
-            }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (prompt.isNotEmpty()) {
+            Text(
+                text = prompt,
+                style = textStyle,
+                color = syntax.comment
+            )
+            Spacer(Modifier.width(8.dp))
         }
-    )
+        Box {
+            if (text.isEmpty() && placeholder.isNotEmpty()) {
+                Text(
+                    text = placeholder,
+                    style = textStyle,
+                    color = syntax.comment.copy(alpha = 0.6f)
+                )
+            }
+            innerTextField()
+        }
+        if (text.isEmpty()) {
+            Text(
+                text = "_",
+                style = textStyle,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.alpha(cursorAlpha)
+            )
+        }
+    }
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)

@@ -83,6 +83,7 @@
     <string name="cd_edit_threshold">Change the threshold</string>
     <string name="cd_edit_message">Edit the notification message</string>
     <string name="cd_pick_variable">Use %1$s</string>
+    <string name="cd_insert_placeholder">Insert %1$s into the message</string>
     <string name="cd_add_condition">Add an and condition</string>
     <string name="cd_remove_condition">Remove the and condition</string>
     <string name="cd_run_rules">Run all rules against current data</string>
@@ -128,7 +129,7 @@
         <item>- **commit** - one update of the data. Every time the app fetches the weather it records one, with the time and what changed.</item>
         <item>- **diff** - the difference between two updates. Lines with `+` are the new values, lines with `-` the old ones.</item>
         <item>- **branch** (`⎇`) - the active city, down in the status bar. Tap it to switch.</item>
-        <item>- **CI** - in software it is the system that checks the code on every change. Here `alerts.rules` does the same to the weather: you write a rule (\"rain above 70%\") and the app tells you when it comes true.</item>
+        <item>- **CI** - in software it is the system that checks the code on every change. Here `alerts.rules` does the same to the weather: you write a rule (\"rain above 70%\") and the app tells you when it comes true. The message it sends is yours: a name between braces inside it becomes that number when the rule fires, and while you are writing the message the file lists every name you can use, one tap each.</item>
         <item>- **crontab** - on a computer, the list of jobs to run at set times. `sky.crontab` is the sky\'s: sunrise, the golden hour, a meteor shower. Nobody schedules those, but they run on time, so the app writes them down the same way. A line can also remind you a little before its time: the reminder is approximate by a few minutes, on purpose, because an exact one would cost battery all day.</item>
         <item></item>
         <item>## Where the data comes from</item>
@@ -261,6 +262,7 @@
     <string name="note_rules_none">no rules yet</string>
     <string name="note_rules_max">max %1$d rules</string>
     <string name="note_rules_run">run all rules against current data:</string>
+    <string name="note_rules_message">tap a value to put it in the message — it becomes the number when the rule fires</string>
     <string name="note_rules_evaluating">evaluating against weather_data.json …</string>
 
     <!-- history.diff, forecast.diff, sky_runs.log -->

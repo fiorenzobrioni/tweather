@@ -30,11 +30,41 @@ object SkyAlmanac {
     fun lunarDay(date: LocalDate, zone: ZoneId, coords: Coordinates): LunarDay =
         lunar.get(Key(date, zone, coords)) { AstronomyEngine.lunarDay(date, zone, coords) }
 
+    /**
+     * The next lunar eclipse visible from here, as asked from the local day [date] —
+     * memoized because the search walks full moons over three years and the screen,
+     * the widget and the reminder planner all ask the same question on the same day.
+     */
+    fun nextLunarEclipse(
+        date: LocalDate,
+        zone: ZoneId,
+        coords: Coordinates
+    ): EclipseEngine.LocalLunarEclipse? = lunarEclipse.get(Key(date, zone, coords)) {
+        Optional(EclipseEngine.nextLunarFrom(date.atStartOfDay(zone).toInstant(), coords))
+    }.value
+
+    /** The next solar eclipse with a bite visible from here. Same reason, longer walk. */
+    fun nextSolarEclipse(
+        date: LocalDate,
+        zone: ZoneId,
+        coords: Coordinates
+    ): SolarEclipse? = solarEclipse.get(Key(date, zone, coords)) {
+        Optional(EclipseEngine.nextSolar(date.atStartOfDay(zone).toInstant(), coords))
+    }.value
+
     /** Drops everything; the app calls it on nothing, tests call it between cases. */
     fun clear() {
         solar.clear()
         lunar.clear()
+        lunarEclipse.clear()
+        solarEclipse.clear()
     }
+
+    /**
+     * A box for a nullable answer. "No eclipse in the next three years" is an answer
+     * worth remembering, and a memo keyed on presence would recompute it every time.
+     */
+    private class Optional<V>(val value: V?)
 
     /**
      * Coordinates are rounded to ~10 m before they become part of the key. Two GPS
@@ -70,6 +100,15 @@ object SkyAlmanac {
      */
     private const val MAX_ENTRIES = 400
 
+    private const val ECLIPSE_ENTRIES = 8
+
     private val solar = Memo<SolarDay>(MAX_ENTRIES)
     private val lunar = Memo<LunarDay>(MAX_ENTRIES)
+
+    /**
+     * Smaller by design: an eclipse search is dear but there is only ever one date in
+     * flight, and unlike a solar day nobody scrolls a year of them.
+     */
+    private val lunarEclipse = Memo<Optional<EclipseEngine.LocalLunarEclipse>>(ECLIPSE_ENTRIES)
+    private val solarEclipse = Memo<Optional<SolarEclipse>>(ECLIPSE_ENTRIES)
 }

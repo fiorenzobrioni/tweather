@@ -293,8 +293,30 @@ Names are dotted and namespaced so the file sorts and reads like a real one.
 | `equinox.spring` / `.autumn` | annual | |
 | `meteor.<shower>.peak` | annual | curated table, §6 |
 
+**Added in Fase 19** (same rule: local computation, no network, nothing that expires):
+
+| Job | Kind | Notes |
+|---|---|---|
+| `moon.new` / `moon.first_quarter` / `moon.full` / `moon.last_quarter` | polling | the four quarters by name; `moon.phase` stays for "whichever is next" |
+| `moon.closest_full` | annual | the year's perigee full moon, from the distance the engine already computes |
+| `eclipse.lunar` | polling | the earth's shadow at the moon's distance, clipped to the hours the moon is up here |
+| `eclipse.solar` | polling | the two disks as THIS place sees them, clipped to daylight and re-measured inside it |
+| `milky_way.core` | daily | the galactic core above 10°, inside the dark window — `darkness.window` one step further out |
+| `zodiacal.pm` / `zodiacal.am` | daily | the 90 minutes at the dark end of twilight, on the nights the ecliptic stands ≥ 50° |
+| `earth.perihelion` / `earth.aphelion` | annual | VSOP87's radius series: the two-body one misses the day |
+| `sun.earliest_set` / `sun.latest_rise` | annual | not the solstice — a fortnight either side of it at Milan, seven weeks at the equator |
+| `night.white.start` / `night.white.end` | annual | the weeks with no astronomical night above ~48.5°; `∅` with its reason below that |
+
+**Eclipses, reversed.** The row below said eclipses were out of scope because they need
+real ephemeris work. They needed less than that in the end, and the reason is the module's
+own shape: it already owns a sun, a moon, a parallax and (since 19) a topocentric
+transform, so an eclipse is *where is the shadow and how close does the moon get to it*
+rather than a second model. Measured against the NASA canons and the USNO calculator, that
+geometry lands within 70 s and a few hundredths of a magnitude (`EclipseEngineTest`).
+Planets and conjunctions stay deferred: those really do need a planetary theory.
+
 Defaults enabled on first run: `sun.rise`, `sun.set`, `golden_hour.pm`, `moon.today`.
-Four lines. A user who opens the tab and finds twenty-three jobs will close it.
+Four lines. A user who opens the tab and finds fifty jobs will close it.
 
 **Why `darkness.window` earns its place.** Every other job in the table is a time the sun
 or moon crosses an angle — useful, but recoverable from an ephemeris site. This one is the
@@ -309,17 +331,21 @@ it. If the module ships one line that justifies the module, it is this one.
 |---|---|---|
 | `iss.pass` | polling | **not planned** — see §12 |
 
-Explicitly out of scope: planets, conjunctions, eclipses. Each needs real ephemeris work
-and each deserves its own decision. Deferred, not rejected — and the catalog is a list of
-`SkyJob` values, so any of them can arrive later without touching the file format, the
-renderer, or the store.
+Explicitly out of scope: planets and conjunctions. Each needs a planetary theory (a
+truncated VSOP87 and its tests) and each deserves its own decision. Deferred, not
+rejected — and the catalog is a list of `SkyJob` values, so either can arrive later
+without touching the file format, the renderer, or the store. **Eclipses were on this
+list until Fase 19**, where they turned out to need geometry the module already had;
+what stayed out there is the PATH of a total eclipse across the earth, which is a map
+and not a time.
 
 ---
 
 ## 6. Meteor showers
 
-A curated table of the ~10 majors (Quadrantids, Lyrids, Eta Aquariids, Perseids,
-Draconids, Orionids, Leonids, Geminids, Ursids), each with its solar-longitude peak.
+A curated table of the majors (Quadrantids, Lyrids, Eta Aquariids, delta Aquariids,
+alpha Capricornids, Perseids, Draconids, both Taurids, Orionids, Leonids, Geminids,
+Ursids — thirteen since Fase 19), each with its solar-longitude peak.
 Peaks are computed from solar longitude, not hard-coded per year, so the table does not
 expire and does not need updating with the app.
 

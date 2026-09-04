@@ -1235,6 +1235,72 @@ lettore — e un tocco la inserisce **al cursore**.
   inserisce `{trigger.value}` nella bozza (senza committare), e in Fahrenheit la riga
   offerta è `{current.temp_f}`.
 
+## Fase 19 — Il cielo impara le eclissi (committente, 4 set 2026)
+
+Domanda del committente dopo la passata icone: «gli eventi del cielo di Chiaro sono gli
+stessi di tweather? E ce ne sarebbero altri interessanti da aggiungere?». La prima
+risposta è sì alla lettera — i due pacchetti `domain/sky` erano identici riga per riga —
+e la seconda è questa fase: **diciannove job nuovi**, tutti dentro la regola del modulo
+(calcolo locale, niente rete, niente tabelle che scadono), scritti in Chiaro e riportati
+qui perché il core è copiato in due (`UPSTREAM.md`).
+
+- **Le quattro fasi lunari come quattro righe.** `moon.phase` risponde «il prossimo
+  quarto», che è la risposta giusta a una domanda che nessuno fa: chi guarda il
+  calendario vuole la **piena**, o la nuova che gli serve per un cielo buio. La riga
+  generica resta per chi la vuole.
+- **Le eclissi, per geometria e non per tabella.** Meeus dà alle eclissi un capitolo di
+  coefficienti (54) da cui l'istante esce dal numero di lunazione senza calcolare
+  nessuna posizione. Questo modulo le posizioni ce le ha già — un sole, una luna, una
+  parallasse e ora una trasformazione topocentrica — quindi un'eclissi diventa «dov'è
+  l'ombra e quanto le passa vicino la luna», un modello solo per tutto il modulo, che è
+  lo stesso motivo per cui `AstronomyEngine` ha una primitiva di altezza e non undici
+  formule. L'eclissi lunare è l'ombra della Terra alla distanza della Luna con
+  l'ingrandimento 1/85 di Danjon; quella solare sono i due dischi **come li vede questo
+  posto**, che è tutta la differenza tra il totale e un morso di sole a duemila
+  chilometri. Entrambe tagliate a quello che si può davvero guardare da qui: il 12
+  agosto 2026 il Sole tramonta su Milano con l'eclissi in corso, quindi la finestra
+  finisce al tramonto e il massimo viene rimisurato dentro la parte visibile.
+- **Misurate contro i cataloghi pubblicati**, perché un'eclissi calcolata che nessuno ha
+  verificato è una diceria: massimo entro 70 s dal *Five Millennium Catalog* della NASA,
+  magnitudine d'ombra entro 0.003, di penombra entro 0.01, durate entro 1.5 minuti; le
+  circostanze locali a Milano entro 15 s e 0.004 di magnitudine dal calcolatore USNO, e
+  la stessa eclissi esce **totale** da Burgos — il test che dice che la parallasse è
+  giusta.
+- **Due finestre di cielo buio** dopo la finestra di buio: cosa c'è da guardare una volta
+  che è buio. Il centro della Via Lattea sopra i 10° dentro la notte astronomica (da
+  marzo a ottobre alle nostre latitudini, mai troppo a nord), e la luce zodiacale nelle
+  sere in cui l'eclittica sta abbastanza ripida perché la polvere che ci sta sopra sia
+  un cono e non una sbavatura. Fuori stagione la riga dice **quale** fatto manca invece
+  di sparire.
+- **Quattro fatti annuali**, ognuno la correzione silenziosa di una cosa che quasi tutti
+  credono a metà: il tramonto più presto **non** è il solstizio (due settimane prima a
+  Milano, sette all'equatore), l'alba più tardi arriva una settimana dopo, la Terra è
+  più vicina al Sole ai primi di gennaio, e sopra i 48.5° circa la notte astronomica si
+  ferma per settimane — cosa che ora ha un inizio e una fine invece di essere una
+  risposta vuota.
+- **Il perielio è il motivo per cui la serie VSOP87 del raggio è entrata in
+  `AstronomyMath`.** La distanza a due corpi accanto è buona a 1e-5 UA, che basta e
+  avanza per il diametro del Sole ed è inutile per la **derivata**: minimizzandola si
+  sbagliava fino a cinque ore e due istanti su sedici finivano nel giorno sbagliato. Con
+  la serie, tutti e sedici entro 43 minuti e nel giorno giusto. L'istante è quello del
+  baricentro Terra-Luna, che è quello che un almanacco intende per «la Terra al
+  perielio» (e la prima versione, che ci aggiungeva la correzione lunare, peggiorava
+  proprio perché la definizione pubblicata è quella del baricentro).
+- **Tre sciami in più** dalla stessa lista IMO che la tabella già citava — Alfa
+  Capricornidi e le due Tauridi, i bolidi d'autunno — e le Delta Aquaridi si spostano ai
+  127.0° che la lista dà oggi, due giorni più in là di dov'erano.
+- **Un evento che non è astronomia**: la finestra arcobaleno. L'arco è centrato
+  sull'antisole e sale di 42°, quindi esce dall'orizzonte solo mentre il Sole sta sotto i
+  42 — e se in quella luce ci piove dentro lo dicono due numeri che il fetch già porta.
+  È l'unico evento del cielo su cui un'app meteo batte un sito di effemeridi. In tweather
+  la riga sta in `## Astronomy` del README, con la probabilità di pioggia su cui si
+  regge e la direzione verso cui girarsi; è una **possibilità**, mai una promessa.
+- **Registro**: i nomi dei job nuovi sono prosa e localizzano come tutti gli altri; le
+  quattro ragioni `∅` nuove sono frasi e stanno in `SkyNotes`; la colonna evidenze
+  dell'eclissi (`total  umbra 1.15`, `partial  92% covered`) resta **inglese** come il
+  resto della colonna — è un readout, e la sua lettura localizzata è del README (Fase
+  18, la regola non si tocca).
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

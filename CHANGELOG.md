@@ -8,6 +8,23 @@ All notable changes to tweather are documented here. The format follows
 
 ### Added
 
+- **The sky module learns eclipses, and eighteen other jobs** (Fase 19). `sky.crontab`
+  can now carry a lunar eclipse and a solar one, both resolved **for this place** — the
+  moon has to be up, the sun has to be up, and a window that runs past sunset ends at
+  sunset with its maximum re-measured inside what is actually visible. The four moon
+  quarters get lines of their own beside the generic `moon.phase`; so does the year's
+  closest full moon. The dark-sky pair goes one step past `darkness.window`: the core
+  of the Milky Way above 10° inside the astronomical night, and the zodiacal light on
+  the nights the ecliptic stands steeply enough to show it. Four annual facts join the
+  solstices — the earliest sunset and the latest sunrise (which are **not** the
+  solstice), the earth at its closest to and farthest from the sun, and the start and
+  end of the white nights above ~48.5°. Three meteor showers join the ten, from the
+  same IMO list the table already cited.
+- **A rainbow window in `README.md`.** The one sky event that is not astronomy: a bow
+  is centred on the antisolar point and rises 42°, so it can only clear the horizon
+  while the sun is under 42 — and whether rain is falling into that sunlight is two
+  numbers the fetch already carries. `## Astronomy` says when, with what rain
+  probability, and which way to face.
 - **`alerts.rules` completes the `{placeholders}` a message can print.** Every name
   the registry knows can be written in braces inside a rule's message and comes out as
   that number when the rule fires — and nothing in the app said so: the only hint was

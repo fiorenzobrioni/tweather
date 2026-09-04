@@ -44,7 +44,24 @@ object SkyJobNames {
         SkyJobCatalog.EquinoxSpring.id to R.string.sky_job_equinox_spring,
         SkyJobCatalog.SolsticeSummer.id to R.string.sky_job_solstice_summer,
         SkyJobCatalog.EquinoxAutumn.id to R.string.sky_job_equinox_autumn,
-        SkyJobCatalog.SolsticeWinter.id to R.string.sky_job_solstice_winter
+        SkyJobCatalog.SolsticeWinter.id to R.string.sky_job_solstice_winter,
+        // Fase 19
+        SkyJobCatalog.MilkyWayCore.id to R.string.sky_job_milky_way_core,
+        SkyJobCatalog.ZodiacalPm.id to R.string.sky_job_zodiacal_pm,
+        SkyJobCatalog.ZodiacalAm.id to R.string.sky_job_zodiacal_am,
+        SkyJobCatalog.MoonNew.id to R.string.sky_job_moon_new,
+        SkyJobCatalog.MoonFirstQuarter.id to R.string.sky_job_moon_first_quarter,
+        SkyJobCatalog.MoonFull.id to R.string.sky_job_moon_full,
+        SkyJobCatalog.MoonLastQuarter.id to R.string.sky_job_moon_last_quarter,
+        SkyJobCatalog.MoonClosestFull.id to R.string.sky_job_moon_closest_full,
+        SkyJobCatalog.LunarEclipse.id to R.string.sky_job_eclipse_lunar,
+        SkyJobCatalog.SolarEclipse.id to R.string.sky_job_eclipse_solar,
+        SkyJobCatalog.Perihelion.id to R.string.sky_job_earth_perihelion,
+        SkyJobCatalog.Aphelion.id to R.string.sky_job_earth_aphelion,
+        SkyJobCatalog.EarliestSunset.id to R.string.sky_job_sun_earliest_set,
+        SkyJobCatalog.LatestSunrise.id to R.string.sky_job_sun_latest_rise,
+        SkyJobCatalog.WhiteNightsStart.id to R.string.sky_job_night_white_start,
+        SkyJobCatalog.WhiteNightsEnd.id to R.string.sky_job_night_white_end
     )
 
     /**
@@ -62,7 +79,10 @@ object SkyJobNames {
         "orionids" to R.string.shower_orionids,
         "leonids" to R.string.shower_leonids,
         "geminids" to R.string.shower_geminids,
-        "ursids" to R.string.shower_ursids
+        "ursids" to R.string.shower_ursids,
+        "alpha_capricornids" to R.string.shower_alpha_capricornids,
+        "southern_taurids" to R.string.shower_southern_taurids,
+        "northern_taurids" to R.string.shower_northern_taurids
     )
 
     /**
@@ -78,6 +98,12 @@ object SkyJobNames {
         jobId.startsWith("golden_hour.") -> "🌇"
         jobId.startsWith("blue_hour.") || jobId.startsWith("twilight.") -> "🌆"
         jobId == SkyJobCatalog.DarknessWindow.id -> "🌌"
+        jobId == SkyJobCatalog.MilkyWayCore.id -> "🌌"
+        jobId.startsWith("zodiacal.") -> "🌌"
+        jobId == SkyJobCatalog.SolarEclipse.id -> "🌑"
+        jobId == SkyJobCatalog.LunarEclipse.id -> "🌘"
+        jobId.startsWith("night.white.") -> "🌉"
+        jobId.startsWith("earth.") -> "🌍"
         jobId.startsWith("moon.") -> "🌙"
         jobId.startsWith("meteor.") -> "🌠"
         else -> "🗓️" // the equinoxes and the solstices: a date, not a sight
@@ -94,6 +120,25 @@ object SkyJobNames {
         // Unreachable while SkyJobNamesTest holds; the id is still the least wrong
         // thing to print, since it is at least what the user's own file says.
         return jobId
+    }
+
+    /**
+     * A bearing in words, to the eighth of the compass — prose, so it localizes. The
+     * README says "look east", never "look 92°": a number nobody can act on without
+     * turning the phone into a compass first.
+     */
+    fun bearingRes(degrees: Double): Int {
+        val point = (((degrees % 360.0) + 360.0) % 360.0 + 22.5).toInt() / 45 % 8
+        return when (point) {
+            0 -> R.string.compass_n
+            1 -> R.string.compass_ne
+            2 -> R.string.compass_e
+            3 -> R.string.compass_se
+            4 -> R.string.compass_s
+            5 -> R.string.compass_sw
+            6 -> R.string.compass_w
+            else -> R.string.compass_nw
+        }
     }
 
     /** [name] with the job's emoji in front, the way `## Status` writes a line. */

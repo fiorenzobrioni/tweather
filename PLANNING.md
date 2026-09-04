@@ -1156,6 +1156,45 @@ Il giro sul device del committente (29 ago 2026) è tornato pulito su tutte le s
 - [x] `README.md`: il conteggio dei test nel blocco Build era fermo a 317, cioè a una release fa. Corretto a 598 — è la vetrina del repo, e un numero vecchio lì è l'unico posto in cui questo file può mentire
 - [x] **`release.yml` prende il corpo della release dal `CHANGELOG.md`.** Il workflow si affidava al solo `generate_release_notes`, che elenca commit e PR dal tag precedente: un verbale di *chi ha spinto cosa*, non di cosa è cambiato per chi installa. Ora un passo estrae la sezione del tag e la passa come `body_path`, e le note generate da GitHub restano sotto. La sezione si cerca per **prefisso letterale** e non per regex — i punti di `2.0.0` in una regex matcherebbero qualunque carattere — e si chiude sul primo `## [` successivo **o** sul blocco dei link in fondo, che altrimenti finirebbe nel corpo dell'ultima sezione del file. Un tag senza sezione non fa fallire la release: scrive un `::warning::` e lascia le note generate da sole, perché fra la prosa e l'APK firmato è la prosa a poter aspettare. Vale da qui in avanti, non solo per questa release
 
+## Fase 20 — La posizione chiede meno (portata da Chiaro, 4 set 2026)
+
+Chiaro ha fatto una review del suo percorso della posizione e `LocationProvider.kt` era
+**identico byte per byte** nei due repository: tre dei difetti trovati erano quindi anche
+di tweather, e questa è la correzione a monte che le Note trasversali di quel repo
+prevedono. Portato solo il provider, non l'architettura sopra: quella parte della review
+riguarda una schermata (un pager di luoghi, due ViewModel) che qui non esiste.
+
+- **Prima l'ultimo noto, poi l'acquisizione.** `currentFix` prende ora un `maxAge`:
+  sotto quella soglia risponde con la posizione che il sistema già possiede — gratis,
+  istantanea, nessuna radio accesa — e solo oltre avvia `getCurrentLocation`. Era
+  esattamente il contrario, con l'ultimo noto relegato a ripiego dopo il timeout, cioè
+  l'ordine opposto a quello che la documentazione Android raccomanda. `revalidateFix`
+  (la riacquisizione silenziosa dietro un fix già disegnato, all'avvio a freddo) chiede
+  `SilentMaxAge`, quindi in genere non accende niente; `acquireAndLoad` (prima
+  selezione, FAB) chiede `Now`, perché lì il lettore ha chiesto a voce alta.
+- **L'ultimo noto ha un tetto d'età e si cerca su tutti i provider.** Prima entrava
+  senza alcun controllo su `location.time`: poteva essere di ieri, o della città da cui
+  eri tornato, e diventava «dove sei adesso» — l'unico punto del percorso in cui lo
+  schermo poteva dire una cosa falsa senza accorgersene. Tetto di 24 ore per il ripiego,
+  età letta da `elapsedRealtimeNanos` (monotono, quindi immune a un orologio appena
+  spostato), e si prende il più recente fra i provider abilitati invece che solo quello
+  scelto per l'acquisizione.
+- **Il geocoding riceve le coordinate arrotondate.** Tutto il resto arrotondava a due
+  decimali prima di uscire; la chiamata al `Geocoder` passava `location.latitude` e
+  `location.longitude` intatti, cioè la coordinata più precisa che l'app possiede finiva
+  all'unico servizio che l'app non controlla (di rete, su quasi tutti i dispositivi).
+- **Timeout silenzioso a 8 secondi.** Dietro un documento già renderizzato nessuno
+  aspetta quindici secondi; il percorso esplicito li tiene, perché lì c'è uno stato che
+  gira e vale la pena aspettare.
+- Il fake di `WeatherViewModelTest` registra il `maxAge`, e un test nuovo fissa il
+  contratto: il FAB e la revalidation silenziosa chiedono cose diverse, ed è quella
+  differenza a essere il risparmio.
+- **Non portato**: la soglia persistita, `CachedLocationProvider` e la regola di
+  adozione a 2 km sono di Chiaro, dove nascono da una pagina indicizzata sulla
+  `cacheKey` e da due ViewModel che raggiungono la posizione. Qui il ViewModel è uno
+  solo e la revalidation era già stale-while-revalidate: la parte che si legge come
+  «spinner all'avvio» in Chiaro non è mai stata un difetto di tweather.
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

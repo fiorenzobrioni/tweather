@@ -6,6 +6,16 @@ All notable changes to tweather are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`alerts.rules` completes the `{placeholders}` a message can print.** Every name
+  the registry knows can be written in braces inside a rule's message and comes out as
+  that number when the rule fires — and nothing in the app said so: the only hint was
+  the message a new rule is born with. While the message is being edited the file now
+  lists all of them under the line, indented like the variable picker and spelled in
+  the reader's own units, and a tap puts one at the caret. The one token still typed by
+  hand no longer has a vocabulary to remember. `HELP.md` says the same in words.
+
 ### Changed
 
 - The device position is asked for differently, and the difference is battery. A

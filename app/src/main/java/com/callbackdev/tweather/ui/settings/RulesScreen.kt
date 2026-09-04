@@ -29,8 +29,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,7 @@ import com.callbackdev.tweather.data.UnitSettings
 import com.callbackdev.tweather.domain.rules.MaxRules
 import com.callbackdev.tweather.domain.rules.NotificationRule
 import com.callbackdev.tweather.domain.rules.RuleCondition
+import com.callbackdev.tweather.domain.rules.RuleMessages
 import com.callbackdev.tweather.domain.rules.RuleOp
 import com.callbackdev.tweather.domain.rules.RuleVariableKind
 import com.callbackdev.tweather.domain.rules.RuleVariables
@@ -135,6 +138,16 @@ fun RulesScreen(
 ) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
+    // The message is the one token typed instead of tapped, so its draft lives out
+    // here rather than inside the inline editor: the completion under it has to be
+    // able to write into the line being edited, caret included.
+    val editedMessage = (editing as? RuleEdit.Message)
+        ?.let { edit -> rules.firstOrNull { it.id == edit.ruleId }?.message }
+        .orEmpty()
+    var message by remember(editing) {
+        mutableStateOf(TextFieldValue(editedMessage, TextRange(editedMessage.length)))
+    }
+    val messageFocus = remember { FocusRequester() }
     // Two-tap confirm for the run command, like every $ command in the app.
     var runArmed by remember { mutableStateOf(false) }
     LaunchedEffect(runArmed) {
@@ -145,6 +158,9 @@ fun RulesScreen(
     }
     val lines = buildRulesLines(
         rules, units, userRulesEnabled, editing, dryRun, syntax, resources, actions,
+        message = message,
+        onMessage = { message = it },
+        messageFocus = messageFocus,
         runArmed = runArmed,
         onRunLine = {
             if (runArmed) {
@@ -189,6 +205,9 @@ private fun buildRulesLines(
     syntax: SyntaxColors,
     resources: Resources,
     actions: RulesActions,
+    message: TextFieldValue,
+    onMessage: (TextFieldValue) -> Unit,
+    messageFocus: FocusRequester,
     runArmed: Boolean,
     onRunLine: () -> Unit
 ): List<CanvasLine> = buildList {
@@ -216,7 +235,12 @@ private fun buildRulesLines(
     }
     rules.forEachIndexed { i, rule ->
         if (i > 0) add(CodeLine(AnnotatedString("")))
-        addAll(ruleBlock(rule, units, editing, dryRun, syntax, resources, actions))
+        addAll(
+            ruleBlock(
+                rule, units, editing, dryRun, syntax, resources, actions,
+                message, onMessage, messageFocus
+            )
+        )
     }
 
     add(CodeLine(AnnotatedString("")))
@@ -278,7 +302,10 @@ private fun ruleBlock(
     dryRun: DryRunUi?,
     syntax: SyntaxColors,
     resources: Resources,
-    actions: RulesActions
+    actions: RulesActions,
+    message: TextFieldValue,
+    onMessage: (TextFieldValue) -> Unit,
+    messageFocus: FocusRequester
 ): List<CanvasLine> = buildList {
     add(
         WidgetLine(
@@ -396,6 +423,7 @@ private fun ruleBlock(
         )
     }
 
+    val editingMessage = editing == RuleEdit.Message(rule.id)
     add(
         WidgetLine(
             indent = 1,
@@ -403,7 +431,10 @@ private fun ruleBlock(
         ) {
             MessageLine(
                 rule = rule,
-                editing = editing == RuleEdit.Message(rule.id),
+                editing = editingMessage,
+                draft = message,
+                focusRequester = messageFocus,
+                onDraft = onMessage,
                 onTap = { actions.onStartEdit(RuleEdit.Message(rule.id)) },
                 onCommit = { text ->
                     actions.onSetMessage(rule, text)
@@ -412,6 +443,39 @@ private fun ruleBlock(
             )
         }
     )
+    if (editingMessage) {
+        // The autocomplete again, this time inside the string: `RuleMessages`
+        // interpolates every name of the registry, and until now the only place that
+        // said so was the message a new rule is born with (committente, 4 set). The
+        // names are the file's own, so the list is the tokens themselves — and a tap
+        // puts one at the caret, because the other half of the answer is that nobody
+        // should have to type a brace by hand in a file that is edited token by token.
+        add(
+            commentLine(
+                "// " + resources.getString(R.string.note_rules_message),
+                syntax,
+                indent = 2
+            )
+        )
+        messagePlaceholders(units).forEach { token ->
+            add(
+                CodeLine(
+                    text = AnnotatedString(token, SpanStyle(color = syntax.string)),
+                    indent = 2,
+                    onClick = {
+                        onMessage(message.withInserted(token))
+                        // The tap took the focus off the field; the reader is still
+                        // writing the line, so it goes back — unless the canvas has
+                        // scrolled the line itself out of the composition, in which
+                        // case there is nothing to focus and the insert stands on its
+                        // own (the draft is out here, not in the field).
+                        runCatching { messageFocus.requestFocus() }
+                    },
+                    onClickLabel = resources.getString(R.string.cd_insert_placeholder, token)
+                )
+            )
+        }
+    }
 
     (dryRun as? DryRunUi.Done)?.results?.get(rule.id)?.let { result ->
         add(
@@ -558,11 +622,17 @@ private fun ConditionLine(
     }
 }
 
-/** `notify: "Take an umbrella — {trigger.value}%"` — the message edits inline. */
+/**
+ * `notify: "Take an umbrella — {trigger.value}%"` — the message edits inline, on a
+ * draft the caller owns so the `{placeholder}` completion below can write into it.
+ */
 @Composable
 private fun MessageLine(
     rule: NotificationRule,
     editing: Boolean,
+    draft: TextFieldValue,
+    focusRequester: FocusRequester,
+    onDraft: (TextFieldValue) -> Unit,
     onTap: () -> Unit,
     onCommit: (String) -> Unit
 ) {
@@ -572,7 +642,15 @@ private fun MessageLine(
         Text("notify: ", style = style, color = syntax.key)
         Text("\"", style = style, color = syntax.string)
         if (editing) {
-            InlineEditor(initial = rule.message, onCommit = onCommit)
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+            TerminalInput(
+                value = draft,
+                onValueChange = onDraft,
+                prompt = "",
+                modifier = Modifier.focusRequester(focusRequester),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onCommit(draft.text) })
+            )
         } else {
             Text(
                 text = rule.message,
@@ -587,6 +665,23 @@ private fun MessageLine(
         Text("\"", style = style, color = syntax.string)
     }
 }
+
+/**
+ * Everything a message can interpolate ([RuleMessages]): the trigger's two, then the
+ * whole registry spelled in the reader's units, exactly as the variable picker
+ * spells it. Booleans stay in — `true` is a word this file says.
+ */
+private fun messagePlaceholders(units: UnitSettings): List<String> =
+    listOf(RuleMessages.TriggerValue, RuleMessages.TriggerTime)
+        .plus(RuleVariables.all.map { RuleVariables.displayId(it, units) })
+        .map(RuleMessages::placeholder)
+
+/** A completion lands at the caret and leaves it after itself, like an editor's. */
+private fun TextFieldValue.withInserted(token: String): TextFieldValue =
+    TextFieldValue(
+        text = text.replaceRange(selection.min, selection.max, token),
+        selection = TextRange(selection.min + token.length)
+    )
 
 /** A token replaced in place by a terminal input; IME Done commits. */
 @Composable

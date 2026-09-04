@@ -197,6 +197,31 @@ class RulesScreenTest {
         onLine("// ✓ pass")
     }
 
+    /**
+     * The completion inside the string: `RuleMessages` interpolates every name of
+     * the registry, and the file is the only place that can say so.
+     */
+    @Test
+    fun `the message picker lists every placeholder and inserts one on tap`() {
+        setScreen(editing = RuleEdit.Message(1))
+        onLine("// tap a value to put it in the message", substring = true)
+        onLine("{trigger.value}")
+        onLine("{trigger.time}")
+        onLine("{today.uv_max}")
+        onLine("{trigger.value}").performClick()
+        // The draft, not the stored rule: nothing is committed until IME Done.
+        onLine("Take an umbrella{trigger.value}")
+    }
+
+    @Test
+    fun `a placeholder is offered in the reader's units`() {
+        setScreen(
+            editing = RuleEdit.Message(1),
+            units = UnitSettings(temperature = TemperatureUnit.FAHRENHEIT)
+        )
+        onLine("{current.temp_f}")
+    }
+
     @Test
     fun `a disabled master toggle warns at the top of the file`() {
         setScreen(userRulesEnabled = false)

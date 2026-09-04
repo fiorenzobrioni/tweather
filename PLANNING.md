@@ -1195,6 +1195,46 @@ riguarda una schermata (un pager di luoghi, due ViewModel) che qui non esiste.
   solo e la revalidation era già stale-while-revalidate: la parte che si legge come
   «spinner all'avvio» in Chiaro non è mai stata un difetto di tweather.
 
+## Fase 21 — I nomi dentro `notify` si toccano (chiesta dal committente, 4 set 2026)
+
+Nata su Chiaro («ci sono vari campi tra graffe? sarebbe utile un help») e verificata qui
+subito dopo, dove il difetto è **peggiore**: `RuleMessages` interpola ogni nome del
+registro (23 variabili) più i due del trigger, e in tutta l'app non c'era una sola riga
+che lo dicesse. L'unico indizio era il messaggio con cui nasce una regola nuova
+(`"Take an umbrella — {trigger.value}% rain at {trigger.time}"`), che insegna che le
+graffe esistono ma non quali nomi ci stanno dentro. Chi voleva stampare l'UV doveva
+indovinare `{current.uv_index}`.
+
+La risposta non è una legenda: è la mossa che questo file fa già dalla Fase 11. Il
+picker delle variabili è «l'autocomplete dell'IDE, disegnato come righe»; il messaggio è
+l'ultimo token che si scrive a mano invece di toccarlo, quindi mentre lo si scrive il
+file elenca sotto, indentate come il picker, **tutte** le stringhe che può interpolare —
+`{trigger.value}`, `{trigger.time}` e ogni variabile nella grafia delle unità del
+lettore — e un tocco la inserisce **al cursore**.
+
+- **Il caret è il punto.** «Mettilo dove sto scrivendo» è una domanda a cui solo la
+  selezione può rispondere, e un `BasicTextField` a `String` se la tiene per sé: quindi
+  `TerminalInput` guadagna una **overload a `TextFieldValue`** (stessa decorazione,
+  stesso cursore inattivo, estratti in un composable condiviso perché le due versioni non
+  possano divergere) e la bozza del messaggio sale in `RulesScreen`, che è l'unico posto
+  da cui una riga di completamento può scrivere dentro la riga in modifica.
+- **Il focus torna al campo dopo l'inserimento**, ma dentro un `runCatching`: il canvas è
+  una `LazyColumn` e 25 righe di completamento sono più di uno schermo, quindi la riga
+  `notify` può essere già stata smontata quando si tocca l'ultima. L'inserimento vale
+  lo stesso — la bozza sta fuori dal campo, non dentro.
+- **I booleani restano nell'elenco**, al contrario di Chiaro: lì `{next_6h.wmo_severe}`
+  stamperebbe `true` dentro una frase di prosa, che è gergo; qui il corpo della notifica
+  è un oggetto JSON e `true` è una parola che questo file dice tutti i giorni.
+- **`RuleMessages` espone `TriggerValue`, `TriggerTime` e `placeholder()`**: le graffe le
+  sapeva il motore e ora le doveva sapere anche una schermata, e due posti che scrivono
+  la stessa sintassi sono due posti che possono scriverla diversa. Stessa modifica in
+  Chiaro (`UPSTREAM.md`: la copia è deliberata, la correzione va fatta in tutti e due).
+- **`HELP.md`** lo dice a parole a chi il file non lo edita: il messaggio è tuo, un nome
+  tra graffe diventa quel numero, e mentre lo scrivi il file elenca i nomi disponibili.
+- Due test nuovi in `RulesScreenTest`: l'elenco compare con la nota sopra, un tocco
+  inserisce `{trigger.value}` nella bozza (senza committare), e in Fahrenheit la riga
+  offerta è `{current.temp_f}`.
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

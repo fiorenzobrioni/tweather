@@ -1463,6 +1463,72 @@ riempite in colonna.
 - [ ] Da verificare su device: `man sky` con `word_wrap` spento (indice in colonna che
       pana) e acceso, e il crontab con `word_wrap` acceso su un job dal nome lungo
 
+## Fase 24 — Il nome della posizione GPS: il comune, non la provincia (device, 5 set 2026)
+
+Segnalato dal committente su entrambe le app lo stesso giorno, con due esempi: da
+Cavenago di Brianza l'intestazione diceva «Provincia di Monza e della Brianza», e da
+Segrate diceva «Milano». Il file era ancora identico byte per byte a quello di Chiaro
+(le Note trasversali chiedono di tenerli in passo), quindi il difetto era di tutti e
+due e la correzione è la stessa in tutti e due.
+
+**Tre cose, e nessuna è una colpa del geocoder.** Due sono regressioni della Fase 20,
+una c'era da sempre e la Fase 20 l'ha esposta.
+
+- **Al `Geocoder` andavano le coordinate arrotondate.** La Fase 20 lo aveva cambiato
+  con questa motivazione: tutto il resto arrotondava a due decimali prima di uscire, e
+  la chiamata al geocoding riceveva invece la coordinata più precisa che l'app
+  possiede, cioè proprio all'unico servizio che l'app non controlla. **La premessa era
+  falsa.** Con `ACCESS_COARSE_LOCATION` non esiste una coordinata precisa da
+  proteggere: la piattaforma quantizza la posizione su un reticolo da ~2 km e alza
+  l'accuratezza dichiarata ad almeno 2 km *prima* che l'app la veda. I due valori
+  indicano quindi la stessa cella e l'arrotondamento non comprava un grammo di
+  privacy. Comprava però fino a **679 m** di spostamento a queste latitudini (555 m di
+  latitudine, 390 m di longitudine a 45,5°N): su Cavenago sono 421 m verso sud-est, su
+  Segrate 373 m verso ovest, cioè abbastanza per uscire da un comune piccolo e
+  finire nei campi accanto — dove un comune da rispondere non c'è. Si arrotonda di
+  nuovo solo ciò che esce dall'app: il `GeoFix` (e quindi `cacheKey`, la cache, la
+  history, la chiamata a Open-Meteo) resta a due decimali esatti come prima.
+- **Si leggeva un solo indirizzo, e nell'ordine sbagliato.** `getFromLocation(..., 1)`
+  più `locality ?: subAdminArea ?: subLocality`: il backend risponde a un punto con
+  una **scala** di indirizzi a granularità crescente, e per un punto che non sta su
+  una strada il primo gradino può non avere nessun comune sopra — in Italia torna con
+  la regione e la provincia e niente in mezzo. Bastava quello perché `subAdminArea`,
+  che stava *in mezzo* alla catena, vincesse a mani basse e la provincia finisse dove
+  il lettore si aspetta il nome del suo paese. Ora si chiedono cinque gradini e si
+  prende il nome più specifico che **uno qualsiasi** di loro conosce: comune, poi
+  frazione o quartiere (che è comunque un posto in cui una persona può stare), e la
+  provincia solo quando nessun gradino sa altro — dove resta la risposta onesta,
+  perché è l'unica che c'è.
+- **Fra due posizioni già note vinceva la più recente.** La Fase 20 ha fatto bene a
+  chiedere l'ultimo noto a *tutti* i provider abilitati, ma li ordinava per
+  `elapsedRealtimeNanos` e basta. I provider non rispondono con la stessa cosa: fused
+  restituisce una posizione che un'altra app ha già pagato, network può restituire la
+  cella a cui il telefono è attaccato, e il permesso coarse alza entrambe a 2 km senza
+  migliorare la peggiore. Una cella arrivata dieci secondi fa batteva così un fix buono
+  di due minuti fa, e rispondeva «Milano» a chi stava a Segrate. Ora si ordina per
+  quanto il lettore può essere lontano da ciascuna *adesso*: accuratezza dichiarata più
+  quello che può aver percorso da allora (10 m/s, chi attraversa una città e non
+  un'autostrada). Il termine sull'età serve al ripiego delle 24 ore, dove un fix
+  ottimo di ieri non deve battere uno mediocre di un'ora fa.
+
+**Non toccato**: `maxAge`, il ripiego a 24 ore, l'ordine fused → network → gps, il
+permesso solo coarse, l'arrotondamento di ciò che esce. La strategia della Fase 20 è
+giusta; erano sbagliati i tre dettagli sopra.
+
+**Test**: `LocationProviderTest` in tutti e due i repository, identico. Le due decisioni
+sono state estratte in due funzioni pure — `geocodedPlace(List<Address>)` e
+`expectedErrorMeters(accuracy, age)` — proprio perché fossero verificabili senza un
+dispositivo: sei casi sul nome (la provincia scavalcata, la frazione che batte la
+provincia, la provincia che resta quando non c'è altro, i campi vuoti, la lista vuota,
+regione e paese presi dal gradino che li ha) e cinque su quale posizione vince.
+
+**Verifiche**: 651 test verdi (11 nuovi), lint 0 errori.
+
+- [ ] Da verificare su device: nome del comune corretto da Cavenago di Brianza e da
+      Segrate, e il fallback alle coordinate quando il geocoding non risponde
+
+---
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

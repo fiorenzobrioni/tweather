@@ -8,6 +8,35 @@ All notable changes to tweather are documented here. The format follows
 
 ### Added
 
+- **The sky catalog explains itself** (Fase 23). Every event `sky.crontab` can carry
+  now has a manual page: what it physically is, what you would actually see, and what
+  has to be true for you to see it. The dotted names stay as they are, because they
+  are what the file prints, but `zodiacal.pm` no longer has to mean nothing to
+  somebody who has not met the zodiacal light. Tap `[man]` beside any line in the
+  `+ add job` catalog, or open `$ man sky` at the foot of the file for the index of
+  all fifty-one. The pages cross-reference each other, and `[q]` gives the file back.
+
+### Changed
+
+- `sky.crontab` no longer falls apart with `word_wrap` on. A row is five columns side
+  by side, and with wrapping there is no sideways room to give them, so the comment
+  was being crushed into a one-character column down the edge of the screen. It now
+  takes a line of its own under the row, which is where a long crontab line has always
+  put its comment.
+- The manual's paragraphs wrap and its lists do not. Forcing the whole page to wrap
+  turned the index of fifty-one jobs into ragged pairs of half-lines; the names are
+  now a proper column that follows `word_wrap` like every other table in the app.
+- `[man]` is no longer comment-grey, so it reads as something you can tap.
+- `HELP.md` now always wraps its lines, whatever `word_wrap` says in
+  `settings.config`, and its status bar says `wrap` so you can see that it does. Its
+  paragraphs run past 400 characters and the setting is off by default: reading the
+  file meant dragging sideways through every sentence. This is what a real editor
+  does too, wrapping by language rather than globally. The `README.md` tab and
+  `sky.crontab` still follow the setting: their columns are padded to their widths,
+  and wrapping them would take the alignment apart.
+
+### Added
+
 - **The sky module learns eclipses, and eighteen other jobs** (Fase 19). `sky.crontab`
   can now carry a lunar eclipse and a solar one, both resolved **for this place** — the
   moon has to be up, the sun has to be up, and a window that runs past sunset ends at

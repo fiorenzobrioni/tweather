@@ -1301,6 +1301,168 @@ qui perché il core è copiato in due (`UPSTREAM.md`).
   resto della colonna — è un readout, e la sua lettura localizzata è del README (Fase
   18, la regola non si tocca).
 
+## Fase 22 — `HELP.md` va sempre a capo (chiesta dal committente, 5 set 2026)
+
+`word_wrap` è `false` di default, e `HELP.md` ha paragrafi da 400 caratteri: il test
+scritto **prima** della modifica, e visto fallire, dice quanto costava — una riga larga
+molte volte lo schermo, da leggere trascinando di lato. È l'unico documento rivolto a
+chi l'app non la sa ancora leggere, ed è quello che gli chiedeva più lavoro.
+
+**Non è un'eccezione alla finzione dell'editor: è la cosa più da editor dell'app.** Un
+editor vero va a capo *per linguaggio*, e `"[markdown]": { "editor.wordWrap": "on" }` è
+l'override che ha in configurazione mezza categoria di chi usa VS Code. Il file passa
+`options = LocalEditorOptions.current.copy(wordWrap = true)` a `CodeCanvas`, che quel
+parametro lo aveva già.
+
+**Dove passa il confine, e perché non è «i file markdown».** È `HELP.md` e basta,
+perché è l'unico file dell'app che sia *solo* prosa. La tab `README.md` continua a
+seguire l'impostazione: le sue due tabelle sono riempite fino alla larghezza delle
+colonne con l'emoji incollata al bordo sinistro della cella (Fase 11c/11d — la
+posizione fissa è tutto ciò che tiene dritte le colonne, dato che le emoji non sono in
+JetBrains Mono), e mandarle a capo smonterebbe quel lavoro. Anche `sky.crontab` resta
+com'è: la sua colonna evidenze è un readout allineato, non prosa.
+
+**Si muove solo il wrap, non `line_numbers`**: quella è una preferenza su come al
+lettore piace guardare un file, e questo resta un file.
+
+**E il file lo dice.** La status bar guadagna `wrap` accanto a `ro`: è lo stesso tipo
+di fatto — un modo che questo file ha e il suo vicino no — ed è dove un editor vero le
+mette (`:set wrap` di vim sta lì). Senza, un lettore con `word_wrap: false` che vede
+questa schermata andare a capo può solo concludere che l'interruttore è rotto.
+Marcatore di una parola, quindi resta inglese come `ro` e `UTF-8` (Fase 18).
+
+**Un effetto da mettere a verbale**: andando a capo il documento diventa più alto, e i
+titoli dopo il primo paragrafo partono fuori schermo. I test che li asserivano sul
+posto ora ci scorrono sopra come farebbe un lettore. È il baratto giusto: scorrere in
+verticale è naturale, trascinare in orizzontale dentro una frase no.
+
+**Verifiche**: suite verde, lint 0 errori. Decisione di serie: la stessa modifica sta
+in tsteps (Fase 22b) e thabit (Fase 18), con lo stesso confine e la stessa `wrap` in
+status bar.
+
+- [ ] Da verificare su device: `HELP.md` con `word_wrap: false` in `settings.config`,
+      e che la status bar `⎇ config | ro | wrap | UTF-8` stia su uno schermo da 360dp
+
+## Fase 23 — `man 7 <job>`: il catalogo si spiega (chiesta dal committente, 5 set 2026)
+
+Richiesta del committente: i job del cielo hanno solo il nome inglese puntato, e uno
+non esperto non può capire che cosa siano. Serve una descrizione, a richiesta e non
+sempre a schermo, con un valore anche divulgativo.
+
+**La regola che ha creato il problema resta giusta.** `zodiacal.pm` non si traduce e
+non si allunga: è ciò che il crontab stampa, e una riga di crontab è codice (§4). La
+Fase 16g aveva già risolto metà del problema dando a ogni job un **nome in parole**
+per il README (`SkyJobNames`); questa fase fa l'altra metà, che è quella che può
+*spiegare* invece che tradurre.
+
+**Perché una man page e non un tooltip.** È un'app che sembra un terminale, e `man` è
+il modo in cui un terminale risponde a «che cos'è questa cosa». Porta gratis anche una
+struttura che vale la pena avere: NOME dice come si chiama, DESCRIZIONE che cos'è,
+QUANDO come si comporta, VEDERE ANCHE cosa leggere dopo. Su tutte e 51 le pagine le
+stesse quattro risposte negli stessi quattro posti. Prende tutto lo schermo, striscia
+delle tab compresa, perché è quello che `man` fa a un terminale: non è un quarto file
+dell'editor, è un programma che hai lanciato e da cui esci.
+
+**Le intestazioni di sezione si traducono, gli id no**, ed è la regola dei registri
+(Fase 18) applicata invece che data per scontata. I due test in ordine: tradurre
+`DESCRIPTION` non rompe nessuna lookup, nessun filename e nessun allineamento; e lo
+strumento stesso le traduce — una man page italiana dice `NOME` e `VEDERE ANCHE`.
+Tradurre `zodiacal.pm` romperebbe invece il legame col file, quindi non si muove.
+
+**QUANDO è generata da `SkyJob`, non scritta a mano.** Cadenza, forma, se le nuvole
+hanno voce in capitolo: sono campi che il motore già legge. Una frase scritta a mano su
+quei campi sarebbe una seconda copia della verità, libera di divergere la prima volta
+che un job cambia `kind`. A mano c'è solo la DESCRIZIONE, che è l'unica parte che
+nessun modello può dedurre. `SkyManPagesTest` verifica che le frasi seguano davvero i
+campi, e che un job non osservabile non dia mai la colpa alle nuvole.
+
+**Due strade per arrivarci, e la seconda non è ridondante.** `[man]` accanto a ogni
+riga del picker `+ add job`, dove il lettore sta scegliendo; e `$ man sky` in fondo al
+file, che apre l'indice di tutti e 51. Il picker offre solo ciò che **non** è già nel
+file, quindi non può essere l'unica via: chi ha `sun.rise` fra le sue righe da tre
+settimane e si chiede cosa fosse l'ora blu non lo troverebbe mai. L'indice è anche la
+pagina su cui atterra chi non sa ancora niente di niente. `$ man sky` sta **prima** di
+`$ tweather run sky`: la domanda a cui risponde viene prima: un verdetto su
+`zodiacal.pm` non serve a chi non sa che cosa sia.
+
+**Il picker diventa una `WidgetLine`** perché ora ha due bersagli su una riga, esattamente
+per la stessa ragione per cui lo sono le righe del crontab. `[man]` sta **dopo** la
+ricorrenza e non prima dell'id: chi scorre il catalogo cerca nomi, e una colonna di
+parentesi quadre lungo il margine sinistro sarebbe l'app che grida sopra il proprio
+catalogo. Un test verifica che leggere di un job non lo sottoscriva.
+
+**Sempre a capo** (la riga della Fase 22, applicata dove è ovvia): una man page è solo
+prosa, non ha niente di allineato, e paragrafi che si panano di lato non si leggono.
+`line_numbers` continua a seguire `settings.config`.
+
+**Due cose trovate scrivendo i test**, ed erano bug veri:
+
+- Aprendo una pagina dall'indice **scrollato**, la pagina nasceva già scrollata a metà:
+  il canvas tiene un solo stato di scorrimento e il documento nuovo è contenuto più
+  corto sotto un offset vecchio, quindi l'unica cosa fuori schermo era l'intestazione
+  che serve. `man` apre in cima, e ora anche questo.
+- La prima versione della guardia anti-segnaposto chiedeva 120 caratteri **per
+  paragrafo**, e ha bocciato `moon.rise`. Metà delle pagine apre con una definizione
+  secca e spiega sotto, che è come si legge un manuale: una soglia così alta era un
+  test con un'opinione sul ritmo della prosa. Ora guarda il corpo intero (>300) e
+  vieta i frammenti (>50 per paragrafo). `moon.set`, che era davvero magro, l'ho
+  riscritto invece di abbassare l'asticella.
+
+**Verifiche**: 637 test verdi (14 nuovi), lint 0 errori. Le due `TypographyDashes` su
+`--notify` sono soppresse con `tools:ignore` come già fa `help_md`: è un flag, non un
+trattino.
+
+- [ ] Da verificare su device: `[man]` nel picker, `$ man sky`, il salto da VEDERE
+      ANCHE e il ritorno con `[q]` e con la gesture di sistema
+
+## Fase 23b — Il wrap non è una proprietà del file, è una proprietà della riga (device, 5 set 2026)
+
+Tre cose dal giro sul device del committente, e le prime due erano difetti veri della
+Fase 23.
+
+**1. L'indice di `man sky` andava a capo e sembrava sfilacciato.** Avevo forzato il
+wrap su tutta la pagina, sul ragionamento della Fase 22 che una man page è solo prosa.
+Era vero dei paragrafi e falso di tutto il resto: NOME, VEDERE ANCHE e l'indice sono
+un elenco a **due colonne** di id e nomi, e una colonna che va a capo non è più una
+colonna, sono due righe sfilacciate con un rientro sospeso. Cinquantuno righe così.
+
+La correzione è a un livello più basso di quanto pensassi: **il wrap non è una
+proprietà del file, è una proprietà della riga.** `CodeLine` ha ora `wrap: Boolean?`
+(null = quello che fa il file), `CodeCanvas` la rispetta per riga — softWrap, stile con
+rientro sospeso, e la scelta fra pan condiviso e `fillMaxWidth` — e una riga che va a
+capo **non partecipa alla misura della larghezza di pan**, altrimenti un solo paragrafo
+lungo darebbe un range di scorrimento a un documento che non ne aveva bisogno. La man
+page usa entrambe: i paragrafi portano `wrap = true` addosso, le tabelle seguono
+`settings.config`. E le righe dell'indice sono ora riempite fino all'id più lungo del
+catalogo, il trattamento `column -t` che il crontab già dà al proprio campo nome.
+
+**2. Col wrap acceso il crontab si sfasciava.** Una riga di crontab sono cinque colonne
+dentro una `Row`, e una `Row` non va a capo: col wrap acceso non c'è nessun pan
+orizzontale in cui scappare, quindi il commento — l'unica colonna a lunghezza variabile
+— veniva schiacciato in un nastro largo un carattere lungo il bordo destro. Con
+`word_wrap` acceso il commento prende **una riga sua** sotto la riga del job, che è poi
+dove una riga di crontab lunga ha sempre messo il proprio commento; e il nome perde il
+padding, perché la colonna che allineava se n'è andata col commento e riempire ogni id
+fino al più lungo del file è esattamente ciò che spingerebbe una riga oltre il bordo
+quando non c'è pan per raggiungere il resto. Per i due id da trenta caratteri del
+catalogo il nome può andare a capo dentro la riga: l'alternativa era un nome troncato.
+
+**3. `[man]` verde? No, e la ragione è nel file stesso.** Il committente ha ragione sul
+problema — grigio su grigio non si legge come tappabile — e ha torto sulla cura. In
+questo file `diffAdd` verde significa già due cose: «questa riga aggiunge» (`+ add
+job`, `+ and …`) e «pass» (`✓ pass`, `✓ rule fired`). `[man]` non è nessuna delle due:
+è l'**unico** tap del catalogo che non cambia niente, cosa che ha già un test suo.
+Verde prometterebbe esattamente ciò che il test vieta. Sta ora nel blu di `syntax.string`,
+che si stacca dal grigio, si distingue dal blu-chiave dell'id accanto e non promette
+niente.
+
+**Verifiche**: 640 test verdi (3 nuovi), lint 0 errori. I nuovi: il commento su riga
+propria col wrap acceso, le colonne conservate col wrap spento, e le righe dell'indice
+riempite in colonna.
+
+- [ ] Da verificare su device: `man sky` con `word_wrap` spento (indice in colonna che
+      pana) e acceso, e il crontab con `word_wrap` acceso su un job dal nome lungo
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

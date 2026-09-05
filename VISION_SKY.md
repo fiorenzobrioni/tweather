@@ -717,6 +717,52 @@ test.
 
 ---
 
+## 11b. The manual: `man 7 <job>` (Fase 23)
+
+Every job in the catalog has a page explaining what it is. The dotted ids are code and
+stay English (§4); this is what stops that rule from costing the reader the meaning.
+
+Four sections, the same four on all fifty-one pages:
+
+- **NAME** — the id, then the job in words (`SkyJobNames`, §9's dictionary reused).
+- **DESCRIPTION** — two paragraphs: what the event physically IS, then what you would
+  see and what has to be true for you to see it. The only hand-written part, and the
+  only part a model of the job cannot deduce. Localized, like all prose.
+- **WHEN** — **generated from `SkyJob`**: cadence from `kind`, instant-or-window from
+  `shape`, and whether the clouds get an opinion from `observable` /
+  `visibilityDependent` / `needsDarkness`. A hand-written sentence about those fields
+  would be a second copy of the truth, free to drift the first time a job changes
+  kind.
+- **SEE ALSO** — hand-written, because the interesting neighbour is rarely the next
+  line of the catalog. Symmetric, so no page is a dead end; the one exception is that
+  every shower points at `darkness.window` and it does not point back, since a page
+  listing thirteen showers is a page nobody finishes.
+
+Section headers localize (`NOME`, `DESCRIZIONE`, `QUANDO`, `VEDERE ANCHE`) and ids do
+not, which is the register rule (Fase 18) rather than an exception to it: an Italian
+man page translates its headers, and translating `zodiacal.pm` would break the tie
+with the file it names.
+
+Two ways in, and the second is not redundant: `[man]` on each row of the `+ add job`
+catalog, where the reader is being asked to choose; and `$ man sky` at the foot of the
+file, which opens the index of all fifty-one. The picker only ever offers what is NOT
+already a line, so it cannot be the only door — somebody who subscribed to
+`golden_hour.pm` weeks ago would never find its page. `$ man sky` sits BEFORE
+`$ tweather run sky`: a verdict about an event is no use to a reader who does not yet
+know what the event is.
+
+It takes the whole screen, tab strip included, because `man` is a program you ran and
+quit rather than a fourth file in the editor; `[q]` and the system back gesture are
+the same action, and every page opens at the top.
+
+**Wrapping is per line, not per page** (Fase 23b). The DESCRIPTION paragraphs carry
+`CodeLine.wrap = true` and wrap whatever `settings.config` says, because a
+400-character paragraph you have to drag sideways through is not readable. Everything
+that is a column — NAME, SEE ALSO, and the index's fifty-one id/name pairs, padded to
+the longest id — follows the setting like any other table in the app. The first
+version forced the whole page to wrap and turned the index into ragged pairs of
+half-lines: a man page is mostly prose, but "mostly" was the word that mattered.
+
 ## 12. ISS passes — recommended against
 
 The draft phased `iss.pass` last with a go/no-go. Revision 2 makes the recommendation:

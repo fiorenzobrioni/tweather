@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.sky
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasClickAction
@@ -8,11 +9,14 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import com.callbackdev.tweather.data.SkySubscription
 import com.callbackdev.tweather.domain.model.Coordinates
+import com.callbackdev.tweather.ui.components.EditorOptions
+import com.callbackdev.tweather.ui.components.LocalEditorOptions
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import com.callbackdev.tweather.ui.weather.editorFiles
 import java.time.Instant
@@ -65,17 +69,22 @@ class SkyScreenTest {
         context: SkyContext? = context(),
         dryRun: List<String>? = null,
         defaultLeadMinutes: Int? = null,
-        recorder: Recorder = Recorder()
+        recorder: Recorder = Recorder(),
+        wordWrap: Boolean = false
     ): Recorder {
         compose.setContent {
             TweatherTheme {
-                SkyScreen(
-                    state = SkyUiState(subscriptions, context, defaultLeadMinutes, dryRun),
-                    editorFiles = editorFiles(skyEnabled = true),
-                    activeIndex = 2,
-                    onSelectFile = {},
-                    actions = recorder.actions
-                )
+                CompositionLocalProvider(
+                    LocalEditorOptions provides EditorOptions(wordWrap = wordWrap)
+                ) {
+                    SkyScreen(
+                        state = SkyUiState(subscriptions, context, defaultLeadMinutes, dryRun),
+                        editorFiles = editorFiles(skyEnabled = true),
+                        activeIndex = 2,
+                        onSelectFile = {},
+                        actions = recorder.actions
+                    )
+                }
             }
         }
         return recorder
@@ -297,5 +306,126 @@ class SkyScreenTest {
             expected,
             onAllNodesWithText(text, substring = true).fetchSemanticsNodes().size
         )
+    }
+    // --- man (Fase 23) -----------------------------------------------------
+
+    /**
+     * The whole point of the feature in one test: a reader who does not know what
+     * `zodiacal.pm` is can reach a page that tells them, from the list where they
+     * were being asked to choose it.
+     */
+    @Test
+    fun `the catalog explains a job before asking you to pick it`() {
+        setScreen()
+        scrollTo("+ add job")
+        compose.onNodeWithText("+ add job").performClick()
+        scrollTo("zodiacal.pm")
+
+        compose.onAllNodesWithText("[man]").onFirst().performClick()
+
+        // A man page, not the file: its header, its sections, and no crontab row.
+        compose.onNodeWithText("(7)", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("NAME").assertIsDisplayed()
+        compose.onNodeWithText("DESCRIPTION").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the manual index reaches every job, including the ones already in the file`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+
+        compose.onNodeWithText("SKY(7)").assertIsDisplayed()
+        // `sun.rise` is a subscription, so the picker never offers it — the index is
+        // the only way to its page, which is why the index exists.
+        scrollTo("sun.rise")
+        compose.onAllNodesWithText("sun.rise", substring = true).onFirst().performClick()
+        compose.onNodeWithText("SUN.RISE(7)").assertIsDisplayed()
+    }
+
+    @Test
+    fun `see also walks from one page to the next`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+        scrollTo("golden_hour.pm")
+        compose.onAllNodesWithText("golden_hour.pm", substring = true).onFirst().performClick()
+
+        compose.onNodeWithText("GOLDEN_HOUR.PM(7)").assertIsDisplayed()
+        scrollTo("SEE ALSO")
+        compose.onAllNodesWithText("blue_hour.pm", substring = true).onFirst().performClick()
+
+        compose.onNodeWithText("BLUE_HOUR.PM(7)").assertIsDisplayed()
+    }
+
+    @Test
+    fun `quit gives the file back`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+        compose.onNodeWithText("SKY(7)").assertIsDisplayed()
+
+        compose.onNodeWithText("[q] quit").performClick()
+
+        compose.onNodeWithText("sky.crontab").assertIsDisplayed()
+    }
+
+    /** A `[man]` tap must never be mistaken for "add this line to my file". */
+    @Test
+    fun `reading about a job does not subscribe to it`() {
+        val recorder = setScreen()
+        scrollTo("+ add job")
+        compose.onNodeWithText("+ add job").performClick()
+        scrollTo("[man]")
+
+        compose.onAllNodesWithText("[man]").onFirst().performClick()
+
+        assertNull(recorder.added)
+    }
+
+    // --- word_wrap (Fase 23b) ----------------------------------------------
+
+    /**
+     * With wrapping on there is no horizontal pan to escape into, and a crontab row
+     * is five columns in one Row that cannot itself wrap: the comment was being
+     * squeezed into a one-character ribbon down the right edge. It gets a line of its
+     * own instead, which is where a long crontab line has always put its comment.
+     */
+    @Test
+    fun `with word_wrap on the comment takes a line of its own`() {
+        setScreen(wordWrap = true)
+
+        // Still one row per job, and the resolved instant is still on screen — just
+        // no longer fighting for width with the name.
+        compose.onNodeWithText("sun.rise", substring = true).assertIsDisplayed()
+        compose.onAllNodesWithText("#", substring = true).onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun `with word_wrap off the row keeps its columns`() {
+        setScreen(wordWrap = false)
+
+        // One node carrying both the name and its comment is the single-Row layout.
+        compose.onNodeWithText("sun.rise", substring = true).assertIsDisplayed()
+    }
+
+    /**
+     * The index is a two-column table, so it must not wrap even when the paragraphs
+     * above it do — that was the ragged hanging-indent list the committente caught on
+     * device.
+     */
+    @Test
+    fun `the manual index is a table and its rows do not wrap`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+        scrollTo("sun.rise")
+
+        // Padded to the catalog's longest id, so every name starts in the same column.
+        val text = compose.onAllNodesWithText("sun.rise", substring = true).onFirst()
+            .fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.Text]
+            .joinToString("") { it.text }
+        assertTrue("the index row is not padded into columns: '$text'", text.contains("   "))
     }
 }

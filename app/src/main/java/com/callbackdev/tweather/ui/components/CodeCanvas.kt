@@ -54,7 +54,21 @@ data class CodeLine(
     /** Screen-reader action label for [onClick] (e.g. "Change word_wrap"). */
     val onClickLabel: String? = null,
     /** Overrides the gutter number color (diff screens tint ± rows green/red). */
-    val gutterColor: Color? = null
+    val gutterColor: Color? = null,
+    /**
+     * Wrapping for THIS line, overriding [EditorOptions.wordWrap] (Fase 23b).
+     *
+     * Null means "whatever the file is doing", which is what almost every line wants.
+     * The override exists for documents that are genuinely mixed: `man 7 <job>` is
+     * paragraphs of prose next to a two-column list of job names, and those two want
+     * opposite things — a paragraph that pans sideways cannot be read, and a column
+     * that wraps stops being a column. Before this, a screen could only choose one for
+     * the whole canvas and the loser looked broken.
+     *
+     * A line that wraps takes no part in the shared pan width, or one long paragraph
+     * would set a scroll range for a document that never needed one.
+     */
+    val wrap: Boolean? = null
 ) : CanvasLine
 
 /** A line whose content is an arbitrary composable (e.g. the search input). */
@@ -127,13 +141,18 @@ fun CodeCanvas(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val contentWidth: Dp = remember(lines, codeStyle, options.wordWrap, density) {
-        if (options.wordWrap) {
+        if (options.wordWrap && lines.none { it is CodeLine && it.wrap == false }) {
             Dp.Unspecified
         } else {
             with(density) {
                 lines.mapNotNull { line ->
                     when (line) {
-                        is CodeLine -> line.text.text to line.indent
+                        // A wrapping line is measured by the width it is given, not the
+                        // other way round: including it here would hand the whole
+                        // document a pan range as wide as its longest paragraph.
+                        is CodeLine -> line.text.text.takeIf {
+                            (line.wrap ?: options.wordWrap) != true
+                        }?.let { it to line.indent }
                         is WidgetLine ->
                             line.measureText.takeIf { it.isNotEmpty() }?.let { it to line.indent }
                     }
@@ -166,9 +185,10 @@ fun CodeCanvas(
                             .background(guideColor)
                     )
                 }
+                val wraps = (line as? CodeLine)?.wrap ?: options.wordWrap
                 val rowModifier = Modifier.weight(1f)
                 Box(
-                    if (options.wordWrap) {
+                    if (wraps) {
                         rowModifier
                     } else {
                         rowModifier.horizontalScroll(horizontalScroll)
@@ -176,7 +196,7 @@ fun CodeCanvas(
                 ) {
                     val lineModifier = Modifier
                         .then(
-                            if (contentWidth.isSpecified) {
+                            if (contentWidth.isSpecified && !wraps) {
                                 Modifier.width(contentWidth)
                             } else {
                                 Modifier.fillMaxWidth()
@@ -186,14 +206,14 @@ fun CodeCanvas(
                     when (line) {
                         is CodeLine -> Text(
                             text = line.text,
-                            style = if (options.wordWrap) {
+                            style = if (wraps) {
                                 codeStyle.copy(
                                     textIndent = TextIndent(restLine = WrapHangingIndent)
                                 )
                             } else {
                                 codeStyle
                             },
-                            softWrap = options.wordWrap,
+                            softWrap = wraps,
                             modifier = if (line.onClick != null) {
                                 lineModifier.clickable(
                                     onClickLabel = line.onClickLabel,

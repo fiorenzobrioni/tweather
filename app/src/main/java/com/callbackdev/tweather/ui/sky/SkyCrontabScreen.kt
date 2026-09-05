@@ -38,7 +38,9 @@ class SkyActions(
     val onRemove: (String) -> Unit,
     val onAdd: (String) -> Unit,
     val onRunSky: () -> Unit = {},
-    val onCycleLead: (SkySubscription) -> Unit = {}
+    val onCycleLead: (SkySubscription) -> Unit = {},
+    /** `[man]` / `$ man sky` — null jobId opens the index (Fase 23). */
+    val onOpenMan: (String?) -> Unit = {}
 )
 
 /** Which line is mid-interaction: the catalog picker, an armed `[rm]`, an armed run. */
@@ -73,6 +75,15 @@ fun buildSkyLines(
     actions: SkyActions,
     labels: SkyLabels,
     resources: Resources,
+    /**
+     * `word_wrap` from `settings.config` (Fase 23b). A crontab row is five columns in
+     * one [Row], and a Row cannot wrap: with wrapping on there is no horizontal pan to
+     * escape into, so the comment — the only variable-length column — was squeezed
+     * into a one-character-wide ribbon down the right edge. With it on, the comment
+     * takes a line of its own underneath, which is where a long crontab line has
+     * always put its comment anyway.
+     */
+    wordWrap: Boolean = false,
     onStartEdit: (SkyEdit?) -> Unit
 ): List<CanvasLine> = buildList {
     // The `#` is what a crontab comments with and never translates; the sentence
@@ -104,6 +115,12 @@ fun buildSkyLines(
                     row = row,
                     document = document,
                     armed = armed,
+                    // Wrapping also drops the name padding: the column it aligns is
+                    // gone with the comment, and padding every id out to the longest
+                    // one in the file is exactly what would push a row past the edge
+                    // when there is no pan to reach the rest.
+                    inlineComment = !wordWrap,
+                    padName = !wordWrap,
                     onToggle = { actions.onToggleEnabled(subscription) },
                     onCycleLead = { actions.onCycleLead(subscription) },
                     onRemove = {
@@ -118,6 +135,9 @@ fun buildSkyLines(
                 )
             }
         )
+        if (wordWrap && row.comment.isNotEmpty()) {
+            add(commentLine("# ${row.comment}", syntax, indent = 1))
+        }
     }
 
     add(CodeLine(AnnotatedString("")))
@@ -138,25 +158,38 @@ fun buildSkyLines(
             // like the variable picker of `alerts.rules`.
             document.available.forEach { job ->
                 add(
-                    CodeLine(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = syntax.key)) { append(job.id) }
-                            withStyle(SpanStyle(color = syntax.comment)) {
-                                append("  ")
-                                append(job.expression)
-                            }
-                        },
-                        indent = 1,
-                        onClick = {
-                            actions.onAdd(job.id)
-                            onStartEdit(null)
-                        },
-                        onClickLabel = labels.pickJob(job)
-                    )
+                    WidgetLine(indent = 1, measureText = "${job.id}  ${job.expression}  [man]") {
+                        CatalogLine(
+                            job = job,
+                            onAdd = {
+                                actions.onAdd(job.id)
+                                onStartEdit(null)
+                            },
+                            onOpenMan = { actions.onOpenMan(job.id) },
+                            labels = labels
+                        )
+                    }
                 )
             }
         }
     }
+
+    // `man` before the dry run, because the question it answers comes first: a reader
+    // who does not know what `zodiacal.pm` IS has no use for a verdict about it. The
+    // index is the whole catalog, including the lines already in the file — the picker
+    // only ever offers what is NOT there, so it cannot be the only way in (Fase 23).
+    add(CodeLine(AnnotatedString("")))
+    add(commentLine("# " + note(R.string.note_sky_man), syntax))
+    add(
+        CodeLine(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
+                append("man sky")
+            },
+            onClick = { actions.onOpenMan(null) },
+            onClickLabel = labels.openManIndex
+        )
+    )
 
     // The dry run: evaluate everything against the forecast in hand, notify nothing,
     // record nothing. A second view of facts the rows already carry, and that is the
@@ -201,6 +234,60 @@ fun buildSkyLines(
  * comments the line out, which is how everybody disables a cron job in real life.
  * The expression is not tappable — it is a property of the job, not a setting.
  */
+/**
+ * One row of the `+ add job` catalog: the id, the recurrence it would carry, and
+ * `[man]` (Fase 23).
+ *
+ * Two tap targets on one line, so it is a [WidgetLine] like the crontab rows rather
+ * than a [CodeLine] with a single click — the same reason those became one. `[man]`
+ * wears the bracket idiom the app gives every inline verb (`[rm]`, `[+1]` in the
+ * siblings), and it is deliberately AFTER the recurrence and not before the id: a
+ * reader scanning the list is looking for names, and a column of brackets down the
+ * left would be the app shouting over its own catalog.
+ */
+@Composable
+private fun CatalogLine(
+    job: SkyJob,
+    onAdd: () -> Unit,
+    onOpenMan: () -> Unit,
+    labels: SkyLabels
+) {
+    val syntax = TweatherTheme.syntax
+    val style = MaterialTheme.typography.bodySmall
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.key)) { append(job.id) }
+                withStyle(SpanStyle(color = syntax.comment)) {
+                    append("  ")
+                    append(job.expression)
+                }
+            },
+            style = style,
+            modifier = Modifier.clickable(
+                role = Role.Button,
+                onClickLabel = labels.pickJob(job)
+            ) { onAdd() }
+        )
+        Text(
+            text = "[man]",
+            style = style,
+            // Lifted out of the comment grey so it reads as a control (device
+            // feedback), but deliberately NOT the `diffAdd` green: in this file green
+            // already means two things, "this adds a line" (`+ add job`, `+ and …`)
+            // and "pass", and `[man]` is neither — it is the one tap in the catalog
+            // that changes nothing, which is what its own test asserts. The string
+            // blue is distinct from the id's key blue beside it and promises nothing.
+            color = syntax.string,
+            modifier = Modifier
+                .clickable(role = Role.Button, onClickLabel = labels.openMan(job)) {
+                    onOpenMan()
+                }
+                .padding(horizontal = 8.dp)
+        )
+    }
+}
+
 @Composable
 private fun CrontabLine(
     row: SkyRow,
@@ -209,7 +296,11 @@ private fun CrontabLine(
     onToggle: () -> Unit,
     onCycleLead: () -> Unit,
     onRemove: () -> Unit,
-    labels: SkyLabels
+    labels: SkyLabels,
+    /** False when the file wraps: the comment goes on the next line instead. */
+    inlineComment: Boolean = true,
+    /** False when the file wraps: no column to align, and the width is needed. */
+    padName: Boolean = true
 ) {
     val syntax = TweatherTheme.syntax
     val style = MaterialTheme.typography.bodySmall
@@ -224,13 +315,22 @@ private fun CrontabLine(
             color = expressionColor
         )
         Text(
-            text = row.job.id.padEnd(document.nameColumnWidth + 1),
+            text = if (padName) {
+                row.job.id.padEnd(document.nameColumnWidth + 1)
+            } else {
+                row.job.id
+            },
             style = style,
             color = nameColor,
-            modifier = Modifier.clickable(
-                role = Role.Switch,
-                onClickLabel = labels.toggle(row)
-            ) { onToggle() }
+            // Wrapping is the escape hatch for the two thirty-character ids in the
+            // catalog: with no pan to reach into, the alternative is a clipped name.
+            softWrap = !padName,
+            modifier = Modifier
+                .then(if (padName) Modifier else Modifier.weight(1f, fill = false))
+                .clickable(
+                    role = Role.Switch,
+                    onClickLabel = labels.toggle(row)
+                ) { onToggle() }
         )
         // The `--notify` argument, exactly where a crontab puts a job's arguments:
         // after the command. It cycles on tap like every other value in the app, and
@@ -266,7 +366,7 @@ private fun CrontabLine(
         // `// tap again` comment appended after it: it changes under the finger that
         // just tapped it, and it costs the row no width. The words are in the click
         // label, where a screen reader will read them.
-        if (row.comment.isNotEmpty()) {
+        if (inlineComment && row.comment.isNotEmpty()) {
             Text(text = "# ${row.comment}", style = style, color = syntax.comment)
         }
     }
@@ -313,7 +413,9 @@ class SkyLabels(
     val remove: (SkyRow, Boolean) -> String,
     val runSky: String,
     val confirmRun: String,
-    val cycleLead: (SkyRow) -> String
+    val cycleLead: (SkyRow) -> String,
+    val openMan: (SkyJob) -> String,
+    val openManIndex: String
 )
 
 @Composable
@@ -337,7 +439,9 @@ fun rememberSkyLabels(): SkyLabels {
             },
             runSky = resources.getString(R.string.cd_run_sky),
             confirmRun = resources.getString(R.string.cd_confirm_run_sky),
-            cycleLead = { resources.getString(R.string.cd_sky_cycle_lead, it.job.id) }
+            cycleLead = { resources.getString(R.string.cd_sky_cycle_lead, it.job.id) },
+            openMan = { resources.getString(R.string.cd_sky_man_open, it.id) },
+            openManIndex = resources.getString(R.string.cd_sky_man_index)
         )
     }
 }

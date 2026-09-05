@@ -124,26 +124,31 @@ object SkyScheduler {
                     date.atStartOfDay(zone).toInstant(), QuarterJobs.getValue(job.id)
                 ).at
             )
-            SkyJobCatalog.MoonClosestFull.id ->
-                SkyOccurrence.At(job, YearEvents.closestFullMoon(date.year))
+            SkyJobCatalog.MoonClosestFull.id -> yearly(job, date, zone, coords) {
+                YearEvents.closestFullMoon(date.year)
+            }
             SkyJobCatalog.LunarEclipse.id -> lunarEclipse(job, date, zone, coords)
             SkyJobCatalog.SolarEclipse.id -> solarEclipse(job, date, zone, coords)
             SkyJobCatalog.EquinoxSpring.id -> season(job, date.year, Season.MARCH_EQUINOX)
             SkyJobCatalog.SolsticeSummer.id -> season(job, date.year, Season.JUNE_SOLSTICE)
             SkyJobCatalog.EquinoxAutumn.id -> season(job, date.year, Season.SEPTEMBER_EQUINOX)
             SkyJobCatalog.SolsticeWinter.id -> season(job, date.year, Season.DECEMBER_SOLSTICE)
-            SkyJobCatalog.Perihelion.id -> SkyOccurrence.At(job, YearEvents.perihelion(date.year))
-            SkyJobCatalog.Aphelion.id -> SkyOccurrence.At(job, YearEvents.aphelion(date.year))
+            SkyJobCatalog.Perihelion.id -> yearly(job, date, zone, coords) {
+                YearEvents.perihelion(date.year)
+            }
+            SkyJobCatalog.Aphelion.id -> yearly(job, date, zone, coords) {
+                YearEvents.aphelion(date.year)
+            }
             SkyJobCatalog.EarliestSunset.id -> yearly(job, date, zone, coords) {
                 YearEvents.earliestSunset(date.year, zone, coords)
             }
             SkyJobCatalog.LatestSunrise.id -> yearly(job, date, zone, coords) {
                 YearEvents.latestSunrise(date.year, zone, coords)
             }
-            SkyJobCatalog.WhiteNightsStart.id -> whiteNight(job) {
+            SkyJobCatalog.WhiteNightsStart.id -> whiteNight(job, date, zone, coords) {
                 YearEvents.whiteNightsStart(date.year, zone, coords)
             }
-            SkyJobCatalog.WhiteNightsEnd.id -> whiteNight(job) {
+            SkyJobCatalog.WhiteNightsEnd.id -> whiteNight(job, date, zone, coords) {
                 YearEvents.whiteNightsEnd(date.year, zone, coords)
             }
             else -> error("unknown sky job ${job.id}")
@@ -336,21 +341,32 @@ object SkyScheduler {
         return SkyOccurrence.At(job, eclipse.contacts.start, eclipse.contacts.endInclusive)
     }
 
-    /** A once-a-year solar instant that a polar latitude can simply not have. */
-    private inline fun yearly(
+    /**
+     * A once-a-year instant, through the almanac's memo: these are searches over
+     * dozens of days, and the Sky screen resolves every annual job in the catalog on
+     * every state build. A polar latitude that simply cannot have it gets the reason.
+     */
+    private fun yearly(
         job: SkyJob,
         date: LocalDate,
         zone: ZoneId,
         coords: Coordinates,
         pick: () -> Instant?
     ): SkyOccurrence {
-        val instant = pick()
+        val instant = SkyAlmanac.yearEvent(job.id, date.year, zone, coords, pick)
             ?: return SkyOccurrence.None(job, polarReason(SkyAlmanac.solarDay(date, zone, coords)))
         return SkyOccurrence.At(job, instant)
     }
 
-    private inline fun whiteNight(job: SkyJob, pick: () -> Instant?): SkyOccurrence =
-        pick()?.let { SkyOccurrence.At(job, it) }
+    private fun whiteNight(
+        job: SkyJob,
+        date: LocalDate,
+        zone: ZoneId,
+        coords: Coordinates,
+        pick: () -> Instant?
+    ): SkyOccurrence =
+        SkyAlmanac.yearEvent(job.id, date.year, zone, coords, pick)
+            ?.let { SkyOccurrence.At(job, it) }
             ?: SkyOccurrence.None(job, SkyNotScheduled.DARKNESS_ALL_YEAR)
 
     private fun season(job: SkyJob, year: Int, season: Season): SkyOccurrence =

@@ -124,13 +124,18 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
     }
 
     /**
-     * The freshest position any enabled provider already holds, within [maxAge].
+     * The best position any enabled provider already holds, within [maxAge].
      *
-     * Every provider is asked, not just the one an acquisition would use: fused can
-     * be empty on a phone that has just booted while network still holds this
-     * morning's fix, and the age is what decides between them — read off
-     * [Location.getElapsedRealtimeNanos], which is monotonic and therefore immune to
-     * a clock the user (or the network) has just moved.
+     * Every provider is asked, not just the one an acquisition would use: fused can be
+     * empty on a phone that has just booted while network still holds this morning's
+     * fix. What decides between them is NOT which arrived last (Fase 20's answer, and
+     * the one that put the reader in the wrong town). The providers do not answer with
+     * the same thing — fused hands over a position another app has already paid for,
+     * network can hand over the mast the phone is attached to — and coarse permission
+     * floors both at 2 km without making the worse one any better, so a cell fix ten
+     * seconds old beat a good fix from two minutes ago and answered "Milano" to
+     * somebody standing in Segrate. Rank by how far the reader may be from each one by
+     * now, which is what both numbers are for.
      */
     @RequiresPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
     private fun lastKnown(manager: LocationManager, maxAge: Duration): Location? {
@@ -138,7 +143,7 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
         return manager.getProviders(true)
             .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
             .filter { it.ageNanos() <= ceiling }
-            .maxByOrNull { it.elapsedRealtimeNanos }
+            .minByOrNull { it.expectedErrorMeters() }
     }
 
     /** Suspends on [LocationManager.getCurrentLocation]; null when the provider gives up. */
@@ -155,45 +160,57 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
     }
 
     /**
-     * Rounds first, then geocodes. The 2 decimals (~1.1 km) are the coarse-accuracy
-     * scale and map exactly onto `City.cacheKey`, so cache and history fragment only
-     * on real movement — and since Fase 20 the geocoder is asked with the rounded pair
-     * too: it is a network service on most devices, and handing it the most precise
-     * coordinate the app owns while rounding everything else was the one place where
-     * the privacy rule leaked.
+     * Rounds what leaves the app; geocodes what the platform handed over.
+     *
+     * The 2 decimals (~1.1 km) are the coarse-accuracy scale and map exactly onto
+     * `City.cacheKey`, so cache and history fragment only on real movement. Fase 20
+     * also began handing the rounded pair to the [Geocoder], on the grounds that the
+     * most precise coordinate the app owns was going to the one service the app does
+     * not control — but under `ACCESS_COARSE_LOCATION` the app owns no precise
+     * coordinate to protect: the platform has already quantized the position onto a
+     * ~2 km grid, and floored its declared accuracy at 2 km, before the app sees it.
+     * Both values therefore name the same cell and the rounding bought no privacy at
+     * all. What it did buy was up to 679 m of displacement at these latitudes (555 m
+     * of latitude, 390 m of longitude at 45.5°N), which is the width of a small comune
+     * — enough to move the point into the fields next to the town, where the geocoder
+     * has no town to answer with.
      */
     private suspend fun Location.toFix(): GeoFix {
-        val coordinates = Coordinates(
-            lat = (latitude * 100).roundToInt() / 100.0,
-            lon = (longitude * 100).roundToInt() / 100.0
-        )
-        val address = reverseGeocode(coordinates)
+        // The rounding is the last thing that happens, not the first.
+        val place = geocodedPlace(reverseGeocode(latitude, longitude))
         return GeoFix(
-            coordinates = coordinates,
-            placeName = address?.run { locality ?: subAdminArea ?: subLocality },
-            region = address?.adminArea,
-            country = address?.countryName
+            coordinates = Coordinates(
+                lat = (latitude * 100).roundToInt() / 100.0,
+                lon = (longitude * 100).roundToInt() / 100.0
+            ),
+            placeName = place.name,
+            region = place.region,
+            country = place.country
         )
     }
 
-    private suspend fun reverseGeocode(coordinates: Coordinates): Address? {
-        if (!Geocoder.isPresent()) return null
+    private fun Location.expectedErrorMeters(): Double =
+        expectedErrorMeters(if (hasAccuracy()) accuracy else null, ageNanos())
+
+    /** Every rung the backend answers with, best-effort; empty on any failure. */
+    private suspend fun reverseGeocode(lat: Double, lon: Double): List<Address> {
+        if (!Geocoder.isPresent()) return emptyList()
         return withTimeoutOrNull(GeocodeTimeoutMs) {
             suspendCancellableCoroutine { continuation ->
                 Geocoder(context).getFromLocation(
-                    coordinates.lat, coordinates.lon, 1,
+                    lat, lon, MaxGeocodeResults,
                     object : Geocoder.GeocodeListener {
                         override fun onGeocode(addresses: MutableList<Address>) {
-                            continuation.resume(addresses.firstOrNull())
+                            continuation.resume(addresses.toList())
                         }
 
                         override fun onError(errorMessage: String?) {
-                            continuation.resume(null)
+                            continuation.resume(emptyList())
                         }
                     }
                 )
             }
-        }
+        } ?: emptyList()
     }
 
     private fun Location.ageNanos(): Long =
@@ -201,5 +218,69 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
 
     private companion object {
         const val GeocodeTimeoutMs = 5_000L
+
+        /**
+         * Why the reverse geocode does not ask for one address.
+         *
+         * The backend answers a point with a ladder of addresses at widening
+         * granularity, and for a point that is not on a street the top rung can carry
+         * no town at all: in Italy it comes back with the region and the province and
+         * nothing in between. Reading only the first rung is what printed "Provincia
+         * di Monza e della Brianza" where the reader lives in Cavenago di Brianza.
+         */
+        const val MaxGeocodeResults = 5
     }
 }
+
+/**
+ * How far the reader may be from a position by now: what it was worth when it was
+ * taken, plus what they can have covered since. Lower is better, and the age term is
+ * what keeps a very good fix from yesterday from winning the 24-hour last resort.
+ *
+ * [accuracyMeters] is null when the position will not say how good it is.
+ */
+internal fun expectedErrorMeters(accuracyMeters: Float?, ageNanos: Long): Double =
+    (accuracyMeters?.toDouble() ?: UnknownAccuracyMeters) +
+        ageNanos.coerceAtLeast(0L) / NanosPerSecond * DriftMetersPerSecond
+
+/**
+ * The pace at which a position goes out of date: somebody crossing a town, not a
+ * motorway. Over `SilentMaxAge` it is worth 3 km, which is the width of the only
+ * comparison it has to settle.
+ */
+private const val DriftMetersPerSecond = 10.0
+
+/** A position that will not say how good it is loses to any that does. */
+private const val UnknownAccuracyMeters = 10_000.0
+
+private const val NanosPerSecond = 1_000_000_000.0
+
+/** What reverse geocoding managed to learn about a point. */
+internal data class GeocodedPlace(
+    val name: String?,
+    val region: String?,
+    val country: String?
+)
+
+/**
+ * The place [addresses] describes: the most specific name ANY rung of the ladder
+ * knows, never an administrative container standing in for a town.
+ *
+ * The order is the whole point. A town (`locality`) first; then a quarter or a hamlet
+ * (`subLocality`), which is at least somewhere a person can be; and only when no rung
+ * knows either, the province (`subAdminArea`) — which used to sit in the MIDDLE of
+ * that list, on the first address alone, and therefore won outright every time the
+ * nearest address happened to carry no locality. A province is the honest answer when
+ * it is the only one there is, and a wrong one when the town is two rungs down.
+ */
+internal fun geocodedPlace(addresses: List<Address>): GeocodedPlace = GeocodedPlace(
+    name = addresses.pick { it.locality }
+        ?: addresses.pick { it.subLocality }
+        ?: addresses.pick { it.subAdminArea },
+    region = addresses.pick { it.adminArea },
+    country = addresses.pick { it.countryName }
+)
+
+/** The first non-blank [field] on the ladder; blank strings are not answers. */
+private fun List<Address>.pick(field: (Address) -> String?): String? =
+    firstNotNullOfOrNull { field(it)?.trim()?.takeIf(String::isNotEmpty) }

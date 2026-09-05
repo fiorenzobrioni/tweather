@@ -2,6 +2,7 @@ package com.callbackdev.tweather.ui.sky
 
 import com.callbackdev.tweather.data.SkySubscription
 import com.callbackdev.tweather.domain.model.MoonPhase
+import com.callbackdev.tweather.domain.sky.RainbowWindow
 import com.callbackdev.tweather.domain.sky.SkyAlmanac
 import com.callbackdev.tweather.domain.sky.SkyJob
 import com.callbackdev.tweather.domain.sky.SkyJobCatalog
@@ -35,8 +36,23 @@ data class SkySummary(
     val illuminationPct: Int,
     val moonrise: LocalTime?,
     val moonset: LocalTime?,
+    /** The rest of today's rainbow window, when the sky is arranged for one. */
+    val rainbow: RainbowLine?,
     /** The one thing worth a `>` in `## Status`, or null when nothing is. */
     val warning: SkyWarning?
+)
+
+/**
+ * The sky arranged for a rainbow, later today: the sun low enough behind you, rain
+ * likely in front, and a gap in the cloud for the light. Times and numbers only, like
+ * everything else here — the sentence is the README's, and it is a POSSIBILITY, never
+ * a promise (`RainbowWindow`).
+ */
+data class RainbowLine(
+    val from: LocalTime,
+    val to: LocalTime,
+    val precipChancePct: Int,
+    val bearingDeg: Double
 )
 
 /**
@@ -80,6 +96,7 @@ object SkyReadme {
             illuminationPct = (lunar.illuminatedFraction * 100).roundToInt(),
             moonrise = clock(lunar.moonrise),
             moonset = clock(lunar.moonset),
+            rainbow = rainbow(context),
             warning = warning(context, subscriptions)
         )
     }
@@ -115,6 +132,25 @@ object SkyReadme {
         SkyJobCatalog.SunSet.id,
         SkyJobCatalog.SunRise.id
     )
+
+    /**
+     * The next rainbow window of today, if the forecast in hand has one left. Read
+     * from the report the context already carries — the README never fetches, and a
+     * rainbow the app cannot see coming is not a rainbow it should mention.
+     */
+    private fun rainbow(context: SkyContext): RainbowLine? {
+        val hours = context.report?.hourly ?: return null
+        return RainbowWindow.windows(hours, context.zone, context.coordinates)
+            .firstOrNull { it.end.isAfter(context.now) }
+            ?.let {
+                RainbowLine(
+                    from = it.start.atZone(context.zone).toLocalTime(),
+                    to = it.end.atZone(context.zone).toLocalTime(),
+                    precipChancePct = it.precipChancePct,
+                    bearingDeg = it.lookTowardsDeg
+                )
+            }
+    }
 
     private fun moonlessFrom(occurrence: SkyOccurrence.At, context: SkyContext): LocalTime? {
         val end = occurrence.end ?: return null

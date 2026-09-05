@@ -28,6 +28,12 @@ object MeteorShowerTable {
      * [solarLongitudeDeg] is the apparent longitude of the sun at maximum (J2000
      * values from the IMO working list, rounded to the tenth of a degree — the
      * stream's own width is a degree or more, so the tenth is already generous).
+     *
+     * Three showers joined the ten in Fase 19, all from the same list: the **alpha
+     * Capricornids**, which are slow and make fireballs and share a night with the
+     * delta Aquariids, and the two **Taurids**, the autumn fireball streams. The delta
+     * Aquariids moved with them, from 125.0° to the 127.0° the working list now gives
+     * — two days, and the file cites that list rather than a memory of it.
      */
     data class MeteorShower(val id: String, val solarLongitudeDeg: Double)
 
@@ -35,10 +41,13 @@ object MeteorShowerTable {
         MeteorShower("quadrantids", 283.2),
         MeteorShower("lyrids", 32.3),
         MeteorShower("eta_aquariids", 45.5),
-        MeteorShower("delta_aquariids", 125.0),
+        MeteorShower("delta_aquariids", 127.0),
+        MeteorShower("alpha_capricornids", 127.0),
         MeteorShower("perseids", 140.0),
         MeteorShower("draconids", 195.4),
+        MeteorShower("southern_taurids", 197.0),
         MeteorShower("orionids", 208.0),
+        MeteorShower("northern_taurids", 230.0),
         MeteorShower("leonids", 235.3),
         MeteorShower("geminids", 262.2),
         MeteorShower("ursids", 270.7)

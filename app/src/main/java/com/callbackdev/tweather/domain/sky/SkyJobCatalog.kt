@@ -48,6 +48,24 @@ object SkyJobCatalog {
         visibilityDependent = true, needsDarkness = true
     )
 
+    /**
+     * The dark-sky pair the darkness window was the first of (Fase 19): what there is
+     * to look AT once it is dark, rather than when the dark starts.
+     *
+     * The core of the Milky Way is above the horizon for part of the night from about
+     * March to October at mid-northern latitudes and never at all far enough north;
+     * the zodiacal light is dust along the ecliptic, so it stands up out of the
+     * horizon only in the weeks when the ecliptic itself does. Both are intersections
+     * — dark sky AND something in it — which is the same reason [DarknessWindow]
+     * earns its place, one step further out.
+     */
+    val MilkyWayCore = SkyJob(
+        "milky_way.core", SkyJobKind.DAILY, SkyJobShape.RANGE,
+        visibilityDependent = true, needsDarkness = true
+    )
+    val ZodiacalAm = darkSky("zodiacal.am")
+    val ZodiacalPm = darkSky("zodiacal.pm")
+
     // Moon --------------------------------------------------------------------
     val MoonRise = SkyJob("moon.rise", SkyJobKind.DAILY, SkyJobShape.INSTANT)
     val MoonSet = SkyJob("moon.set", SkyJobKind.DAILY, SkyJobShape.INSTANT)
@@ -58,11 +76,72 @@ object SkyJobCatalog {
         "moon.phase", SkyJobKind.POLLING, SkyJobShape.INSTANT, observable = false
     )
 
+    /**
+     * The four quarters as four lines (Fase 19). [MoonPhase] answers "which is next",
+     * which is the right answer to a question nobody asks: what a reader wants on the
+     * calendar is the FULL moon, or the new moon they need for a dark sky. Each is the
+     * same instant of geometry [MoonPhase] resolves, asked for by name.
+     */
+    val MoonNew = quarter("moon.new")
+    val MoonFirstQuarter = quarter("moon.first_quarter")
+    val MoonFull = quarter("moon.full")
+    val MoonLastQuarter = quarter("moon.last_quarter")
+
+    /**
+     * The full moon of the year that comes nearest to the earth — about 14 % wider and
+     * 30 % brighter than the farthest one, and the only honest reading of a word the
+     * internet hands out three or four times a year.
+     */
+    val MoonClosestFull = SkyJob(
+        "moon.closest_full", SkyJobKind.ANNUAL, SkyJobShape.INSTANT, observable = false
+    )
+
+    // Eclipses ----------------------------------------------------------------
+
+    /**
+     * The two eclipses, each resolved **for this place**: a lunar one only when the
+     * moon is up here, a solar one only when the moon takes a bite out of the sun as
+     * seen from these coordinates — and clipped to the part of it that happens in
+     * daylight, because the geometry does not stop at the horizon and the reader does.
+     *
+     * Deliberately NOT [SkyJob.visibilityDependent]: clouds decide whether a meteor
+     * shower is worth setting an alarm for, and do not decide that about an eclipse.
+     * People travel for these.
+     */
+    val LunarEclipse = SkyJob("eclipse.lunar", SkyJobKind.POLLING, SkyJobShape.RANGE)
+    val SolarEclipse = SkyJob("eclipse.solar", SkyJobKind.POLLING, SkyJobShape.RANGE)
+
     // Seasons -----------------------------------------------------------------
     val EquinoxSpring = season("equinox.spring")
     val SolsticeSummer = season("solstice.summer")
     val EquinoxAutumn = season("equinox.autumn")
     val SolsticeWinter = season("solstice.winter")
+
+    /**
+     * The two ends of the earth's orbit. Unobservable by definition — nothing looks
+     * different — and worth a line for what they correct: the earth is at its closest
+     * to the sun in the first week of JANUARY, which is the northern winter.
+     */
+    val Perihelion = season("earth.perihelion")
+    val Aphelion = season("earth.aphelion")
+
+    /**
+     * The earliest sunset and the latest sunrise of the winter, which are **not** the
+     * solstice: the equation of time pulls them a fortnight either side of it at
+     * Milan's latitude and seven weeks at the equator. Both are sunsets and sunrises
+     * like any other, so the clouds get their say on them.
+     */
+    val EarliestSunset = SkyJob("sun.earliest_set", SkyJobKind.ANNUAL, SkyJobShape.INSTANT)
+    val LatestSunrise = SkyJob("sun.latest_rise", SkyJobKind.ANNUAL, SkyJobShape.INSTANT)
+
+    /**
+     * The two evenings that open and close the white nights: above roughly 48.5° the
+     * summer sun stops going 18° under the horizon and the astronomical night pauses
+     * for weeks. Below that latitude both resolve to `∅` with the reason, which is a
+     * fact about where you are and not a gap in the list.
+     */
+    val WhiteNightsStart = season("night.white.start")
+    val WhiteNightsEnd = season("night.white.end")
 
     /**
      * One `meteor.<shower>.peak` per row of [MeteorShowerTable] — annual jobs whose
@@ -82,16 +161,22 @@ object SkyJobCatalog {
         add(AstronomicalAm); add(AstronomicalPm)
         add(GoldenAm); add(GoldenPm)
         add(BlueAm); add(BluePm)
-        add(DarknessWindow)
+        add(DarknessWindow); add(MilkyWayCore); add(ZodiacalPm); add(ZodiacalAm)
         add(MoonRise); add(MoonSet); add(MoonToday); add(MoonPhase)
+        add(MoonNew); add(MoonFirstQuarter); add(MoonFull); add(MoonLastQuarter)
+        add(MoonClosestFull)
+        add(LunarEclipse); add(SolarEclipse)
         add(EquinoxSpring); add(SolsticeSummer); add(EquinoxAutumn); add(SolsticeWinter)
+        add(Perihelion); add(Aphelion)
+        add(EarliestSunset); add(LatestSunrise)
+        add(WhiteNightsStart); add(WhiteNightsEnd)
         addAll(meteorShowers)
     }
 
     /**
      * What a fresh install subscribes to: four lines. A user who opens the tab and
-     * finds all thirty-two will close it — the catalog is what the file CAN hold, not
-     * what it should greet anyone with.
+     * finds all fifty will close it — the catalog is what the file CAN hold, not what
+     * it should greet anyone with.
      */
     val defaults: List<SkyJob> = listOf(SunRise, SunSet, GoldenPm, MoonToday)
 
@@ -105,6 +190,16 @@ object SkyJobCatalog {
 
     private fun visibleRange(id: String) =
         SkyJob(id, SkyJobKind.DAILY, SkyJobShape.RANGE, visibilityDependent = true)
+
+    /** A window that wants a clear sky AND a dark one. */
+    private fun darkSky(id: String) = SkyJob(
+        id, SkyJobKind.DAILY, SkyJobShape.RANGE,
+        visibilityDependent = true, needsDarkness = true
+    )
+
+    /** An instant of geometry the clouds have no opinion about. */
+    private fun quarter(id: String) =
+        SkyJob(id, SkyJobKind.POLLING, SkyJobShape.INSTANT, observable = false)
 
     // A season is a date on the calendar, not an evening out.
     private fun season(id: String) =

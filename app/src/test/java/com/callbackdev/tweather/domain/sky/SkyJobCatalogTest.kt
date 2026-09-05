@@ -102,13 +102,13 @@ class SkyJobCatalogTest {
             SkyJobCatalog.all.map { it.id },
             SkyJobCatalog.all.sortedBy { SkyJobCatalog.orderOf(it) }.map { it.id }
         )
-        assertEquals(MeteorShowerTable.all.size + 22, SkyJobCatalog.all.size)
+        assertEquals(MeteorShowerTable.all.size + 38, SkyJobCatalog.all.size)
     }
 
     @Test
     fun `a fresh install subscribes to four lines`() {
-        // Not a style choice: a user who opens the tab and finds thirty-two jobs
-        // closes it. The catalog is what the file CAN hold.
+        // Not a style choice: a user who opens the tab and finds fifty jobs closes
+        // it. The catalog is what the file CAN hold.
         assertEquals(4, SkyJobCatalog.defaults.size)
         SkyJobCatalog.defaults.forEach { assertNotNull(SkyJobCatalog.byId(it.id)) }
     }

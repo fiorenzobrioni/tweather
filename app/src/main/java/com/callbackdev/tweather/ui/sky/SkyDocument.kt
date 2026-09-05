@@ -7,6 +7,7 @@ import com.callbackdev.tweather.domain.model.MoonPhase
 import com.callbackdev.tweather.domain.WeatherFreshness
 import com.callbackdev.tweather.domain.model.WeatherReport
 import com.callbackdev.tweather.domain.sky.AstronomyEngine
+import com.callbackdev.tweather.domain.sky.LunarEclipseKind
 import com.callbackdev.tweather.domain.sky.SkyAlmanac
 import com.callbackdev.tweather.domain.sky.SkyJob
 import com.callbackdev.tweather.domain.sky.SkyJobCatalog
@@ -18,12 +19,14 @@ import com.callbackdev.tweather.domain.sky.SkyVerdict
 import com.callbackdev.tweather.domain.sky.SkyVerdictEngine
 import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.domain.sky.SkyVerdictNote
+import com.callbackdev.tweather.domain.sky.SolarEclipseKind
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * `sky.crontab` as data (Fase 16c): the pure step between the scheduler and the
@@ -144,6 +147,11 @@ data class SkyNotes(
     val polarNight: String,
     val moonAbsent: String,
     val noDarkness: String,
+    /** Fase 19's four: a job a place or a season simply cannot have. */
+    val darknessAllYear: String,
+    val eclipticTooFlat: String,
+    val coreTooLow: String,
+    val noEclipseAhead: String,
     val beyondHorizon: String,
     val noFetchYet: String,
     val staleData: String,
@@ -177,6 +185,10 @@ data class SkyNotes(
             polarNight = "polar night: the sun stays below the horizon here",
             moonAbsent = "the moon does not do that on this calendar day",
             noDarkness = "the sun stays too high: no astronomical night",
+            darknessAllYear = "the night gets fully dark here all year",
+            eclipticTooFlat = "the ecliptic lies too flat this season",
+            coreTooLow = "the galactic core stays too low tonight",
+            noEclipseAhead = "no eclipse visible from here for years yet",
             beyondHorizon = "past the forecast horizon",
             noFetchYet = "no fetch yet",
             staleData = "no recent data",
@@ -479,6 +491,13 @@ object SkyDocumentBuilder {
                 driftVsYesterday(job, occurrence.start, context)?.let { append("   ").append(it) }
             SkyJobCatalog.MoonPhase.id ->
                 append("   ").append(quarterName(occurrence.start, notes))
+            // The eclipse's own numbers, in the evidence column's register: the kind
+            // and the magnitude are a readout like `cloud 8%`, and they stay English
+            // beside it. Their localized reading is the README's, as ever.
+            SkyJobCatalog.LunarEclipse.id ->
+                lunarEclipseEvidence(context)?.let { append("   ").append(it) }
+            SkyJobCatalog.SolarEclipse.id ->
+                solarEclipseEvidence(context)?.let { append("   ").append(it) }
             // The `moonless from 23:11` suffix and a MOONLIGHT verdict are the same
             // sentence twice: one says when the moon goes, the other how bright it
             // is. When the verdict has already named the moon, the suffix stands down.
@@ -487,6 +506,36 @@ object SkyDocumentBuilder {
                     moonlessFrom(occurrence, context, notes)?.let { append("   ").append(it) }
                 }
         }
+    }
+
+    /** `total  umbra 1.15` — which kind of eclipse, and the number that decides it. */
+    private fun lunarEclipseEvidence(context: SkyContext): String? {
+        val eclipse = SkyAlmanac.nextLunarEclipse(
+            context.now.atZone(context.zone).toLocalDate(), context.zone, context.coordinates
+        )?.eclipse ?: return null
+        return when (eclipse.kind) {
+            LunarEclipseKind.TOTAL -> "total  umbra %.2f".format(eclipse.umbralMagnitude)
+            LunarEclipseKind.PARTIAL -> "partial  umbra %.2f".format(eclipse.umbralMagnitude)
+            LunarEclipseKind.PENUMBRAL ->
+                "penumbral  penumbra %.2f".format(eclipse.penumbralMagnitude)
+        }
+    }
+
+    /**
+     * `partial  92% covered` — obscuration, not magnitude: the fraction of the DISK
+     * the moon takes is what the light outside does, and the fraction of the diameter
+     * that almanacs print reads a good deal more dramatic than the afternoon looks.
+     */
+    private fun solarEclipseEvidence(context: SkyContext): String? {
+        val eclipse = SkyAlmanac.nextSolarEclipse(
+            context.now.atZone(context.zone).toLocalDate(), context.zone, context.coordinates
+        ) ?: return null
+        val kind = when (eclipse.kind) {
+            SolarEclipseKind.TOTAL -> "total"
+            SolarEclipseKind.ANNULAR -> "annular"
+            SolarEclipseKind.PARTIAL -> "partial"
+        }
+        return "$kind  ${(eclipse.obscuration * 100).roundToInt()}% covered"
     }
 
     /** `+1m02s vs yesterday` — signed, because in half the year it is negative. */
@@ -549,6 +598,10 @@ object SkyDocumentBuilder {
         SkyNotScheduled.POLAR_NIGHT -> notes.polarNight
         SkyNotScheduled.MOON_ABSENT -> notes.moonAbsent
         SkyNotScheduled.NO_DARKNESS -> notes.noDarkness
+        SkyNotScheduled.DARKNESS_ALL_YEAR -> notes.darknessAllYear
+        SkyNotScheduled.ECLIPTIC_TOO_FLAT -> notes.eclipticTooFlat
+        SkyNotScheduled.CORE_TOO_LOW -> notes.coreTooLow
+        SkyNotScheduled.NO_ECLIPSE_AHEAD -> notes.noEclipseAhead
     }
 
     private fun humanGap(gap: Duration): String {

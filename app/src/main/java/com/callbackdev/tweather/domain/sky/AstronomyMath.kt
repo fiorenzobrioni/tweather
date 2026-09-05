@@ -87,16 +87,67 @@ internal object AstronomyMath {
 
     /** Apparent geocentric ecliptic longitude of the sun, degrees (Meeus 25). */
     fun sunApparentLongitude(t: Double): Double {
+        val sun = sunElements(t)
+        // Nutation in longitude and aberration, folded into the "apparent" value.
+        val omega = 125.04 - 1934.136 * t
+        return norm360(sun.trueLongitude - 0.00569 - 0.00478 * sinDeg(omega))
+    }
+
+    /**
+     * Mean longitude plus the equation of the centre (Meeus 25): the sun's true
+     * longitude, which is every solar angle in this file.
+     */
+    private fun sunElements(t: Double): SunElements {
         val l0 = 280.46646 + 36000.76983 * t + 0.0003032 * t * t          // mean longitude
         val m = 357.52911 + 35999.05029 * t - 0.0001537 * t * t           // mean anomaly
         val c = (1.914602 - 0.004817 * t - 0.000014 * t * t) * sinDeg(m) +
             (0.019993 - 0.000101 * t) * sinDeg(2 * m) +
             0.000289 * sinDeg(3 * m)
-        val trueLongitude = l0 + c
-        // Nutation in longitude and aberration, folded into the "apparent" value.
-        val omega = 125.04 - 1934.136 * t
-        return norm360(trueLongitude - 0.00569 - 0.00478 * sinDeg(omega))
+        return SunElements(trueLongitude = l0 + c)
     }
+
+    private data class SunElements(val trueLongitude: Double)
+
+    /**
+     * The earth's distance from the sun in AU, from the VSOP87D radius series
+     * (Meeus appendix III, truncated), good to about 10⁻⁷ AU.
+     *
+     * A two-body Kepler distance — the companion of the low-accuracy longitude above —
+     * is good to 10⁻⁵ AU, which is ample for the size of the sun's disk and hopeless
+     * for the one question that needs the DERIVATIVE of the distance: when the earth
+     * is closest. The orbit is so flat at perihelion that 10⁻⁵ AU of error moves the
+     * instant by hours (measured: up to five, against the published instants of
+     * sixteen years), so the series is here and the two-body form is not.
+     *
+     * Like every VSOP87 solution for "the earth" this is the earth–MOON BARYCENTRE,
+     * which is also what an almanac means by the earth at perihelion.
+     */
+    fun earthRadiusVectorAu(t: Double): Double {
+        val tau = t / 10.0                              // VSOP87 counts millennia
+        var r = 0.0
+        var power = 1.0
+        for (series in EarthRadiusSeries) {
+            var sum = 0.0
+            for ((amplitude, phase, frequency) in series) {
+                sum += amplitude * cos(phase + frequency * tau)
+            }
+            r += sum * power
+            power *= tau
+        }
+        return r / 1e8
+    }
+
+    /** Apparent semidiameter of the solar disk, degrees: 959.63" at one AU. */
+    fun sunSemidiameterDeg(t: Double): Double = (959.63 / 3600.0) / earthRadiusVectorAu(t)
+
+    /** Equatorial horizontal parallax of the sun, degrees: 8.794" at one AU. */
+    fun sunParallaxDeg(t: Double): Double = (8.794 / 3600.0) / earthRadiusVectorAu(t)
+
+    /**
+     * Apparent semidiameter of the moon, degrees, from its horizontal parallax — the
+     * ratio is the moon's own radius over the earth's (Meeus 55.4).
+     */
+    fun moonSemidiameterDeg(parallaxDeg: Double): Double = 0.2725 * parallaxDeg
 
     /** Mean obliquity corrected for nutation, degrees (Meeus 22). */
     fun obliquity(t: Double): Double {
@@ -217,6 +268,94 @@ internal object AstronomyMath {
         return norm360(mean + deltaPsi * cosDeg(obliquity(t)))
     }
 
+    /**
+     * Equatorial coordinates of the point of the ECLIPTIC at longitude [longitude],
+     * latitude zero — the band the planets and the zodiacal light live on.
+     */
+    fun eclipticPoint(longitude: Double, eps: Double): Equatorial = Equatorial(
+        rightAscension = norm360(
+            atan2(cosDeg(eps) * sinDeg(longitude), cosDeg(longitude)) / DEG
+        ),
+        declination = asin(sinDeg(eps) * sinDeg(longitude)) / DEG
+    )
+
+    /** Angular distance between two directions on the sphere, degrees. */
+    fun separation(a: Equatorial, b: Equatorial): Double {
+        val d1 = a.declination * DEG
+        val d2 = b.declination * DEG
+        val dRa = (a.rightAscension - b.rightAscension) * DEG
+        // atan2 of the cross and dot products rather than acos of the dot: acos loses
+        // its precision exactly where an eclipse lives, a few arcminutes from zero.
+        val x = cos(d1) * sin(d2) - sin(d1) * cos(d2) * cos(dRa)
+        val y = cos(d2) * sin(dRa)
+        val z = sin(d1) * sin(d2) + cos(d1) * cos(d2) * cos(dRa)
+        return atan2(Math.hypot(x, y), z) / DEG
+    }
+
+    /** The point opposite the sun: the axis of the earth's shadow. */
+    fun antisolar(sun: Equatorial): Equatorial =
+        Equatorial(norm360(sun.rightAscension + 180.0), -sun.declination)
+
+    /**
+     * Where a body is seen from a point ON the earth rather than from its centre
+     * (Meeus 40), and how far away it is from there.
+     *
+     * Done as a vector subtraction instead of Meeus' Δα/Δδ series: the observer's
+     * offset is one vector in earth radii, and subtracting it gives the topocentric
+     * DISTANCE in the same step — which is what the apparent size of the moon during
+     * a solar eclipse is made of, and what the series form throws away.
+     */
+    fun topocentric(
+        equatorial: Equatorial,
+        parallaxDeg: Double,
+        julianDay: Double,
+        lat: Double,
+        lon: Double
+    ): Topocentric {
+        // Distance in earth radii, from the parallax that defines it.
+        val r = 1.0 / sin(parallaxDeg * DEG)
+        val x = r * cosDeg(equatorial.declination) * cosDeg(equatorial.rightAscension)
+        val y = r * cosDeg(equatorial.declination) * sinDeg(equatorial.rightAscension)
+        val z = r * sinDeg(equatorial.declination)
+        // The observer, on the reference ellipsoid at sea level (Meeus 11): the
+        // flattening moves ρ by up to 0.3 %, which is 20 km — a fifth of the moon's
+        // own radius, and worth keeping in an eclipse.
+        val u = atan2(0.99664719 * sinDeg(lat), cosDeg(lat))
+        val rhoSin = 0.99664719 * sin(u)
+        val rhoCos = cos(u)
+        val theta = norm360(greenwichSiderealTime(julianDay) + lon)
+        val ox = rhoCos * cosDeg(theta)
+        val oy = rhoCos * sinDeg(theta)
+        val oz = rhoSin
+        val dx = x - ox
+        val dy = y - oy
+        val dz = z - oz
+        val distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        return Topocentric(
+            equatorial = Equatorial(
+                rightAscension = norm360(atan2(dy, dx) / DEG),
+                declination = asin(dz / distance) / DEG
+            ),
+            distanceEarthRadii = distance
+        )
+    }
+
+    data class Topocentric(val equatorial: Equatorial, val distanceEarthRadii: Double)
+
+    /**
+     * Azimuth of a body, degrees clockwise from NORTH — the compass bearing you turn
+     * to. Meeus 13.5 measures it from the south, which is an astronomer's convention
+     * and not a compass's, so the half-turn is added here rather than at every call.
+     */
+    fun azimuth(equatorial: Equatorial, julianDay: Double, lat: Double, lon: Double): Double {
+        val h = norm360(greenwichSiderealTime(julianDay) + lon - equatorial.rightAscension)
+        val south = atan2(
+            sinDeg(h),
+            cosDeg(h) * sinDeg(lat) - Math.tan(equatorial.declination * DEG) * cosDeg(lat)
+        ) / DEG
+        return norm360(south + 180.0)
+    }
+
     /** Altitude of a body above the horizon, degrees, ignoring refraction. */
     fun altitude(equatorial: Equatorial, julianDay: Double, lat: Double, lon: Double): Double {
         val hourAngle = greenwichSiderealTime(julianDay) + lon - equatorial.rightAscension
@@ -293,6 +432,84 @@ internal object AstronomyMath {
         Triple(14.0, 199.76, 31436.921), Triple(12.0, 95.39, 14577.848),
         Triple(12.0, 287.11, 31931.756), Triple(12.0, 320.81, 34777.259),
         Triple(9.0, 227.73, 1222.114), Triple(8.0, 15.45, 16859.074)
+    )
+
+    /**
+     * VSOP87D, earth, radius vector: `amplitude (1e-8 AU), phase (rad), frequency
+     * (rad/millennium)`, one list per power of τ. Truncated to the terms that move
+     * the answer by more than a metre of a metre — the tail below 1e-8 AU is far
+     * under the accuracy of anything this module prints.
+     */
+    private val EarthRadiusSeries: List<List<Triple<Double, Double, Double>>> = listOf(
+        listOf(
+            Triple(100_013_989.0, 0.0, 0.0),
+            Triple(1_670_700.0, 3.0984635, 6283.07585),
+            Triple(13_956.0, 3.05525, 12566.1517),
+            Triple(3_084.0, 5.1985, 77713.7715),
+            Triple(1_628.0, 1.1739, 5753.3849),
+            Triple(1_576.0, 2.8469, 7860.4194),
+            Triple(925.0, 5.453, 11506.770),
+            Triple(542.0, 4.564, 3930.210),
+            Triple(472.0, 3.661, 5884.927),
+            Triple(346.0, 0.964, 5507.553),
+            Triple(329.0, 5.900, 5223.694),
+            Triple(307.0, 0.299, 5573.143),
+            Triple(243.0, 4.273, 11790.629),
+            Triple(212.0, 5.847, 1577.344),
+            Triple(186.0, 5.022, 10977.079),
+            Triple(175.0, 3.012, 18849.228),
+            Triple(110.0, 5.055, 5486.778),
+            Triple(98.0, 0.89, 6069.78),
+            Triple(86.0, 5.69, 15720.84),
+            Triple(86.0, 1.27, 161000.69),
+            Triple(65.0, 0.27, 17260.15),
+            Triple(63.0, 0.92, 529.69),
+            Triple(57.0, 2.01, 83996.85),
+            Triple(56.0, 5.24, 71430.70),
+            Triple(49.0, 3.25, 2544.31),
+            Triple(47.0, 2.58, 775.52),
+            Triple(45.0, 5.54, 9437.76),
+            Triple(43.0, 6.01, 6275.96),
+            Triple(39.0, 5.36, 4694.00),
+            Triple(38.0, 2.39, 8827.39),
+            Triple(37.0, 0.83, 19651.05),
+            Triple(37.0, 4.90, 12139.55),
+            Triple(36.0, 1.67, 12036.46),
+            Triple(35.0, 1.84, 2942.46),
+            Triple(33.0, 0.24, 7084.90),
+            Triple(32.0, 0.18, 5088.63),
+            Triple(32.0, 1.78, 398.15),
+            Triple(28.0, 1.21, 6286.60),
+            Triple(28.0, 1.90, 6279.55),
+            Triple(26.0, 4.59, 10447.39)
+        ),
+        listOf(
+            Triple(103_019.0, 1.10749, 6283.07585),
+            Triple(1_721.0, 1.0644, 12566.1517),
+            Triple(702.0, 3.142, 0.0),
+            Triple(32.0, 1.02, 18849.23),
+            Triple(31.0, 2.84, 5507.55),
+            Triple(25.0, 1.32, 5223.69),
+            Triple(18.0, 1.42, 1577.34),
+            Triple(10.0, 5.91, 10977.08),
+            Triple(9.0, 1.42, 6275.96),
+            Triple(9.0, 0.27, 5486.78)
+        ),
+        listOf(
+            Triple(4_359.0, 5.7846, 6283.0758),
+            Triple(124.0, 5.579, 12566.152),
+            Triple(12.0, 3.14, 0.0),
+            Triple(9.0, 3.63, 77713.77),
+            Triple(6.0, 1.87, 5573.14),
+            Triple(3.0, 5.47, 18849.23)
+        ),
+        listOf(
+            Triple(145.0, 4.273, 6283.076),
+            Triple(7.0, 3.92, 12566.15)
+        ),
+        listOf(
+            Triple(4.0, 2.56, 6283.08)
+        )
     )
 
     /** `D, M, M', F, coefficient` — coefficients in 1e-6 degrees (Meeus table 47.A). */

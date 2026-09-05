@@ -84,11 +84,44 @@ object AstronomyEngine {
         )
     }
 
+    /**
+     * ONE solar crossing of one local day — the same answer [solarDay] would give for
+     * that field, without computing the other thirteen (Fase 19).
+     *
+     * [YearEvents] scans a hundred days looking for the earliest sunset of the year,
+     * and a full [SolarDay] per day would be fourteen crossings and a scan of the day
+     * thrown away each time.
+     */
+    fun sunCrossing(
+        date: LocalDate,
+        zone: ZoneId,
+        coords: Coordinates,
+        altitudeDeg: Double,
+        rising: Boolean
+    ): Instant? = crossing(DayWindow(date, zone), coords, altitudeDeg, rising, Body.SUN)
+
+    /**
+     * The lowest the sun gets on one local day, degrees. Below −18° somewhere in the
+     * night is what makes a night astronomical, so this is the whole test for whether
+     * a place is inside its white nights.
+     */
+    fun sunMinAltitude(date: LocalDate, zone: ZoneId, coords: Coordinates): Double =
+        extremes(DayWindow(date, zone), coords, Body.SUN).min
+
     /** Altitude of the sun above the horizon at [at], degrees, refraction excluded. */
     fun sunAltitude(at: Instant, coords: Coordinates): Double =
         // Position from TT, hour angle from UT — see AstronomyMath's KDoc on why the
         // two arguments are not the same number.
         AstronomyMath.altitude(
+            AstronomyMath.sunEquatorial(AstronomyMath.centuriesTT(at)),
+            AstronomyMath.julianDay(at),
+            coords.lat,
+            coords.lon
+        )
+
+    /** Compass bearing of the sun at [at], degrees clockwise from north. */
+    fun sunAzimuth(at: Instant, coords: Coordinates): Double =
+        AstronomyMath.azimuth(
             AstronomyMath.sunEquatorial(AstronomyMath.centuriesTT(at)),
             AstronomyMath.julianDay(at),
             coords.lat,
@@ -123,6 +156,14 @@ object AstronomyEngine {
             coords.lon
         )
 
+    /**
+     * Distance from the earth's centre to the moon's, kilometres. The number behind
+     * "the closest full moon of the year" and behind the size of the shadow in
+     * [EclipseEngine].
+     */
+    fun moonDistanceKm(at: Instant): Double =
+        AstronomyMath.moonEcliptic(AstronomyMath.centuriesTT(at)).distanceKm
+
     /** Illuminated fraction (0..1) and elongation of the moon at [at]. */
     fun moonIllumination(at: Instant): MoonLight {
         val light = AstronomyMath.moonIllumination(AstronomyMath.centuriesTT(at))
@@ -147,6 +188,26 @@ object AstronomyEngine {
         // from four copies of one instant into four quarters.
         if (Duration.between(after, quarter.at) > MIN_QUARTER_ADVANCE) return quarter
         return quarterAfter(after.plus(MIN_QUARTER_ADVANCE))
+    }
+
+    /**
+     * The next quarter of a NAMED kind after [after] — the next full moon, the next
+     * new moon (Fase 19).
+     *
+     * Walks the series rather than solving for the kind directly: the elongation
+     * targets are 90° apart and [nextMoonQuarter] already steps from one to the next,
+     * so at most four steps land on any of them and the two answers are the same
+     * model by construction.
+     */
+    fun nextMoonQuarter(after: Instant, kind: MoonQuarterKind): MoonQuarter {
+        var at = after
+        repeat(4) {
+            val quarter = nextMoonQuarter(at)
+            if (quarter.kind == kind) return quarter
+            at = quarter.at
+        }
+        // Unreachable: four consecutive quarters are four different kinds.
+        error("no ${'$'}kind within four quarters of ${'$'}after")
     }
 
     private fun quarterAfter(after: Instant): MoonQuarter {
@@ -207,9 +268,71 @@ object AstronomyEngine {
         }
     }
 
+    // ------------------------------------------------- the sky behind the sky
+
+    /**
+     * Altitude of the GALACTIC CENTRE above the horizon, degrees (Fase 19).
+     *
+     * The bright core of the Milky Way, in Sagittarius, is the one deep-sky sight
+     * with a season and a clock — and it is a fixed direction, so the same altitude
+     * primitive that answers for the sun answers for it. J2000 coordinates, un-precessed:
+     * a quarter of a degree by the end of this century, which moves the window it is
+     * used for (the core above 10°) by about a minute.
+     */
+    fun galacticCoreAltitude(at: Instant, coords: Coordinates): Double =
+        AstronomyMath.altitude(GALACTIC_CORE, AstronomyMath.julianDay(at), coords.lat, coords.lon)
+
+    /**
+     * The stretch of `[from, to]` during which the sun is above the horizon: what
+     * clips a solar eclipse to the part of it that happens in this place's daylight.
+     */
+    fun sunAbove(from: Instant, to: Instant, coords: Coordinates): ClosedRange<Instant>? =
+        aboveAltitude(from, to, coords, SUNRISE_ALTITUDE, Body.SUN)
+
+    /**
+     * The stretch of `[from, to]` during which the moon is above the horizon: what
+     * turns a lunar eclipse, which the whole night side of the earth shares, into the
+     * part of it a place can actually watch.
+     */
+    fun moonAbove(from: Instant, to: Instant, coords: Coordinates): ClosedRange<Instant>? =
+        aboveAltitude(from, to, coords, 0.0, Body.MOON)
+
+    /**
+     * The stretch of `[from, to]` during which the galactic core stands at least
+     * [minAltitudeDeg] above the horizon, or null when it never does — which is a
+     * fact about the latitude at high northern ones, where the core barely clears
+     * the horizon at all.
+     */
+    fun galacticCoreAbove(
+        from: Instant,
+        to: Instant,
+        coords: Coordinates,
+        minAltitudeDeg: Double
+    ): ClosedRange<Instant>? = aboveAltitude(from, to, coords, minAltitudeDeg, Body.GALACTIC_CORE)
+
+    /**
+     * How steeply the ecliptic stands out of the horizon, as the altitude of the
+     * point of the ecliptic a quarter-turn from the sun (Fase 19).
+     *
+     * The zodiacal light is dust lying ALONG the ecliptic, so whether it is a cone
+     * standing over the sunset or a smear hidden in the horizon haze is this one
+     * number. Taking the altitude of a real point rather than the ecliptic's angle
+     * with the horizon keeps it in a unit the screen can print: degrees above the
+     * horizon, the same unit as everything else here.
+     */
+    fun eclipticStand(at: Instant, coords: Coordinates, evening: Boolean): Double {
+        val t = AstronomyMath.centuriesTT(at)
+        val longitude = AstronomyMath.sunApparentLongitude(t) + if (evening) 90.0 else -90.0
+        val point = AstronomyMath.eclipticPoint(longitude, AstronomyMath.obliquity(t))
+        return AstronomyMath.altitude(point, AstronomyMath.julianDay(at), coords.lat, coords.lon)
+    }
+
     // ------------------------------------------------------------- internals
 
-    private enum class Body { SUN, MOON }
+    /** Sagittarius A*, J2000: the direction of the galactic centre. */
+    private val GALACTIC_CORE = AstronomyMath.Equatorial(266.41683, -29.00781)
+
+    private enum class Body { SUN, MOON, GALACTIC_CORE }
 
     /** The half-open instant range of one local calendar day. */
     private class DayWindow(date: LocalDate, zone: ZoneId) {
@@ -227,6 +350,7 @@ object AstronomyEngine {
         when (body) {
             Body.SUN -> sunAltitude(at, coords)
             Body.MOON -> moonAltitude(at, coords)
+            Body.GALACTIC_CORE -> galacticCoreAltitude(at, coords)
         }
 
     /**
@@ -237,6 +361,8 @@ object AstronomyEngine {
     private fun riseThreshold(body: Body, fixed: Double?, at: Instant): Double =
         fixed ?: when (body) {
             Body.SUN -> SUNRISE_ALTITUDE
+            // A star has no disk to speak of and no parallax worth the name.
+            Body.GALACTIC_CORE -> 0.0
             Body.MOON -> {
                 val parallax = AstronomyMath
                     .moonEcliptic(AstronomyMath.centuries(AstronomyMath.julianDay(at))).parallax
@@ -368,6 +494,45 @@ object AstronomyEngine {
             if (abs(Duration.between(lo, hi).seconds) <= 1) return mid
         }
         return lo.plus(Duration.between(lo, hi).dividedBy(2))
+    }
+
+    /**
+     * The sub-interval of `[from, to]` where [body] is at or above [minAltitudeDeg]:
+     * the first rise to the following set, each end clipped to the interval when the
+     * body is already there. Null when it never gets that high.
+     *
+     * Written on the same grid-then-bisect pattern as [crossing] rather than through
+     * it, because the window here is an arbitrary span — a night that crosses
+     * midnight — and not a calendar day.
+     */
+    private fun aboveAltitude(
+        from: Instant,
+        to: Instant,
+        coords: Coordinates,
+        minAltitudeDeg: Double,
+        body: Body
+    ): ClosedRange<Instant>? {
+        if (!from.isBefore(to)) return null
+        fun offset(at: Instant) = altitudeOf(body, at, coords) - minAltitudeDeg
+        var start: Instant? = if (offset(from) >= 0) from else null
+        var previousAt = from
+        var previous = offset(previousAt)
+        var at = from.plus(GRID)
+        while (true) {
+            val bounded = if (at.isAfter(to)) to else at
+            val current = offset(bounded)
+            if (start == null && previous < 0 && current >= 0) {
+                start = bisect(previousAt, bounded) { offset(it) }
+            } else if (start != null && previous >= 0 && current < 0) {
+                // Falling edge: the same hunt with the sign flipped.
+                return start!!..bisect(previousAt, bounded) { -offset(it) }
+            }
+            if (bounded == to) break
+            previousAt = bounded
+            previous = current
+            at = at.plus(GRID)
+        }
+        return start?.let { it..to }
     }
 
     private val GRID: Duration = Duration.ofMinutes(10)

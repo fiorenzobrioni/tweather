@@ -305,6 +305,21 @@ fun WeatherReport.toReadmeMarkdown(
                 }
             )
         }
+        // The one line in this section that is not astronomy: a rainbow needs the sun
+        // low AND rain falling, so it is the forecast and the geometry in one
+        // sentence. Conditional wording on purpose — the sky is arranged for one,
+        // which is not the same as there being one.
+        summary.rainbow?.let { bow ->
+            add(
+                s(
+                    R.string.readme_rainbow,
+                    bow.from.format(ClockTime),
+                    bow.to.format(ClockTime),
+                    bow.precipChancePct,
+                    s(SkyJobNames.bearingRes(bow.bearingDeg))
+                )
+            )
+        }
     }
     add(
         "${s(R.string.readme_moon)}: " +

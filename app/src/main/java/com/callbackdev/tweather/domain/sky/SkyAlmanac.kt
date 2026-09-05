@@ -1,6 +1,7 @@
 package com.callbackdev.tweather.domain.sky
 
 import com.callbackdev.tweather.domain.model.Coordinates
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
@@ -30,11 +31,60 @@ object SkyAlmanac {
     fun lunarDay(date: LocalDate, zone: ZoneId, coords: Coordinates): LunarDay =
         lunar.get(Key(date, zone, coords)) { AstronomyEngine.lunarDay(date, zone, coords) }
 
+    /**
+     * The next lunar eclipse visible from here, as asked from the local day [date] —
+     * memoized because the search walks full moons over three years and the screen,
+     * the widget and the reminder planner all ask the same question on the same day.
+     */
+    fun nextLunarEclipse(
+        date: LocalDate,
+        zone: ZoneId,
+        coords: Coordinates
+    ): EclipseEngine.LocalLunarEclipse? = lunarEclipse.get(Key(date, zone, coords)) {
+        Optional(EclipseEngine.nextLunarFrom(date.atStartOfDay(zone).toInstant(), coords))
+    }.value
+
+    /** The next solar eclipse with a bite visible from here. Same reason, longer walk. */
+    fun nextSolarEclipse(
+        date: LocalDate,
+        zone: ZoneId,
+        coords: Coordinates
+    ): SolarEclipse? = solarEclipse.get(Key(date, zone, coords)) {
+        Optional(EclipseEngine.nextSolar(date.atStartOfDay(zone).toInstant(), coords))
+    }.value
+
+    /**
+     * A once-a-year search, remembered per job, year and place (Fase 19).
+     *
+     * The annual jobs were free to recompute while they were four solstices out of a
+     * polynomial. The ones added in 19 are **searches** — a hundred sunsets scanned
+     * for the earliest, thirteen full moons for the nearest — and the Sky screen
+     * resolves every annual job in the catalog on every state build, so without this
+     * the screen paid for all of them every time a flow emitted. Measured on a
+     * development JVM: 8–15 ms each, six of them.
+     */
+    fun yearEvent(
+        jobId: String,
+        year: Int,
+        zone: ZoneId,
+        coords: Coordinates,
+        compute: () -> Instant?
+    ): Instant? = yearly.get(YearKey(jobId, year, zone, coords)) { Optional(compute()) }.value
+
     /** Drops everything; the app calls it on nothing, tests call it between cases. */
     fun clear() {
         solar.clear()
         lunar.clear()
+        lunarEclipse.clear()
+        solarEclipse.clear()
+        yearly.clear()
     }
+
+    /**
+     * A box for a nullable answer. "No eclipse in the next three years" is an answer
+     * worth remembering, and a memo keyed on presence would recompute it every time.
+     */
+    private class Optional<V>(val value: V?)
 
     /**
      * Coordinates are rounded to ~10 m before they become part of the key. Two GPS
@@ -46,6 +96,39 @@ object SkyAlmanac {
         constructor(date: LocalDate, zone: ZoneId, coords: Coordinates) : this(
             date, zone, (coords.lat * 100_000).roundToInt(), (coords.lon * 100_000).roundToInt()
         )
+    }
+
+    /** Same rounding rule as [Key]: a job, a year and a place to ten metres. */
+    private data class YearKey(
+        val jobId: String,
+        val year: Int,
+        val zone: ZoneId,
+        val lat: Int,
+        val lon: Int
+    ) {
+        constructor(jobId: String, year: Int, zone: ZoneId, coords: Coordinates) : this(
+            jobId, year, zone,
+            (coords.lat * 100_000).roundToInt(), (coords.lon * 100_000).roundToInt()
+        )
+    }
+
+    /**
+     * The same least-recently-used box as [Memo], on the other key. Two small classes
+     * instead of one generic one: the generic version would have to take the key type
+     * as a parameter and every call site would then say which, for two call sites.
+     */
+    private class YearMemo(private val maxEntries: Int) {
+        private val entries = object : LinkedHashMap<YearKey, Optional<Instant>>(16, 0.75f, true) {
+            override fun removeEldestEntry(
+                eldest: MutableMap.MutableEntry<YearKey, Optional<Instant>>?
+            ): Boolean = size > maxEntries
+        }
+
+        fun get(key: YearKey, compute: () -> Optional<Instant>): Optional<Instant> =
+            synchronized(entries) { entries[key] }
+                ?: compute().also { synchronized(entries) { entries[key] = it } }
+
+        fun clear() = synchronized(entries) { entries.clear() }
     }
 
     private class Memo<V>(private val maxEntries: Int) {
@@ -70,6 +153,18 @@ object SkyAlmanac {
      */
     private const val MAX_ENTRIES = 400
 
+    private const val ECLIPSE_ENTRIES = 8
+
     private val solar = Memo<SolarDay>(MAX_ENTRIES)
     private val lunar = Memo<LunarDay>(MAX_ENTRIES)
+
+    /**
+     * Smaller by design: an eclipse search is dear but there is only ever one date in
+     * flight, and unlike a solar day nobody scrolls a year of them.
+     */
+    private val lunarEclipse = Memo<Optional<EclipseEngine.LocalLunarEclipse>>(ECLIPSE_ENTRIES)
+    private val solarEclipse = Memo<Optional<SolarEclipse>>(ECLIPSE_ENTRIES)
+
+    /** Eight annual jobs over a couple of years and places. */
+    private val yearly = YearMemo(64)
 }

@@ -194,6 +194,49 @@ class SkyNewJobsTest {
         assertTrue("shut sky, no bow: $overcast", overcast.isEmpty())
     }
 
+    /**
+     * A shower's peak is rendered as the night it falls in, and a night has length.
+     *
+     * Four of the thirteen peak between dawn and noon — the delta Aquariids, the alpha
+     * Capricornids and both Taurids — and those used to resolve to a window that
+     * opened and closed on the same instant, because the start was clipped to a peak
+     * already past and the end was that morning's dawn. The rule for a peak INSIDE
+     * the night is unchanged and deliberate: the window opens at the peak, so the
+     * Geminids of 2026, peaking sixteen minutes before dawn, are sixteen minutes of
+     * dark and the file says so.
+     */
+    @Test
+    fun `no shower resolves to a window with no length in it`() {
+        listOf(2026, 2027, 2031).forEach { year ->
+            SkyJobCatalog.meteorShowers.forEach { job ->
+                val occurrence = SkyScheduler.resolve(job, LocalDate.of(year, 1, 1), rome, milan)
+                if (occurrence is SkyOccurrence.At) {
+                    val minutes = Duration.between(occurrence.start, occurrence.end).toMinutes()
+                    assertTrue(
+                        "${job.id} in $year is ${minutes}m: ${occurrence.start}..${occurrence.end}",
+                        minutes > 0
+                    )
+                }
+            }
+        }
+    }
+
+    /** A peak the sun is up for gets the whole night, not the instant of dawn. */
+    @Test
+    fun `a shower peaking after dawn is watched over the night, whole`() {
+        val taurids = SkyJobCatalog.meteorShowers
+            .first { it.id == "meteor.southern_taurids.peak" }
+        val occurrence = SkyScheduler
+            .resolve(taurids, LocalDate.of(2026, 1, 1), rome, milan) as SkyOccurrence.At
+        val night = occurrence.start.atZone(rome).toLocalDate()
+        val dusk = SkyAlmanac.solarDay(night, rome, milan).astronomicalDusk
+        assertEquals(dusk, occurrence.start)
+        assertTrue(
+            "a night, not a moment: ${occurrence.start}..${occurrence.end}",
+            Duration.between(occurrence.start, occurrence.end).toHours() >= 4
+        )
+    }
+
     @Test
     fun `every new job renders a cron expression and a name the catalog knows`() {
         listOf(

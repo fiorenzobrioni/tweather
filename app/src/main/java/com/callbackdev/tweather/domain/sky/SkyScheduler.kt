@@ -392,7 +392,14 @@ object SkyScheduler {
         val dusk = SkyAlmanac.solarDay(eveningOf, zone, coords).astronomicalDusk
         val dawn = SkyAlmanac.solarDay(eveningOf.plusDays(1), zone, coords).astronomicalDawn
         if (dusk == null || dawn == null) return SkyOccurrence.None(job, SkyNotScheduled.NO_DARKNESS)
-        return SkyOccurrence.At(job, maxOf(dusk, peak.coerceAtMost(dawn)), dawn)
+        // Inside the night, the window opens AT the peak: that is when the rate is
+        // highest and there is no reason to send anybody out earlier. Outside it, the
+        // window is the night whole — a peak at breakfast time is watched on the dark
+        // hours either side of it, and clipping the start to a peak that has already
+        // passed collapsed the row onto dawn itself (`05:54..05:54`, four showers of
+        // the thirteen, found while adding the Taurids in Fase 19).
+        val start = if (peak.isAfter(dusk) && peak.isBefore(dawn)) peak else dusk
+        return SkyOccurrence.At(job, start, dawn)
     }
 
     /**

@@ -18,6 +18,15 @@ All notable changes to tweather are documented here. The format follows
 
 ### Changed
 
+- `sky.crontab` no longer falls apart with `word_wrap` on. A row is five columns side
+  by side, and with wrapping there is no sideways room to give them, so the comment
+  was being crushed into a one-character column down the edge of the screen. It now
+  takes a line of its own under the row, which is where a long crontab line has always
+  put its comment.
+- The manual's paragraphs wrap and its lists do not. Forcing the whole page to wrap
+  turned the index of fifty-one jobs into ragged pairs of half-lines; the names are
+  now a proper column that follows `word_wrap` like every other table in the app.
+- `[man]` is no longer comment-grey, so it reads as something you can tap.
 - `HELP.md` now always wraps its lines, whatever `word_wrap` says in
   `settings.config`, and its status bar says `wrap` so you can see that it does. Its
   paragraphs run past 400 characters and the setting is off by default: reading the

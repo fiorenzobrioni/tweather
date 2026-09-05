@@ -75,6 +75,15 @@ fun buildSkyLines(
     actions: SkyActions,
     labels: SkyLabels,
     resources: Resources,
+    /**
+     * `word_wrap` from `settings.config` (Fase 23b). A crontab row is five columns in
+     * one [Row], and a Row cannot wrap: with wrapping on there is no horizontal pan to
+     * escape into, so the comment — the only variable-length column — was squeezed
+     * into a one-character-wide ribbon down the right edge. With it on, the comment
+     * takes a line of its own underneath, which is where a long crontab line has
+     * always put its comment anyway.
+     */
+    wordWrap: Boolean = false,
     onStartEdit: (SkyEdit?) -> Unit
 ): List<CanvasLine> = buildList {
     // The `#` is what a crontab comments with and never translates; the sentence
@@ -106,6 +115,12 @@ fun buildSkyLines(
                     row = row,
                     document = document,
                     armed = armed,
+                    // Wrapping also drops the name padding: the column it aligns is
+                    // gone with the comment, and padding every id out to the longest
+                    // one in the file is exactly what would push a row past the edge
+                    // when there is no pan to reach the rest.
+                    inlineComment = !wordWrap,
+                    padName = !wordWrap,
                     onToggle = { actions.onToggleEnabled(subscription) },
                     onCycleLead = { actions.onCycleLead(subscription) },
                     onRemove = {
@@ -120,6 +135,9 @@ fun buildSkyLines(
                 )
             }
         )
+        if (wordWrap && row.comment.isNotEmpty()) {
+            add(commentLine("# ${row.comment}", syntax, indent = 1))
+        }
     }
 
     add(CodeLine(AnnotatedString("")))
@@ -254,7 +272,13 @@ private fun CatalogLine(
         Text(
             text = "[man]",
             style = style,
-            color = syntax.comment,
+            // Lifted out of the comment grey so it reads as a control (device
+            // feedback), but deliberately NOT the `diffAdd` green: in this file green
+            // already means two things, "this adds a line" (`+ add job`, `+ and …`)
+            // and "pass", and `[man]` is neither — it is the one tap in the catalog
+            // that changes nothing, which is what its own test asserts. The string
+            // blue is distinct from the id's key blue beside it and promises nothing.
+            color = syntax.string,
             modifier = Modifier
                 .clickable(role = Role.Button, onClickLabel = labels.openMan(job)) {
                     onOpenMan()
@@ -272,7 +296,11 @@ private fun CrontabLine(
     onToggle: () -> Unit,
     onCycleLead: () -> Unit,
     onRemove: () -> Unit,
-    labels: SkyLabels
+    labels: SkyLabels,
+    /** False when the file wraps: the comment goes on the next line instead. */
+    inlineComment: Boolean = true,
+    /** False when the file wraps: no column to align, and the width is needed. */
+    padName: Boolean = true
 ) {
     val syntax = TweatherTheme.syntax
     val style = MaterialTheme.typography.bodySmall
@@ -287,13 +315,22 @@ private fun CrontabLine(
             color = expressionColor
         )
         Text(
-            text = row.job.id.padEnd(document.nameColumnWidth + 1),
+            text = if (padName) {
+                row.job.id.padEnd(document.nameColumnWidth + 1)
+            } else {
+                row.job.id
+            },
             style = style,
             color = nameColor,
-            modifier = Modifier.clickable(
-                role = Role.Switch,
-                onClickLabel = labels.toggle(row)
-            ) { onToggle() }
+            // Wrapping is the escape hatch for the two thirty-character ids in the
+            // catalog: with no pan to reach into, the alternative is a clipped name.
+            softWrap = !padName,
+            modifier = Modifier
+                .then(if (padName) Modifier else Modifier.weight(1f, fill = false))
+                .clickable(
+                    role = Role.Switch,
+                    onClickLabel = labels.toggle(row)
+                ) { onToggle() }
         )
         // The `--notify` argument, exactly where a crontab puts a job's arguments:
         // after the command. It cycles on tap like every other value in the app, and
@@ -329,7 +366,7 @@ private fun CrontabLine(
         // `// tap again` comment appended after it: it changes under the finger that
         // just tapped it, and it costs the row no width. The words are in the click
         // label, where a screen reader will read them.
-        if (row.comment.isNotEmpty()) {
+        if (inlineComment && row.comment.isNotEmpty()) {
             Text(text = "# ${row.comment}", style = style, color = syntax.comment)
         }
     }

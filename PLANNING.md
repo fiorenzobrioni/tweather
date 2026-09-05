@@ -1415,6 +1415,54 @@ trattino.
 - [ ] Da verificare su device: `[man]` nel picker, `$ man sky`, il salto da VEDERE
       ANCHE e il ritorno con `[q]` e con la gesture di sistema
 
+## Fase 23b — Il wrap non è una proprietà del file, è una proprietà della riga (device, 5 set 2026)
+
+Tre cose dal giro sul device del committente, e le prime due erano difetti veri della
+Fase 23.
+
+**1. L'indice di `man sky` andava a capo e sembrava sfilacciato.** Avevo forzato il
+wrap su tutta la pagina, sul ragionamento della Fase 22 che una man page è solo prosa.
+Era vero dei paragrafi e falso di tutto il resto: NOME, VEDERE ANCHE e l'indice sono
+un elenco a **due colonne** di id e nomi, e una colonna che va a capo non è più una
+colonna, sono due righe sfilacciate con un rientro sospeso. Cinquantuno righe così.
+
+La correzione è a un livello più basso di quanto pensassi: **il wrap non è una
+proprietà del file, è una proprietà della riga.** `CodeLine` ha ora `wrap: Boolean?`
+(null = quello che fa il file), `CodeCanvas` la rispetta per riga — softWrap, stile con
+rientro sospeso, e la scelta fra pan condiviso e `fillMaxWidth` — e una riga che va a
+capo **non partecipa alla misura della larghezza di pan**, altrimenti un solo paragrafo
+lungo darebbe un range di scorrimento a un documento che non ne aveva bisogno. La man
+page usa entrambe: i paragrafi portano `wrap = true` addosso, le tabelle seguono
+`settings.config`. E le righe dell'indice sono ora riempite fino all'id più lungo del
+catalogo, il trattamento `column -t` che il crontab già dà al proprio campo nome.
+
+**2. Col wrap acceso il crontab si sfasciava.** Una riga di crontab sono cinque colonne
+dentro una `Row`, e una `Row` non va a capo: col wrap acceso non c'è nessun pan
+orizzontale in cui scappare, quindi il commento — l'unica colonna a lunghezza variabile
+— veniva schiacciato in un nastro largo un carattere lungo il bordo destro. Con
+`word_wrap` acceso il commento prende **una riga sua** sotto la riga del job, che è poi
+dove una riga di crontab lunga ha sempre messo il proprio commento; e il nome perde il
+padding, perché la colonna che allineava se n'è andata col commento e riempire ogni id
+fino al più lungo del file è esattamente ciò che spingerebbe una riga oltre il bordo
+quando non c'è pan per raggiungere il resto. Per i due id da trenta caratteri del
+catalogo il nome può andare a capo dentro la riga: l'alternativa era un nome troncato.
+
+**3. `[man]` verde? No, e la ragione è nel file stesso.** Il committente ha ragione sul
+problema — grigio su grigio non si legge come tappabile — e ha torto sulla cura. In
+questo file `diffAdd` verde significa già due cose: «questa riga aggiunge» (`+ add
+job`, `+ and …`) e «pass» (`✓ pass`, `✓ rule fired`). `[man]` non è nessuna delle due:
+è l'**unico** tap del catalogo che non cambia niente, cosa che ha già un test suo.
+Verde prometterebbe esattamente ciò che il test vieta. Sta ora nel blu di `syntax.string`,
+che si stacca dal grigio, si distingue dal blu-chiave dell'id accanto e non promette
+niente.
+
+**Verifiche**: 640 test verdi (3 nuovi), lint 0 errori. I nuovi: il commento su riga
+propria col wrap acceso, le colonne conservate col wrap spento, e le righe dell'indice
+riempite in colonna.
+
+- [ ] Da verificare su device: `man sky` con `word_wrap` spento (indice in colonna che
+      pana) e acceso, e il crontab con `word_wrap` acceso su un job dal nome lungo
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

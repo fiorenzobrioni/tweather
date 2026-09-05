@@ -753,8 +753,15 @@ know what the event is.
 
 It takes the whole screen, tab strip included, because `man` is a program you ran and
 quit rather than a fourth file in the editor; `[q]` and the system back gesture are
-the same action. It always word-wraps (nothing on it is a column) and every page
-opens at the top.
+the same action, and every page opens at the top.
+
+**Wrapping is per line, not per page** (Fase 23b). The DESCRIPTION paragraphs carry
+`CodeLine.wrap = true` and wrap whatever `settings.config` says, because a
+400-character paragraph you have to drag sideways through is not readable. Everything
+that is a column — NAME, SEE ALSO, and the index's fifty-one id/name pairs, padded to
+the longest id — follows the setting like any other table in the app. The first
+version forced the whole page to wrap and turned the index into ragged pairs of
+half-lines: a man page is mostly prose, but "mostly" was the word that mattered.
 
 ## 12. ISS passes — recommended against
 

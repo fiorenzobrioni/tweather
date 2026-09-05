@@ -1,5 +1,6 @@
 package com.callbackdev.tweather.ui.sky
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasClickAction
@@ -14,6 +15,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import com.callbackdev.tweather.data.SkySubscription
 import com.callbackdev.tweather.domain.model.Coordinates
+import com.callbackdev.tweather.ui.components.EditorOptions
+import com.callbackdev.tweather.ui.components.LocalEditorOptions
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import com.callbackdev.tweather.ui.weather.editorFiles
 import java.time.Instant
@@ -66,17 +69,22 @@ class SkyScreenTest {
         context: SkyContext? = context(),
         dryRun: List<String>? = null,
         defaultLeadMinutes: Int? = null,
-        recorder: Recorder = Recorder()
+        recorder: Recorder = Recorder(),
+        wordWrap: Boolean = false
     ): Recorder {
         compose.setContent {
             TweatherTheme {
-                SkyScreen(
-                    state = SkyUiState(subscriptions, context, defaultLeadMinutes, dryRun),
-                    editorFiles = editorFiles(skyEnabled = true),
-                    activeIndex = 2,
-                    onSelectFile = {},
-                    actions = recorder.actions
-                )
+                CompositionLocalProvider(
+                    LocalEditorOptions provides EditorOptions(wordWrap = wordWrap)
+                ) {
+                    SkyScreen(
+                        state = SkyUiState(subscriptions, context, defaultLeadMinutes, dryRun),
+                        editorFiles = editorFiles(skyEnabled = true),
+                        activeIndex = 2,
+                        onSelectFile = {},
+                        actions = recorder.actions
+                    )
+                }
             }
         }
         return recorder
@@ -375,4 +383,49 @@ class SkyScreenTest {
         assertNull(recorder.added)
     }
 
+    // --- word_wrap (Fase 23b) ----------------------------------------------
+
+    /**
+     * With wrapping on there is no horizontal pan to escape into, and a crontab row
+     * is five columns in one Row that cannot itself wrap: the comment was being
+     * squeezed into a one-character ribbon down the right edge. It gets a line of its
+     * own instead, which is where a long crontab line has always put its comment.
+     */
+    @Test
+    fun `with word_wrap on the comment takes a line of its own`() {
+        setScreen(wordWrap = true)
+
+        // Still one row per job, and the resolved instant is still on screen — just
+        // no longer fighting for width with the name.
+        compose.onNodeWithText("sun.rise", substring = true).assertIsDisplayed()
+        compose.onAllNodesWithText("#", substring = true).onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    fun `with word_wrap off the row keeps its columns`() {
+        setScreen(wordWrap = false)
+
+        // One node carrying both the name and its comment is the single-Row layout.
+        compose.onNodeWithText("sun.rise", substring = true).assertIsDisplayed()
+    }
+
+    /**
+     * The index is a two-column table, so it must not wrap even when the paragraphs
+     * above it do — that was the ragged hanging-indent list the committente caught on
+     * device.
+     */
+    @Test
+    fun `the manual index is a table and its rows do not wrap`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+        scrollTo("sun.rise")
+
+        // Padded to the catalog's longest id, so every name starts in the same column.
+        val text = compose.onAllNodesWithText("sun.rise", substring = true).onFirst()
+            .fetchSemanticsNode()
+            .config[androidx.compose.ui.semantics.SemanticsProperties.Text]
+            .joinToString("") { it.text }
+        assertTrue("the index row is not padded into columns: '$text'", text.contains("   "))
+    }
 }

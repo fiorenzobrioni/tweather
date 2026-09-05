@@ -21,6 +21,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.callbackdev.tweather.R
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.EditorTabs
+import com.callbackdev.tweather.ui.components.LocalEditorOptions
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.StatusBarStart
 import com.callbackdev.tweather.ui.components.StatusBarText
@@ -109,6 +110,7 @@ fun SkyScreen(
         ),
         labels = labels,
         resources = LocalContext.current.resources,
+        wordWrap = LocalEditorOptions.current.wordWrap,
         onStartEdit = { editing.value = it }
     )
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {

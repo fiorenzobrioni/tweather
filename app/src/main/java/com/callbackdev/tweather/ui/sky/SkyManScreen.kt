@@ -46,10 +46,13 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
  * fourth file in the editor, it is a program you ran and quit. The way back is `[q]`
  * in the status bar and the system back gesture, which are the same action.
  *
- * **It always wraps** (Fase 22's line, applied where it obviously belongs): a man
- * page is only prose, has nothing aligned in it, and paragraphs that pan sideways
- * are not readable. `line_numbers` still follows `settings.config` — this is a
- * document, and how the reader likes to look at a document is theirs to set.
+ * **Its prose always wraps and its lists do not** (Fase 23b). The first draft forced
+ * the whole page to wrap, on the Fase 22 reasoning that a man page is only prose —
+ * which was true of the paragraphs and wrong about the rest: NAME, SEE ALSO and the
+ * index are a two-column list of ids and names, and a column that wraps is not a
+ * column any more, it is two ragged lines with a hanging indent. So the paragraphs
+ * carry `wrap = true` of their own and everything in a column follows
+ * `settings.config` like the crontab it describes. `line_numbers` follows it too.
  */
 @Composable
 fun SkyManScreen(
@@ -79,9 +82,8 @@ fun SkyManScreen(
                 lines = lines,
                 state = canvasState,
                 modifier = Modifier.weight(1f).fillMaxSize(),
-                // Nothing on a man page is a column, so nothing here is protecting an
-                // alignment: the whole file is sentences.
-                options = LocalEditorOptions.current.copy(wordWrap = true),
+                // The reader's own setting: the lines that cannot live with it say so
+                // one by one, which is the only way a mixed document can be honest.
                 showIndentGuides = false
             )
             TerminalStatusBar {
@@ -129,7 +131,8 @@ internal fun buildManPageLines(
                 append(" — ")
                 append(SkyJobNames.name(resources, job.id))
             },
-            indent = 1
+            indent = 1,
+            wrap = true
         )
     )
     add(blank())
@@ -140,14 +143,15 @@ internal fun buildManPageLines(
 
     add(sectionLine(resources.getString(R.string.man_sec_when), syntax))
     SkyManPages.whenLines(resources, job).forEach { sentence ->
-        add(CodeLine(AnnotatedString(sentence), indent = 1))
+        add(CodeLine(AnnotatedString(sentence), indent = 1, wrap = true))
     }
 
     val seeAlso = SkyManPages.seeAlso(job.id)
     if (seeAlso.isNotEmpty()) {
         add(blank())
         add(sectionLine(resources.getString(R.string.man_sec_see_also), syntax))
-        seeAlso.forEach { add(referenceLine(resources, syntax, it, onOpen)) }
+        val idColumn = seeAlso.maxOf { it.length }
+        seeAlso.forEach { add(referenceLine(resources, syntax, it, onOpen, idColumn)) }
     }
 }
 
@@ -172,7 +176,8 @@ internal fun buildManIndexLines(
                 append(" — ")
                 append(resources.getString(R.string.man_index_name))
             },
-            indent = 1
+            indent = 1,
+            wrap = true
         )
     )
     add(blank())
@@ -182,8 +187,12 @@ internal fun buildManIndexLines(
     add(blank())
 
     add(sectionLine(resources.getString(R.string.man_sec_jobs), syntax))
+    // Padded to the longest id in the catalog, so the names line up in a column the
+    // way `column -t` would leave them — the same treatment `sky.crontab` gives its
+    // own name field, and the reason these rows must not wrap.
+    val idColumn = SkyJobCatalog.all.maxOf { it.id.length }
     SkyJobCatalog.all.forEach { job ->
-        add(referenceLine(resources, syntax, job.id, onOpen))
+        add(referenceLine(resources, syntax, job.id, onOpen, idColumn))
     }
 }
 
@@ -196,15 +205,20 @@ private fun sectionLine(text: String, syntax: SyntaxColors): CodeLine =
         AnnotatedString(text, SpanStyle(color = syntax.key, fontWeight = FontWeight.Bold))
     )
 
-/** `blue_hour.pm    the evening blue hour` — the id, then what it is called. */
+/**
+ * `blue_hour.pm    the evening blue hour` — the id, then what it is called, in two
+ * columns. Deliberately NOT wrapped: it is a table, and the reader's `word_wrap`
+ * decides whether it pans like every other table in the app.
+ */
 private fun referenceLine(
     resources: Resources,
     syntax: SyntaxColors,
     jobId: String,
-    onOpen: (String) -> Unit
+    onOpen: (String) -> Unit,
+    idColumn: Int
 ): CodeLine = CodeLine(
     text = buildAnnotatedString {
-        withStyle(SpanStyle(color = syntax.key)) { append(jobId) }
+        withStyle(SpanStyle(color = syntax.key)) { append(jobId.padEnd(idColumn)) }
         withStyle(SpanStyle(color = syntax.comment)) {
             append("  ")
             append(SkyJobNames.name(resources, jobId))
@@ -212,7 +226,8 @@ private fun referenceLine(
     },
     indent = 1,
     onClick = { onOpen(jobId) },
-    onClickLabel = resources.getString(R.string.cd_sky_man_open, jobId)
+    onClickLabel = resources.getString(R.string.cd_sky_man_open, jobId),
+    wrap = false
 )
 
 /**
@@ -222,7 +237,10 @@ private fun referenceLine(
  */
 private fun paragraphs(text: String, syntax: SyntaxColors): List<CanvasLine> =
     text.split("\n\n").flatMapIndexed { index, paragraph ->
-        val line = CodeLine(AnnotatedString(paragraph.trim()), indent = 1)
+        // The one thing on the page that is only prose, so the one thing that wraps
+        // whatever the setting says: a 400-character paragraph you have to drag
+        // sideways through is not a paragraph anybody reads.
+        val line = CodeLine(AnnotatedString(paragraph.trim()), indent = 1, wrap = true)
         if (index == 0) listOf(line) else listOf(blank(), line)
     }
 

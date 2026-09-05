@@ -8,6 +8,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
@@ -298,4 +299,80 @@ class SkyScreenTest {
             onAllNodesWithText(text, substring = true).fetchSemanticsNodes().size
         )
     }
+    // --- man (Fase 23) -----------------------------------------------------
+
+    /**
+     * The whole point of the feature in one test: a reader who does not know what
+     * `zodiacal.pm` is can reach a page that tells them, from the list where they
+     * were being asked to choose it.
+     */
+    @Test
+    fun `the catalog explains a job before asking you to pick it`() {
+        setScreen()
+        scrollTo("+ add job")
+        compose.onNodeWithText("+ add job").performClick()
+        scrollTo("zodiacal.pm")
+
+        compose.onAllNodesWithText("[man]").onFirst().performClick()
+
+        // A man page, not the file: its header, its sections, and no crontab row.
+        compose.onNodeWithText("(7)", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("NAME").assertIsDisplayed()
+        compose.onNodeWithText("DESCRIPTION").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the manual index reaches every job, including the ones already in the file`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+
+        compose.onNodeWithText("SKY(7)").assertIsDisplayed()
+        // `sun.rise` is a subscription, so the picker never offers it — the index is
+        // the only way to its page, which is why the index exists.
+        scrollTo("sun.rise")
+        compose.onAllNodesWithText("sun.rise", substring = true).onFirst().performClick()
+        compose.onNodeWithText("SUN.RISE(7)").assertIsDisplayed()
+    }
+
+    @Test
+    fun `see also walks from one page to the next`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+        scrollTo("golden_hour.pm")
+        compose.onAllNodesWithText("golden_hour.pm", substring = true).onFirst().performClick()
+
+        compose.onNodeWithText("GOLDEN_HOUR.PM(7)").assertIsDisplayed()
+        scrollTo("SEE ALSO")
+        compose.onAllNodesWithText("blue_hour.pm", substring = true).onFirst().performClick()
+
+        compose.onNodeWithText("BLUE_HOUR.PM(7)").assertIsDisplayed()
+    }
+
+    @Test
+    fun `quit gives the file back`() {
+        setScreen()
+        scrollTo("$ man sky")
+        compose.onNodeWithText("$ man sky").performClick()
+        compose.onNodeWithText("SKY(7)").assertIsDisplayed()
+
+        compose.onNodeWithText("[q] quit").performClick()
+
+        compose.onNodeWithText("sky.crontab").assertIsDisplayed()
+    }
+
+    /** A `[man]` tap must never be mistaken for "add this line to my file". */
+    @Test
+    fun `reading about a job does not subscribe to it`() {
+        val recorder = setScreen()
+        scrollTo("+ add job")
+        compose.onNodeWithText("+ add job").performClick()
+        scrollTo("[man]")
+
+        compose.onAllNodesWithText("[man]").onFirst().performClick()
+
+        assertNull(recorder.added)
+    }
+
 }

@@ -38,7 +38,9 @@ class SkyActions(
     val onRemove: (String) -> Unit,
     val onAdd: (String) -> Unit,
     val onRunSky: () -> Unit = {},
-    val onCycleLead: (SkySubscription) -> Unit = {}
+    val onCycleLead: (SkySubscription) -> Unit = {},
+    /** `[man]` / `$ man sky` — null jobId opens the index (Fase 23). */
+    val onOpenMan: (String?) -> Unit = {}
 )
 
 /** Which line is mid-interaction: the catalog picker, an armed `[rm]`, an armed run. */
@@ -138,25 +140,38 @@ fun buildSkyLines(
             // like the variable picker of `alerts.rules`.
             document.available.forEach { job ->
                 add(
-                    CodeLine(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = syntax.key)) { append(job.id) }
-                            withStyle(SpanStyle(color = syntax.comment)) {
-                                append("  ")
-                                append(job.expression)
-                            }
-                        },
-                        indent = 1,
-                        onClick = {
-                            actions.onAdd(job.id)
-                            onStartEdit(null)
-                        },
-                        onClickLabel = labels.pickJob(job)
-                    )
+                    WidgetLine(indent = 1, measureText = "${job.id}  ${job.expression}  [man]") {
+                        CatalogLine(
+                            job = job,
+                            onAdd = {
+                                actions.onAdd(job.id)
+                                onStartEdit(null)
+                            },
+                            onOpenMan = { actions.onOpenMan(job.id) },
+                            labels = labels
+                        )
+                    }
                 )
             }
         }
     }
+
+    // `man` before the dry run, because the question it answers comes first: a reader
+    // who does not know what `zodiacal.pm` IS has no use for a verdict about it. The
+    // index is the whole catalog, including the lines already in the file — the picker
+    // only ever offers what is NOT there, so it cannot be the only way in (Fase 23).
+    add(CodeLine(AnnotatedString("")))
+    add(commentLine("# " + note(R.string.note_sky_man), syntax))
+    add(
+        CodeLine(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
+                append("man sky")
+            },
+            onClick = { actions.onOpenMan(null) },
+            onClickLabel = labels.openManIndex
+        )
+    )
 
     // The dry run: evaluate everything against the forecast in hand, notify nothing,
     // record nothing. A second view of facts the rows already carry, and that is the
@@ -201,6 +216,54 @@ fun buildSkyLines(
  * comments the line out, which is how everybody disables a cron job in real life.
  * The expression is not tappable — it is a property of the job, not a setting.
  */
+/**
+ * One row of the `+ add job` catalog: the id, the recurrence it would carry, and
+ * `[man]` (Fase 23).
+ *
+ * Two tap targets on one line, so it is a [WidgetLine] like the crontab rows rather
+ * than a [CodeLine] with a single click — the same reason those became one. `[man]`
+ * wears the bracket idiom the app gives every inline verb (`[rm]`, `[+1]` in the
+ * siblings), and it is deliberately AFTER the recurrence and not before the id: a
+ * reader scanning the list is looking for names, and a column of brackets down the
+ * left would be the app shouting over its own catalog.
+ */
+@Composable
+private fun CatalogLine(
+    job: SkyJob,
+    onAdd: () -> Unit,
+    onOpenMan: () -> Unit,
+    labels: SkyLabels
+) {
+    val syntax = TweatherTheme.syntax
+    val style = MaterialTheme.typography.bodySmall
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = syntax.key)) { append(job.id) }
+                withStyle(SpanStyle(color = syntax.comment)) {
+                    append("  ")
+                    append(job.expression)
+                }
+            },
+            style = style,
+            modifier = Modifier.clickable(
+                role = Role.Button,
+                onClickLabel = labels.pickJob(job)
+            ) { onAdd() }
+        )
+        Text(
+            text = "[man]",
+            style = style,
+            color = syntax.comment,
+            modifier = Modifier
+                .clickable(role = Role.Button, onClickLabel = labels.openMan(job)) {
+                    onOpenMan()
+                }
+                .padding(horizontal = 8.dp)
+        )
+    }
+}
+
 @Composable
 private fun CrontabLine(
     row: SkyRow,
@@ -313,7 +376,9 @@ class SkyLabels(
     val remove: (SkyRow, Boolean) -> String,
     val runSky: String,
     val confirmRun: String,
-    val cycleLead: (SkyRow) -> String
+    val cycleLead: (SkyRow) -> String,
+    val openMan: (SkyJob) -> String,
+    val openManIndex: String
 )
 
 @Composable
@@ -337,7 +402,9 @@ fun rememberSkyLabels(): SkyLabels {
             },
             runSky = resources.getString(R.string.cd_run_sky),
             confirmRun = resources.getString(R.string.cd_confirm_run_sky),
-            cycleLead = { resources.getString(R.string.cd_sky_cycle_lead, it.job.id) }
+            cycleLead = { resources.getString(R.string.cd_sky_cycle_lead, it.job.id) },
+            openMan = { resources.getString(R.string.cd_sky_man_open, it.id) },
+            openManIndex = resources.getString(R.string.cd_sky_man_index)
         )
     }
 }

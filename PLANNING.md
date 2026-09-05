@@ -1343,6 +1343,78 @@ status bar.
 - [ ] Da verificare su device: `HELP.md` con `word_wrap: false` in `settings.config`,
       e che la status bar `⎇ config | ro | wrap | UTF-8` stia su uno schermo da 360dp
 
+## Fase 23 — `man 7 <job>`: il catalogo si spiega (chiesta dal committente, 5 set 2026)
+
+Richiesta del committente: i job del cielo hanno solo il nome inglese puntato, e uno
+non esperto non può capire che cosa siano. Serve una descrizione, a richiesta e non
+sempre a schermo, con un valore anche divulgativo.
+
+**La regola che ha creato il problema resta giusta.** `zodiacal.pm` non si traduce e
+non si allunga: è ciò che il crontab stampa, e una riga di crontab è codice (§4). La
+Fase 16g aveva già risolto metà del problema dando a ogni job un **nome in parole**
+per il README (`SkyJobNames`); questa fase fa l'altra metà, che è quella che può
+*spiegare* invece che tradurre.
+
+**Perché una man page e non un tooltip.** È un'app che sembra un terminale, e `man` è
+il modo in cui un terminale risponde a «che cos'è questa cosa». Porta gratis anche una
+struttura che vale la pena avere: NOME dice come si chiama, DESCRIZIONE che cos'è,
+QUANDO come si comporta, VEDERE ANCHE cosa leggere dopo. Su tutte e 51 le pagine le
+stesse quattro risposte negli stessi quattro posti. Prende tutto lo schermo, striscia
+delle tab compresa, perché è quello che `man` fa a un terminale: non è un quarto file
+dell'editor, è un programma che hai lanciato e da cui esci.
+
+**Le intestazioni di sezione si traducono, gli id no**, ed è la regola dei registri
+(Fase 18) applicata invece che data per scontata. I due test in ordine: tradurre
+`DESCRIPTION` non rompe nessuna lookup, nessun filename e nessun allineamento; e lo
+strumento stesso le traduce — una man page italiana dice `NOME` e `VEDERE ANCHE`.
+Tradurre `zodiacal.pm` romperebbe invece il legame col file, quindi non si muove.
+
+**QUANDO è generata da `SkyJob`, non scritta a mano.** Cadenza, forma, se le nuvole
+hanno voce in capitolo: sono campi che il motore già legge. Una frase scritta a mano su
+quei campi sarebbe una seconda copia della verità, libera di divergere la prima volta
+che un job cambia `kind`. A mano c'è solo la DESCRIZIONE, che è l'unica parte che
+nessun modello può dedurre. `SkyManPagesTest` verifica che le frasi seguano davvero i
+campi, e che un job non osservabile non dia mai la colpa alle nuvole.
+
+**Due strade per arrivarci, e la seconda non è ridondante.** `[man]` accanto a ogni
+riga del picker `+ add job`, dove il lettore sta scegliendo; e `$ man sky` in fondo al
+file, che apre l'indice di tutti e 51. Il picker offre solo ciò che **non** è già nel
+file, quindi non può essere l'unica via: chi ha `sun.rise` fra le sue righe da tre
+settimane e si chiede cosa fosse l'ora blu non lo troverebbe mai. L'indice è anche la
+pagina su cui atterra chi non sa ancora niente di niente. `$ man sky` sta **prima** di
+`$ tweather run sky`: la domanda a cui risponde viene prima: un verdetto su
+`zodiacal.pm` non serve a chi non sa che cosa sia.
+
+**Il picker diventa una `WidgetLine`** perché ora ha due bersagli su una riga, esattamente
+per la stessa ragione per cui lo sono le righe del crontab. `[man]` sta **dopo** la
+ricorrenza e non prima dell'id: chi scorre il catalogo cerca nomi, e una colonna di
+parentesi quadre lungo il margine sinistro sarebbe l'app che grida sopra il proprio
+catalogo. Un test verifica che leggere di un job non lo sottoscriva.
+
+**Sempre a capo** (la riga della Fase 22, applicata dove è ovvia): una man page è solo
+prosa, non ha niente di allineato, e paragrafi che si panano di lato non si leggono.
+`line_numbers` continua a seguire `settings.config`.
+
+**Due cose trovate scrivendo i test**, ed erano bug veri:
+
+- Aprendo una pagina dall'indice **scrollato**, la pagina nasceva già scrollata a metà:
+  il canvas tiene un solo stato di scorrimento e il documento nuovo è contenuto più
+  corto sotto un offset vecchio, quindi l'unica cosa fuori schermo era l'intestazione
+  che serve. `man` apre in cima, e ora anche questo.
+- La prima versione della guardia anti-segnaposto chiedeva 120 caratteri **per
+  paragrafo**, e ha bocciato `moon.rise`. Metà delle pagine apre con una definizione
+  secca e spiega sotto, che è come si legge un manuale: una soglia così alta era un
+  test con un'opinione sul ritmo della prosa. Ora guarda il corpo intero (>300) e
+  vieta i frammenti (>50 per paragrafo). `moon.set`, che era davvero magro, l'ho
+  riscritto invece di abbassare l'asticella.
+
+**Verifiche**: 637 test verdi (14 nuovi), lint 0 errori. Le due `TypographyDashes` su
+`--notify` sono soppresse con `tools:ignore` come già fa `help_md`: è un flag, non un
+trattino.
+
+- [ ] Da verificare su device: `[man]` nel picker, `$ man sky`, il salto da VEDERE
+      ANCHE e il ritorno con `[q]` e con la gesture di sistema
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

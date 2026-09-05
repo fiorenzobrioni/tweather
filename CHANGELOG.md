@@ -6,6 +6,16 @@ All notable changes to tweather are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **The sky catalog explains itself** (Fase 23). Every event `sky.crontab` can carry
+  now has a manual page: what it physically is, what you would actually see, and what
+  has to be true for you to see it. The dotted names stay as they are, because they
+  are what the file prints, but `zodiacal.pm` no longer has to mean nothing to
+  somebody who has not met the zodiacal light. Tap `[man]` beside any line in the
+  `+ add job` catalog, or open `$ man sky` at the foot of the file for the index of
+  all fifty-one. The pages cross-reference each other, and `[q]` gives the file back.
+
 ### Changed
 
 - `HELP.md` now always wraps its lines, whatever `word_wrap` says in

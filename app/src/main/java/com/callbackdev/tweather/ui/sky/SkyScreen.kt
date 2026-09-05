@@ -10,6 +10,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -59,6 +62,13 @@ fun SkyScreen(
     )
 }
 
+/**
+ * `man` open over the file, or not (Fase 23). A [String] and not a [SkyJob] because
+ * it is saved across configuration changes, and null is the index page rather than
+ * "nothing open" — the closed state is the whole wrapper being null.
+ */
+private data class ManTarget(val jobId: String?)
+
 @Composable
 fun SkyScreen(
     state: SkyUiState,
@@ -71,11 +81,32 @@ fun SkyScreen(
     val syntax = TweatherTheme.syntax
     val labels = rememberSkyLabels()
     val editing = rememberSkyEdit()
+    // Survives a rotation, like any open document would; the man page's own scroll
+    // deliberately does not, because `man` reopens at the top and so does this.
+    var manJobId by rememberSaveable { mutableStateOf<String?>(null) }
+    var manOpen by rememberSaveable { mutableStateOf(false) }
+    if (manOpen) {
+        SkyManScreen(
+            jobId = manJobId,
+            onOpen = { manJobId = it },
+            onQuit = { manOpen = false; manJobId = null }
+        )
+        return
+    }
     val lines = buildSkyLines(
         state = state,
         editing = editing.value,
         syntax = syntax,
-        actions = actions,
+        actions = SkyActions(
+            onToggleEnabled = actions.onToggleEnabled,
+            onRemove = actions.onRemove,
+            onAdd = actions.onAdd,
+            onRunSky = actions.onRunSky,
+            onCycleLead = actions.onCycleLead,
+            // The screen owns `man`, not the view model: nothing about an open manual
+            // page is app state, it is where the reader is looking.
+            onOpenMan = { jobId -> manJobId = jobId; manOpen = true }
+        ),
         labels = labels,
         resources = LocalContext.current.resources,
         onStartEdit = { editing.value = it }

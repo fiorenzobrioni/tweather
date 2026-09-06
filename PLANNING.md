@@ -1946,6 +1946,44 @@ dello schermo in fatto di ritmo, e si sono già mossi una volta.
 - [ ] Da verificare su device: la nuova velocità, e che tab e barra di stato stiano dentro
       le loro barre di sistema (navigazione a gesti e a tre bottoni)
 
+## Fase 27c — Le risposte sono prompt anche loro (device, 6 set 2026)
+
+Secondo giro sul telefono, e stavolta il difetto non era la velocità ma la **forma**.
+Verbale del committente: il comando ha la velocità giusta, la pausa dopo il comando ha
+la durata giusta, «poi fa tutto il testo in un colpo solo fino alla fine». Cioè: la
+sessione aveva due tempi ma un solo respiro — un turno, e poi un annuncio.
+
+**La correzione non è altra lentezza, è un ritmo.** Ogni riga che si apre con un prompt
+— il `$` del comando e ogni `>` di risposta — è **digitata** alla stessa velocità e
+seguita dallo stesso respiro; tutto il resto è **stampato**. Il glifo del prompt è la
+spia in tutte e due le direzioni: è dove una mano sta sullo schermo, ed è dove una
+sessione aspetta. Il transcript smette di essere «un comando e poi il muro» e diventa
+una conversazione a turni, che è quello che un `init` interattivo è sempre stato.
+
+Suggerita dal committente, e regge da sola: non serviva inventare una regola nuova,
+serviva accorgersi che `>` e `$` sono la stessa cosa.
+
+**E la prosa scende ancora**, da 250 a ~165 caratteri al secondo (`PrintMsPerChar` 4 →
+6), con i respiri fra le righe più larghi (`LinePauseMs` 40 → 100, `StanzaPauseMs`
+100 → 160): le quattro righe `#` arrivavano ancora troppo in blocco.
+
+**Quanto dura adesso**: 6,6 s in inglese e 7,1 s in italiano su tweather, che è il caso
+peggiore della serie perché ha **tre** risposte da digitare; tsteps sta a 5,8 s, thabit
+fra 5,8 e 6,3 s. È molto più di prima, ed è una scelta: è una schermata che
+un'installazione nuova vede una volta sola, un tocco la chiude in qualunque momento, e
+le quattro righe di introduzione finalmente si fanno leggere mentre si scrivono — che
+era il motivo per cui erano diventate quattro. Se dovesse risultare lunga, il numero da
+toccare è `PromptMsPerChar`: pesa 2,7 s dei 7,1.
+
+**Il budget del test si sposta a `4_000..8_000` ms.** Il pavimento resta la lezione
+della 27b (niente ritorno al tremolio), il tetto continua a sorvegliare la prosa che
+cresce.
+
+**Verifiche**: suite verde, lint 0 errori. Decisione di serie: stessa modifica in tsteps
+(Fase 23c) e thabit (Fase 19c).
+
+- [ ] Da verificare su device: il ritmo spezzato, e se sette secondi sono troppi
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

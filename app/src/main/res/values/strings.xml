@@ -146,11 +146,16 @@
         <item>Because a file can be read all at once, and because we like it this way. And if a word up there stayed obscure, never mind: it tells you the weather all the same.</item>
     </string-array>
 
-    <!-- `$ tweather init` (Fase 14c). Prose for someone seeing the app for the
-         first time, so LOCALIZED — the same exception README.md makes. The command
-         itself, the file name and cities.json are code and stay as they are. -->
-    <string name="init_intro">tweather needs one location to start.</string>
-    <string name="init_privacy">Forecasts come from open-meteo.com. Nothing else leaves the phone.</string>
+    <!-- `$ tweather init` (Fase 14c; the transcript prints itself since Fase 27).
+         Prose for someone seeing the app for the first time, so LOCALIZED — the same
+         exception README.md makes. The command itself, the file names and
+         open-meteo.com are code and stay as they are. The four lines above the
+         choices say what the app IS before what it needs: a session that takes a
+         second and a half to print can afford them, a still screen could not. -->
+    <string name="init_intro">tweather is a weather app that looks like a code editor.</string>
+    <string name="init_files">The forecast is a JSON file, the same day in plain words is a README, the sky is a crontab.</string>
+    <string name="init_privacy">Data comes from open-meteo.com. No account, no ads: nothing else leaves the phone.</string>
+    <string name="init_ask">It needs one location to start.</string>
     <string name="init_option_gps">use my position</string>
     <string name="init_option_gps_note">approximate position, Android asks you first</string>
     <string name="init_option_search">search a city</string>

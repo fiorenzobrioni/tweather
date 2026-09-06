@@ -161,9 +161,25 @@ class WeatherViewModelTest {
         )
     }
 
+    /**
+     * The view models built here own coroutines this class cannot join: `viewModelScope`
+     * is not exposed, and a load whose last statement has already set the state can
+     * still be a few instructions from finishing on the Main test dispatcher.
+     * `resetMain()` refuses while another thread is inside it — `Dispatchers.Main is
+     * used concurrently with setting it`, which is what this class was failing with
+     * about one run in twenty, in whichever test happened to end with a fetch in
+     * flight.
+     *
+     * So it waits instead of asserting the timing: those coroutines have nothing left
+     * to do, only a return to make.
+     */
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        runBlocking {
+            withTimeout(5_000) {
+                while (runCatching { Dispatchers.resetMain() }.isFailure) delay(5)
+            }
+        }
         database.close()
         storeScope.cancel()
     }
@@ -400,6 +416,40 @@ class WeatherViewModelTest {
     }
 
     /**
+     * `ON_RESUME`, retried until the view model is the one that answered.
+     *
+     * [WeatherViewModel.onResumed] declines while a load is still in flight, on purpose:
+     * a fetch already on its way will produce the document anyway. But landing on the
+     * document is not the same as that job being over — `load()` sets the state as its
+     * very last statement and the coroutine completes a few instructions later, on
+     * another thread — so resuming the instant [awaitState] returned was racing the tail
+     * of a job that had nothing left to show. It lost about one run in three on a loaded
+     * machine, and once on CI, where the assertion then read a `staleFor` the resume had
+     * never been allowed to recompute. Retrying is also the truthful reading of the
+     * scenario: nobody comes back to an app two hours later and lands inside a fetch
+     * started two hours ago.
+     *
+     * Called with the clock already moved, so a resume that takes is visible: the
+     * comparison is structural rather than by identity because a `MutableStateFlow`
+     * conflates — assigning a value that `equals` the current one leaves the old
+     * instance in place, and `!==` would have been a signal that can never fire.
+     */
+    private fun awaitResume(
+        viewModel: WeatherViewModel,
+        from: WeatherUiState
+    ): WeatherUiState = runBlocking {
+        withTimeout(10_000) {
+            var state = viewModel.uiState.value
+            while (state == from) {
+                viewModel.onResumed()
+                delay(5)
+                state = viewModel.uiState.value
+            }
+            state
+        }
+    }
+
+    /**
      * Battery saver drops the NETWORK half of the resume re-read and keeps the other
      * half, and both halves are asserted here.
      *
@@ -429,9 +479,8 @@ class WeatherViewModelTest {
         // Two hours later, under saver.
         saving = true
         clock.advance(Duration.ofHours(2))
-        vm.onResumed()
+        val saved = awaitResume(vm, from = landed)
 
-        val saved = vm.uiState.value
         assertEquals("saver must not spend a request", callsBefore, httpCalls)
         assertNotNull("and must not blank the document either", saved.report)
         // The clock moved and the document knows: it says it is two hours further

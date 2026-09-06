@@ -1774,6 +1774,216 @@ per byte.
 
 ---
 
+## Fase 27 — Il primo avvio si scrive da solo (chiesta dal committente, 6 set 2026)
+
+`$ tweather init` era già una sessione di terminale: era solo la **fotografia** di una.
+Il committente ha chiesto di darle vita — cursore a blocchi che scrive i commenti, mood da
+sviluppatore — e la richiesta coglie una cosa vera: una shell che ha evidentemente finito
+prima che tu la guardassi è l'unica cosa che una shell non è mai, e il `█`, il glifo che
+dice «la macchina è *qui*, adesso», non aveva un posto dove stare.
+
+**Due velocità, perché un transcript ha due autori.** La riga del comando si *digita*
+(`PromptMsPerChar = 20`, una mano su una tastiera); tutto quello che sta sotto si *stampa*
+(`PrintMsPerChar = 2`, cinquecento caratteri al secondo, otto per frame). Non è una
+macchina da scrivere: è un programma che scrive su una tty. Lo scarto fra le due velocità
+è ciò che fa leggere la prima riga come di qualcuno e il resto come la risposta della
+macchina. Due respiri: 160 ms dopo il comando, 60 ms fra una risposta offerta e la
+successiva. **Totale 1,5 s in inglese**, e un test lo tiene sotto i due secondi in
+entrambe le lingue — è il test con cui bisognerà litigare il giorno in cui l'introduzione
+vorrà diventare un carosello per accumulo.
+
+**Niente barre di avanzamento finte.** La regola della serie è che il file non mente, e
+uno spinner che conta fino a un numero che l'app ha già sarebbe la forma più pura di
+quella bugia: un'animazione che inventa lavoro. Quello che è animato è l'*arrivo* di un
+testo che sarebbe stato lì comunque, che è esattamente quello che fa un terminale.
+
+**Il clock dei frame, non un `delay` per carattere.** `withFrameNanos` dentro un
+`LaunchedEffect`: un `delay(2)` è una promessa che lo scheduler non può mantenere, e la
+deriva si vede come la macchina da scrivere lenta e a scatti che questa non deve essere.
+
+**Tre vie d'uscita, nell'ordine che conta:**
+
+- **Un tocco la chiude.** Mentre stampa, tutta la canvas è un bersaglio invisibile — un
+  `Box` in overlay, non un `clickable` sulla canvas, perché l'overlay viene colpito per
+  primo: il tocco che chiude l'animazione non può anche rispondere a una domanda che il
+  lettore non ha finito di leggere. Esce dalla composizione nell'istante in cui ha fatto
+  il suo unico lavoro, e un test verifica che nessuna delle tre risposte sia stata data.
+- **«Rimuovi animazioni» non la fa partire.** `ANIMATOR_DURATION_SCALE == 0`, lo stesso
+  interruttore che scrive l'accessibilità di Android (ed è quello che governa davvero le
+  animazioni dentro un'app). `finished` parte già `true`, quindi la schermata è completa
+  al **primo frame**: un frame dopo sarebbe un lampo, ed è il difetto che distingue
+  un'implementazione fatta da una dichiarata.
+- **Anche TalkBack la salta**, per un motivo suo: un transcript che cresce di un carattere
+  alla volta è un albero di semantica che cambia sessanta volte al secondo, e lo screen
+  reader leggerebbe l'introduzione a pezzi. Non è la stessa richiesta di «niente
+  animazioni» — sono due condizioni perché sono due domande diverse.
+
+**Il latch è un `rememberSaveable`**: `> use my position` apre un dialogo di sistema, e
+tornare indietro — o una rotazione — per rivedere l'introduzione scriversi da capo
+trasformerebbe un bel primo secondo in un ostacolo. Vale anche per la riga
+`# permission denied`, che arriva *dopo*: senza il latch il transcript si sarebbe
+allungato e l'animazione sarebbe ripartita dalla coda.
+
+**Questa canvas va sempre a capo**, qualunque cosa dica `word_wrap` — lo stesso override
+di `HELP.md` (Fase 22), per una ragione più netta: un cursore che esce dal bordo destro è
+un cursore che non si vede, e una schermata di primo avvio non può chiedere al lettore di
+trascinare di lato per scoprire dove è arrivata la macchina. Si muove solo il wrap, non
+`line_numbers`. **La status bar non dice `wrap`**, e qui la Fase 22 andava riletta e non
+copiata: quel marcatore esiste perché un file non sembri ignorare un interruttore che il
+lettore ha impostato, e al primo avvio nessuno ha ancora impostato niente. Questa non è la
+scheda di un file, è una sessione — e infatti non ha nemmeno `ro`/`rw`.
+
+**Il testo è cresciuto, e questa è metà della modifica.** Erano due righe `#`; ora sono
+quattro: cos'è l'app, in che forma scrive quello che sa, da dove arrivano i dati, cosa le
+serve per partire. Una sessione che impiega un secondo e mezzo a stamparsi se le può
+permettere; una schermata ferma no, perché davanti a un muro di testo già tutto lì si
+salta alla prima riga azzurra. Restano prosa localizzata, la stessa eccezione di
+`README.md`, e restano **quattro righe**: il tetto non è il gusto, è il budget di due
+secondi qui sopra.
+
+**`Typist` è una timeline pura**: dato un millisecondo, quali righe sono a video e quanta
+parte dell'ultima. Nessun clock, nessun Compose. Un'animazione che si può giudicare solo
+guardandola è un'animazione che nessuno può tenere onesta, e le due cose che qui contano
+davvero — che il cursore stia dove sta scrivendo, e che la corsa sia breve — sono
+aritmetica. Nove test in `TypistTest`, compreso il caso della pausa (il cursore resta
+parcheggiato a fine riga, non salta alla successiva) e quello del frame in ritardo.
+
+**Una riga a metà non è ancora una risposta**: il `CodeLine` troncato perde il suo
+`onClick`. È superfluo, visto che l'overlay intercetta tutto — ma è il tipo di verità che
+si scrive nel modello, non in un commento.
+
+**Il dispositivo di default di Robolectric non è un telefono.** Il transcript tiene
+l'ultima riga in vista (un terminale fa così: è la differenza fra avere le risposte sullo
+schermo e averle sotto), quindi su uno schermo più corto del documento la testa della
+sessione è onestamente scorsa via — e su un 320×470dp che nessuno vende i test cercavano
+una riga che nessun telefono avrebbe nascosto. `InitScreenTest` ha ora
+`@Config(qualifiers = "w360dp-h740dp")`, e `TweatherNavigationTest` identifica la sessione
+dalla **tab** (`tweather.sh`), che è il fatto di cui parla.
+
+**Un test rosso in CI che non era di questa fase.** Il primo push ha trovato
+`WeatherViewModelTest > battery saver skips the resume fetch but still rebuilds against
+the clock` caduto alla riga 439 — un test che questa fase non tocca. Riprodotto in locale
+eseguendo **solo quella classe**, quindi senza che nessuno dei test nuovi entrasse in
+gioco: 7 fallimenti su 22 esecuzioni, sempre la stessa asserzione. La corsa è arrivata
+con il test (Fase 25b) e finora aveva vinto tre volte su tre.
+
+Il messaggio la dice tutta: `staleFor: PT3H0.007707012S`, cioè il valore di *prima* —
+l'orologio era avanzato di due ore e il documento non era stato ricostruito.
+`onResumed()` rifiuta di fare qualcosa mentre un load è in volo, di proposito: un fetch
+già partito produrrà comunque il documento. Ma **arrivare sul documento non è la stessa
+cosa che avere finito il job**: `load()` assegna lo stato come sua *ultima* istruzione e
+la coroutine termina qualche istruzione dopo, su un altro thread. Il test faceva
+`onResumed()` nell'istante in cui `awaitState` tornava, e correva contro quella coda.
+
+`awaitResume(vm, from = landed)` riprova finché la ripresa non è quella che ha risposto —
+che è anche la lettura onesta dello scenario: nessuno torna su un'app due ore dopo e
+atterra dentro un fetch partito due ore prima. Il confronto è **strutturale e non per
+identità** perché un `MutableStateFlow` conflaziona: assegnare un valore `equals` a
+quello corrente lascia in piedi la vecchia istanza, quindi `!==` sarebbe stato un segnale
+che non può mai scattare — la prima versione della correzione lo usava ed è andata in
+timeout venti volte su venti, il che almeno lo ha dimostrato.
+
+Tolta quella, ne è emersa una seconda della stessa famiglia e nello stesso test:
+`tearDown` chiamava `Dispatchers.resetMain()` mentre un job del `viewModelScope` era
+ancora dentro il dispatcher (`Dispatchers.Main is used concurrently with setting it`,
+~1 esecuzione su 22). La classe costruisce i view model a mano e non può fare `join` su
+`viewModelScope`, quindi `tearDown` **aspetta** invece di asserire il tempismo: quelle
+coroutine non hanno più niente da fare, solo un return da eseguire. La correzione
+strutturale — un `ViewModelStore` da svuotare — riscriverebbe come tutti e dodici i test
+costruiscono il loro view model, e non è di questa fase.
+
+Il resto della pipeline è stato rifatto in locale sullo stesso commit: `assembleDebug` e
+`assembleRelease -PsignReleaseWithDebugKey` passano entrambi, lint 0 errori.
+
+**Verifiche**: suite verde (`InitScreenTest` 9 test, `TypistTest` 9), lint 0 errori.
+Decisione di serie: la stessa modifica sta in tsteps (Fase 23) e thabit (Fase 19), con le
+stesse due velocità, lo stesso overlay e lo stesso budget.
+
+- [ ] Da verificare su device: la velocità (deve sembrare fluida, non una macchina da
+      scrivere), il tap-to-skip a metà stampa, «Rimuovi animazioni» in Accessibilità,
+      TalkBack, e che le quattro righe più le risposte ci stiano su uno schermo da 360×640
+
+## Fase 27b — Il primo avvio, riletto sul telefono (device, 6 set 2026)
+
+Due cose dal giro del committente su tsteps e thabit, e la seconda non era della
+Fase 27.
+
+**Era troppo veloce.** Cinquecento caratteri al secondo, sessione finita in un secondo e
+mezzo: sul telefono non si legge come una cosa che si sta scrivendo, si legge come un
+tremolio. Il testo arriva più in fretta di quanto l'occhio lo insegua, che è esattamente
+la «fuffa» che l'animazione doveva evitare — e il cursore, che è l'unico motivo per cui
+l'animazione esiste, non lo si vede muovere: è già in fondo. Metà velocità
+(`PrintMsPerChar = 4`, ~250 car/s), il comando digitato a poco più del doppio del tempo
+(`PromptMsPerChar = 45`: una mano vera fa circa ventidue caratteri al secondo, non
+cinquanta) e un respiro di 40 ms dopo **ogni** riga stampata, perché una riga atterri
+come una riga e non come un pezzo di flusso. La corsa passa da 1,5 s a circa 3,2 s
+(3,3 s in italiano, che è la lingua lunga).
+
+**E il budget del test diventa un intervallo.** «Sotto i due secondi» era il guardiano
+che aveva permesso il tremolio: un tetto senza pavimento sorveglia una sola delle due
+cose che possono andare storte. Ora è `2_000..4_000` ms in entrambe le lingue, e il
+pavimento porta scritto il motivo.
+
+**La schermata finiva sotto le barre di sistema**: la tab `tweather.sh` sotto l'orologio,
+la barra di stato del terminale sotto la pillola dei gesti. Non è un difetto della
+Fase 27 — `InitScreen` non ha mai applicato gli inset, e il workspace lo fa dal giorno in
+cui esiste (`statusBarsPadding()` sulla sua Column radice). Qui non c'è Scaffold e non
+c'è nav bar, quindi la Column prende lo stesso `statusBarsPadding()`, e la
+`TerminalStatusBar` — che su questa schermata è l'elemento più in basso, cosa che nel
+workspace non è mai — si prende l'inset dei gesti come se lo prende `EditorNavBar`: il
+colore della striscia arriva al bordo e il testo sta sopra la pillola. Lo sfondo è
+dipinto al punto di chiamata perché il padding deve stare DENTRO di esso, e il componente
+applica il proprio dopo il modifier che riceve.
+
+**Un effetto collaterale da mettere a verbale**: `TypedLine.pauseAfterMs` ora vale
+`LinePauseMs` di default invece di zero, quindi `TypistTest` scrive tutti i suoi respiri
+per esteso. Quei test parlano dell'aritmetica della timeline; i default sono il gusto
+dello schermo in fatto di ritmo, e si sono già mossi una volta.
+
+**Verifiche**: suite verde, lint 0 errori. Decisione di serie: stessa modifica in tsteps
+(Fase 23b) e thabit (Fase 19b).
+
+- [ ] Da verificare su device: la nuova velocità, e che tab e barra di stato stiano dentro
+      le loro barre di sistema (navigazione a gesti e a tre bottoni)
+
+## Fase 27c — Le risposte sono prompt anche loro (device, 6 set 2026)
+
+Secondo giro sul telefono, e stavolta il difetto non era la velocità ma la **forma**.
+Verbale del committente: il comando ha la velocità giusta, la pausa dopo il comando ha
+la durata giusta, «poi fa tutto il testo in un colpo solo fino alla fine». Cioè: la
+sessione aveva due tempi ma un solo respiro — un turno, e poi un annuncio.
+
+**La correzione non è altra lentezza, è un ritmo.** Ogni riga che si apre con un prompt
+— il `$` del comando e ogni `>` di risposta — è **digitata** alla stessa velocità e
+seguita dallo stesso respiro; tutto il resto è **stampato**. Il glifo del prompt è la
+spia in tutte e due le direzioni: è dove una mano sta sullo schermo, ed è dove una
+sessione aspetta. Il transcript smette di essere «un comando e poi il muro» e diventa
+una conversazione a turni, che è quello che un `init` interattivo è sempre stato.
+
+Suggerita dal committente, e regge da sola: non serviva inventare una regola nuova,
+serviva accorgersi che `>` e `$` sono la stessa cosa.
+
+**E la prosa scende ancora**, da 250 a ~165 caratteri al secondo (`PrintMsPerChar` 4 →
+6), con i respiri fra le righe più larghi (`LinePauseMs` 40 → 100, `StanzaPauseMs`
+100 → 160): le quattro righe `#` arrivavano ancora troppo in blocco.
+
+**Quanto dura adesso**: 6,6 s in inglese e 7,1 s in italiano su tweather, che è il caso
+peggiore della serie perché ha **tre** risposte da digitare; tsteps sta a 5,8 s, thabit
+fra 5,8 e 6,3 s. È molto più di prima, ed è una scelta: è una schermata che
+un'installazione nuova vede una volta sola, un tocco la chiude in qualunque momento, e
+le quattro righe di introduzione finalmente si fanno leggere mentre si scrivono — che
+era il motivo per cui erano diventate quattro. Se dovesse risultare lunga, il numero da
+toccare è `PromptMsPerChar`: pesa 2,7 s dei 7,1.
+
+**Il budget del test si sposta a `4_000..8_000` ms.** Il pavimento resta la lezione
+della 27b (niente ritorno al tremolio), il tetto continua a sorvegliare la prosa che
+cresce.
+
+**Verifiche**: suite verde, lint 0 errori. Decisione di serie: stessa modifica in tsteps
+(Fase 23c) e thabit (Fase 19c).
+
+- [ ] Da verificare su device: il ritmo spezzato, e se sette secondi sono troppi
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

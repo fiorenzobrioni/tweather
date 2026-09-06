@@ -62,6 +62,31 @@ All notable changes to tweather are documented here. The format follows
   the other half of "Milano" while standing in Segrate. They are now ranked by how far
   you may be from each one by now: the accuracy it declares plus the ground you could
   have covered since.
+- **`history.diff` diffs the whole sky block, daylight included.** The commit body
+  carried the sunrise and the sunset and not the span between them, so a reader
+  watching the days get shorter had to subtract two clock times for themselves, on a
+  line `weather_data.json` prints two fields away. `astronomical.daylight_duration`
+  is now a line of the diff like the other three, written in the same `10h 52m` the
+  JSON uses.
+- **A value the providers could not fill reads as `null`, not as the word.** Three
+  keys can genuinely be empty: there is no sunrise above the Arctic circle in June,
+  some forecast models carry no precipitation probability, and the air-quality call
+  can fail while the forecast succeeds. The first two were written into the history
+  with `toString()`, which turns null into the four letters n-u-l-l, and the diff then
+  quoted them: `"astronomical.sunrise": "null"`, a sunrise at a time spelled like a
+  word. They now print bare and gray, exactly as `weather_data.json` prints a `null`
+  in the same place, and the home widget no longer renders `Rain: null%` or
+  `Sun: null → null` when it reads one back.
+- **The air-quality line stays in place instead of leaving the file.** The AQI key was
+  only written when that call had succeeded, so a failed one dropped it from the
+  snapshot: the diff then trailed it at the bottom, below the astronomy, and put it
+  back mid-file two fetches later when the call recovered. The commit body now has the
+  same fifteen lines whatever a fetch came back with, and a section that has nothing
+  to report changes value in place.
+- **The city in a commit body matches the city in its header.** A place with no
+  administrative region (Singapore, Monaco) had the header saying `[Singapore,
+  Singapore]` and the `"location"` line under it saying `Singapore`, because only the
+  header fell back to the country.
 
 ### Added
 

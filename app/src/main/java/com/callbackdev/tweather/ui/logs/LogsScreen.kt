@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.callbackdev.tweather.R
 import com.callbackdev.tweather.data.local.ForecastDiff
 import com.callbackdev.tweather.data.local.SnapshotDiff
+import com.callbackdev.tweather.data.local.WeatherSnapshots
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
@@ -438,15 +439,30 @@ private fun signedLine(
     gutterColor = color
 )
 
-/** Numbers render bare like in JSON, anything else quoted. */
-private fun formatValue(value: String): String =
-    if (value.toDoubleOrNull() != null) value else "\"$value\""
+/**
+ * Numbers and [WeatherSnapshots.NullValue] render bare like in JSON, anything else
+ * quoted. The null matters: a fetch above the Arctic circle in June has no sunrise,
+ * and quoting it would print `"astronomical.sunrise": "null"` — a time whose value
+ * is the word null, rather than the absence `weather_data.json` writes as `null` in
+ * the very same place.
+ */
+private fun formatValue(value: String): String = when {
+    value == WeatherSnapshots.NullValue -> value
+    value.toDoubleOrNull() != null -> value
+    else -> "\"$value\""
+}
 
 private fun AnnotatedString.Builder.appendValue(value: String, syntax: SyntaxColors) {
-    if (value.toDoubleOrNull() != null) {
-        withStyle(SpanStyle(color = syntax.number)) { append(value) }
-    } else {
-        withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
+    when {
+        // JSON's `null` is neither a number nor a string; the file paints it in the
+        // gray it gives braces and comments, which is where the eye already reads
+        // "structure, not data".
+        value == WeatherSnapshots.NullValue ->
+            withStyle(SpanStyle(color = syntax.comment)) { append(value) }
+        value.toDoubleOrNull() != null ->
+            withStyle(SpanStyle(color = syntax.number)) { append(value) }
+        else ->
+            withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
     }
 }
 

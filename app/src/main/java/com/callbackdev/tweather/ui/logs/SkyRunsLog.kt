@@ -27,7 +27,7 @@ import java.time.format.DateTimeFormatter
  * from the `sky_runs` column of a `weather_history` commit, which is also where the
  * `✓ …` check lines in `history.diff` come from. Two files, one truth, no
  * reconciliation test to write — and the retention solves itself, because runs age
- * out with the 200 commits the history already keeps.
+ * out with the 100 commits the history already keeps.
  */
 object SkyRunsLog {
 

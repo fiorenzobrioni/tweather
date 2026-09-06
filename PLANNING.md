@@ -1984,6 +1984,105 @@ cresce.
 
 - [ ] Da verificare su device: il ritmo spezzato, e se sette secondi sono troppi
 
+## Fase 28 — `history.diff`, riletto voce per voce (review, 6 set 2026)
+
+Il committente ha chiesto una review della schermata `history.diff`: tutte le voci si
+vedono come dovrebbero, e il diff col commit precedente è giusto? Con un sospetto
+preciso — «mi sembra che di certe voci sul cielo il diff non venga fatto». Il sospetto
+era fondato, e tirando quel filo sono venute fuori altre tre cose nello stesso posto.
+
+Il metro della review è uno solo, ed è quello che il file dichiara di essere:
+`history.diff` è il diff **di `weather_data.json`**. Ogni voce si giudica contro come
+quel documento la scrive.
+
+### A — Il blocco del cielo era diffato per tre quarti (il difetto segnalato)
+
+`weather_data.json` stampa quattro campi sotto `astronomical`: `sunrise`, `sunset`,
+`moon_phase`, `daylight_duration`. Lo snapshot ne portava **tre**: la durata del giorno
+non è mai entrata nello storico, quindi il diff non poteva farla. È l'unica riga della
+sezione che dice il fatto per cui la sezione si guarda — le giornate si accorciano di
+tre minuti — e per leggerlo bisognava sottrarre a mente due orari stampati due righe
+sopra. Ora c'è, scritta come la scrive il JSON (`"10h 52m"`, via `Duration.hhMm()`
+spostata in `domain/model` perché adesso ha tre lettori in due layer).
+
+Il formato tronca anche i sotto-secondi con cui risponde il motore, quindi cambia una
+volta al giorno insieme ai suoi due estremi: nessun churn, la stessa attenzione che la
+16e aveva già dovuto avere per `sunrise` (troncato al minuto per lo stesso motivo).
+
+### B — `null` scritto per sbaglio, e stampato tra virgolette
+
+Tre chiavi possono essere legittimamente vuote: **niente alba oltre il circolo polare a
+giugno** (nullable dalla 16e), **niente probabilità di precipitazione** dai modelli che
+non portano il campo (nullable dalla 26), **niente AQI** quando quella chiamata fallisce
+mentre la forecast riesce. Le prime due erano scritte con `nullable.toString()` — che in
+Kotlin risponde `"null"` — quindi la parola arrivava nel file **per caso**, e il
+renderer, non sapendo cosa fosse, la trattava come stringa:
+
+    + "astronomical.sunrise": "null"
+
+un'alba a un orario che si scrive n-u-l-l. E il widget, che rilegge lo stesso snapshot,
+stampava `Rain: null%` e `Sun: null → null` **sulla home**, cioè la superficie con meno
+spazio di tutte per spiegarsi.
+
+Ora l'assenza è una costante con un nome (`WeatherSnapshots.NullValue`), il diff la
+stampa **nuda e grigia** come il JSON stampa un `null` nello stesso identico punto, e il
+widget la tratta come chiave mancante: la riga sparisce, che è quello che tutte le sue
+`?.let` già facevano.
+
+### C — L'aria che esce dal file e rientra
+
+`air_quality.aqi` era scritta **solo se** quella chiamata era riuscita. Una chiamata
+fallita toglieva la chiave dallo snapshot, e `SnapshotDiff` accoda le chiavi sparite in
+fondo (è git: un campo rimosso è una riga `-` in coda): la riga finiva **sotto
+l'astronomia**, fuori sezione, per poi ricomparire a metà file due fetch dopo. Con la
+costante di B la chiave c'è sempre e cambia valore sul posto. Il corpo del commit ha
+adesso **quindici righe fisse**, qualunque cosa sia tornata dal fetch — che è anche
+l'unico modo in cui un diff si legge a colpo d'occhio.
+
+### D — L'header e il corpo dicevano due città diverse
+
+`location` nello snapshot era `listOfNotNull(city, region)`, mentre l'header del commit
+stampa `City.label`, che è `region ?: country`. Per un posto senza admin1 — Singapore,
+Monaco, il Vaticano — l'header diceva `[Singapore, Singapore]` e la riga `"location"`
+sotto diceva `Singapore`. Allineata alla stessa regola.
+
+### Quello che NON ho toccato, e perché
+
+**Le unità.** `history.diff` è l'**unica superficie rimasta a stampare metrico**: con
+`units.temperature = fahrenheit` il JSON scrive `temp_f: 65.3`, il README e il widget
+convertono, e i Log continuano a dire `18.5`. Non è una bugia (la chiave dice `temp_c`),
+ma è esattamente l'asimmetria che la 9h aveva trovato e chiuso per la **lingua** — «i
+Logs erano l'unica superficie con i valori in inglese» — e l'argomento si ricopia parola
+per parola sostituendo "lingua" con "unità": lo snapshot resta metrico (i diff non
+devono churnare), la conversione è a render time, e la chiave si rinomina con il valore
+come fa il JSON. Non l'ho fatta perché **rinomina delle chiavi in un file finto**, ed è
+una decisione da prendere col committente, non da far scivolare dentro una review.
+
+**Le check line del cielo non sono un diff, e va bene così.** `✓ sun.set ran clear` è un
+evento che il fetch ha osservato, non uno stato che è cambiato: sta sul commit come le
+regole scattate, e la sua seconda vista è `sky_runs.log`. Unica nota: il vocabolario fra
+le due viste è diverso (`ran clear` di qua, `✓ pass` di là) mentre la 16e diceva che è
+lo stesso — cosmetico, segnalato e non toccato.
+
+**Le sezioni assenti dallo snapshot** (pollini, pollutants, dew point, visibilità,
+raffiche, `uv_description`, `air_quality.status`) restano fuori: lo snapshot è un
+sottoinsieme curato dalla Fase 8, non un dump del documento, e allargarlo è una scelta
+di prodotto. Il cielo era l'unica sezione **quasi** completa, ed è per questo che la
+riga mancante si notava.
+
+- [x] `astronomical.daylight_duration` nello snapshot; `hhMm()` scesa in `domain/model`
+- [x] `WeatherSnapshots.NullValue`: set di chiavi fisso, `null` scritto di proposito
+- [x] Il diff stampa `null` nudo in grigio commento, il widget lo tratta come assente
+- [x] `location` allineata a `City.label` (`region ?: country`)
+- [x] KDoc di `SkyRunsLog`: la retention sono 100 commit, non 200 (anche a riga 789 di
+      questo file, lasciata com'è perché è il verbale di una fase passata)
+- [x] Test: 4 su `WeatherSnapshots` (blocco cielo intero, set di chiavi invariante,
+      assenza scritta `null`, fallback del paese), 2 di rendering (`LogsNullValuesTest`),
+      2 sul widget; suite verde, lint 0 errori
+- [ ] Da verificare su device: il commit di una città senza region, e un fetch con la
+      chiamata air quality caduta
+- [ ] Da decidere col committente: le unità nei Log (vedi sopra)
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

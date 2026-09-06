@@ -125,6 +125,17 @@ data class Astronomical(
     val daylightDuration: Duration?
 )
 
+/**
+ * `"10h 52m"` — how every surface writes a span of daylight.
+ *
+ * Lives in the domain rather than next to `weather_data.json`'s builder because it
+ * has three readers in two layers now: the JSON, `README.md`'s `## Astronomy`, and
+ * the history snapshot that `history.diff` is a diff OF. A second copy of the format
+ * is a second answer to "how long was today", which is the one thing the sky module
+ * was built not to have.
+ */
+fun Duration.hhMm(): String = "${toHours()}h ${toMinutesPart()}m"
+
 data class HourlyForecast(
     val time: LocalDateTime,
     val tempC: Double,

@@ -7,6 +7,7 @@ import com.callbackdev.tweather.domain.AlertEngine
 import com.callbackdev.tweather.domain.AlertKind
 import com.callbackdev.tweather.domain.AlertState
 import com.callbackdev.tweather.domain.model.WeatherReport
+import com.callbackdev.tweather.domain.model.hhMm
 import com.callbackdev.tweather.domain.sky.SkyVerdict
 import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.domain.sky.SkyVerdictNote

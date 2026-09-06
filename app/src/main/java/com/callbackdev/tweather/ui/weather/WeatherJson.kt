@@ -193,7 +193,8 @@ internal fun TemperatureUnit.convert(celsius: Double): Double =
 internal val TemperatureUnit.symbol: String
     get() = if (this == TemperatureUnit.CELSIUS) "°C" else "°F"
 
-private val WindSpeedUnit.keySuffix: String
+// internal: AlertNotifier keys its wind the same way (`speed_kph`/`speed_mph`)
+internal val WindSpeedUnit.keySuffix: String
     get() = if (this == WindSpeedUnit.KMH) "kph" else "mph"
 
 // internal: the home widget renders wind in the user's unit too

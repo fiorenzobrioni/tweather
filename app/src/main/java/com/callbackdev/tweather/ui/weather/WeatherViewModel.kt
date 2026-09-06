@@ -56,8 +56,8 @@ data class WeatherUiState(
     /**
      * How far behind [report] is, when the app has decided it is no longer current
      * (Fase 17): `null` while it counts as fresh, which is every successful fetch and
-     * every cache hit — the TTL is half of [WeatherFreshness]'s threshold, so a hit
-     * cannot be stale.
+     * every cache hit — the TTL is [WeatherFreshness.ProviderResolution] and the
+     * shortest threshold this object can return is twice it, so a hit cannot be stale.
      *
      * Non-null means the document below the error lines is the last fetch that
      * worked, and both renderers say so before printing a single number.
@@ -161,19 +161,22 @@ class WeatherViewModel(
      */
     private var currentKey: String? = null
 
-    @Volatile
-    private var cacheTtl: Duration? = null // null = repository default
-
+    /**
+     * The BACKGROUND polling interval, read for one purpose only: how old a report
+     * has to be before the document says so ([WeatherFreshness.isStale]).
+     *
+     * It used to drive the repository's cache TTL as well (Fase 25 took that away) —
+     * which quietly made a battery setting decide how old `## Current` may be with
+     * the reader looking straight at it: an hour by default, two at the top of the
+     * range. The TTL is the provider's own resolution now and lives in the
+     * repository; this stays what its name says.
+     */
     @Volatile
     private var updateFrequencyMin: Int = DefaultUpdateFrequencyMin
 
     init {
-        // The sync setting drives the repository cache TTL on the next load
         viewModelScope.launch {
-            settingsStore.settings.collect {
-                cacheTtl = Duration.ofMinutes(it.updateFrequencyMin.toLong())
-                updateFrequencyMin = it.updateFrequencyMin
-            }
+            settingsStore.settings.collect { updateFrequencyMin = it.updateFrequencyMin }
         }
         // Follow the Explorer's selection: every change of active source reloads
         // the document (cache-friendly — an unexpired city comes back as a HIT).
@@ -235,6 +238,37 @@ class WeatherViewModel(
     }
 
     /**
+     * The editor came back to the foreground (Fase 25).
+     *
+     * Nothing used to happen here at all: the document was built once, at the load
+     * that produced it, and then aged on screen — an app left open at 09:00 and
+     * unlocked at 11:00 still printed 09:00's `## Current`, still trimmed
+     * `## Next hours` against a clock two hours slow, and had not even recomputed
+     * whether to say `// stale`. Fifteen minutes past the last fetch this re-reads;
+     * inside them it is a cache HIT that costs no network and still rebuilds the
+     * document against the real now, which is half of what was missing.
+     *
+     * Deliberately SILENT — no `// fetching…`, no spinning FAB: an automatic read has
+     * nothing to announce, and announcing it on every unlock would make the document
+     * jump twice for something the reader did not ask for. Chiaro's `userRefreshing`
+     * draws the same line for the same reason.
+     *
+     * Does nothing before the first document lands, and nothing while a load is in
+     * flight: cold start already fetches, and the first ON_RESUME arrives right on
+     * top of it.
+     *
+     * A GPS source is re-read at its LAST FIX and never re-acquires the position:
+     * that is what the FAB means there ([refresh]) and what `revalidateFix` does once
+     * per selection. Taking a fix on every unlock is the cost the whole location
+     * strategy is written to avoid.
+     */
+    fun onResumed() {
+        if (loadJob?.isActive == true || gpsJob?.isActive == true) return
+        if (_uiState.value.report == null) return
+        city?.let { load(it, forceRefresh = false, clearReport = false, announce = false) }
+    }
+
+    /**
      * Fresh fix, then fetch. [currentKey] is set before [CityStore.updateGpsCity]
      * so the resulting flow emission is a no-op in the collector (no double load).
      */
@@ -291,21 +325,28 @@ class WeatherViewModel(
         }
     }
 
-    private fun load(city: City, forceRefresh: Boolean, clearReport: Boolean) {
+    /**
+     * [announce] false is the silent read of [onResumed]: the state is left exactly as
+     * it is until the new document replaces it, so the FAB does not spin and the two
+     * `// fetching…` lines never appear. It also leaves any error line standing until
+     * this attempt has something better to say about it.
+     */
+    private fun load(
+        city: City,
+        forceRefresh: Boolean,
+        clearReport: Boolean,
+        announce: Boolean = true
+    ) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            _uiState.update {
-                if (clearReport) WeatherUiState()
-                else it.copy(isLoading = true, error = null, noLocation = false)
+            if (announce) {
+                _uiState.update {
+                    if (clearReport) WeatherUiState()
+                    else it.copy(isLoading = true, error = null, noLocation = false)
+                }
             }
             try {
-                val ttl = cacheTtl
-                val report = if (ttl != null) {
-                    repository.getWeather(city, forceRefresh, ttl)
-                } else {
-                    repository.getWeather(city, forceRefresh)
-                }
-                _uiState.value = documentOf(report)
+                _uiState.value = documentOf(repository.getWeather(city, forceRefresh))
             } catch (e: WeatherException) {
                 _uiState.value = documentOf(lastKnown(city), e)
             }

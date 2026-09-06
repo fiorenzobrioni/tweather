@@ -8,6 +8,20 @@ All notable changes to tweather are documented here. The format follows
 
 ### Fixed
 
+- **`## Current` is the current hour again, not the last one.** The report cache was
+  held for as long as `update_frequency_min`, the background polling interval: with
+  its default of 60 minutes, opening the app inside that hour showed the last
+  background sync as if it were now, and at 120 it could be two hours. Nothing said
+  so, because the `// stale` line only appears past twice that interval, so it could
+  not appear inside it. Open-Meteo publishes its current readings on a fifteen minute
+  grid, and that is the TTL now. `update_frequency_min` is back to meaning one thing:
+  how often the app wakes up in the background.
+- **The editor no longer ages on screen.** Coming back to the app re-reads the active
+  city, which within those fifteen minutes costs nothing and still rebuilds the
+  document against the real clock: an app opened at 09:00 and unlocked at 11:00 used
+  to print 09:00's readings, list hours that were already over, and stay silent about
+  being behind. The re-read announces nothing, so the FAB does not spin and the
+  document does not jump for something you did not ask for.
 - **The GPS location names your town again, not your province.** In Cavenago di
   Brianza the header read "Provincia di Monza e della Brianza"; in Segrate it read
   "Milano". Three things had to be wrong at once. The reverse geocoder was being
@@ -39,6 +53,22 @@ All notable changes to tweather are documented here. The format follows
 
 ### Changed
 
+- **Opening a weather notification now tells you something new.** Collapsed and
+  expanded were the same four fields laid out twice: pulling one open gave back what
+  it already said, in taller form. Folding hides children, not whitespace, so the
+  expanded body opens them — the run of hours the warning is really about with its
+  worst hour, what the temperature does across it, and where you are standing right
+  now. The morning summary opens the day instead: sunrise and sunset, the UV peak,
+  the air. A run that reaches the end of the forecast says `"to": null` rather than
+  naming an end that was never shown, and nothing the report does not carry is
+  written at all.
+- **A fired rule shows the rule.** Under your own message the notification now prints
+  the conditions exactly as `alerts.rules` prints them, each with the reading that
+  made it true. A condition whose data is missing right now prints no reading, never
+  a zero.
+- **A sky reminder says what its job is called.** The title is the dotted id the
+  crontab uses; expanded, the reminder now gives its name in your language and the
+  `$ man 7` line where the rest of it is written.
 - `sky.crontab` no longer falls apart with `word_wrap` on. A row is five columns side
   by side, and with wrapping there is no sideways room to give them, so the comment
   was being crushed into a one-character column down the edge of the screen. It now

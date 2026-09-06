@@ -70,10 +70,14 @@ class WeatherSyncWorker(
         fun forces(cacheKey: String): Boolean =
             forceRefresh && (forceCityKey == null || forceCityKey == cacheKey)
         val report = try {
+            // No `ttl` of its own since Fase 25: the repository's
+            // WeatherFreshness.ProviderResolution applies here too. Handing it
+            // `update_frequency_min` meant a foreground fetch from ninety minutes ago
+            // could still satisfy this run — and this run is the one that evaluates
+            // the alerts and writes the commit.
             ServiceLocator.weatherRepository(context).getWeather(
                 city,
-                forceRefresh = forces(city.cacheKey),
-                ttl = Duration.ofMinutes(settings.updateFrequencyMin.toLong())
+                forceRefresh = forces(city.cacheKey)
             )
         } catch (e: WeatherException.NoNetwork) {
             // A failed sync commits nothing, so the repository hook stays silent — but
@@ -108,7 +112,7 @@ class WeatherSyncWorker(
             )
             alerts.forEach { alert ->
                 // Fingerprint burns only on a successful post (muted channel → retry later)
-                if (AlertNotifier.notify(context, alert, settings.units.temperature)) {
+                if (AlertNotifier.notify(context, alert, report, settings.units)) {
                     stateStore.record(alert)
                 }
             }
@@ -162,8 +166,7 @@ class WeatherSyncWorker(
             runCatching {
                 ServiceLocator.weatherRepository(context).getWeather(
                     pinnedCity,
-                    forceRefresh = forces(pinnedCity.cacheKey),
-                    ttl = Duration.ofMinutes(settings.updateFrequencyMin.toLong())
+                    forceRefresh = forces(pinnedCity.cacheKey)
                 )
             }
         }

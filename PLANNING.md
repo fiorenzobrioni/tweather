@@ -1529,6 +1529,116 @@ regione e paese presi dal gradino che li ha) e cinque su quale posizione vince.
 
 ---
 
+## Fase 25 — L'ora attuale, e una notifica che aperta dice qualcosa (device, 6 set 2026)
+
+Due segnalazioni dello stesso giorno, tutte e due dal dispositivo.
+
+### 25a — «Il meteo corrente sembra quello dell'ultima ora»
+
+Segnalata su **tutte e due le app**, con la stessa frase: la situazione corrente
+sembra un po' spessa, più l'ultima ora che l'ora attuale. È vero, ed è una cosa sola.
+
+**La lettura di Open-Meteo non c'entra.** Il blocco `current` è pubblicato su una
+griglia di quindici minuti: ogni risposta porta `"interval": 900` accanto ai valori e
+`current.time` è l'ultimo quarto d'ora, non il minuto della richiesta (verificato sul
+servizio, 6 set: alle 10:53 locali la risposta diceva `10:45`). Il mapper legge quel
+blocco per `current_conditions` e prende la probabilità di pioggia dall'ora corrente
+dell'orario: entrambe le cose giuste.
+
+**Il TTL della cache era `update_frequency_min`.** Quel valore è l'intervallo del job
+in background — una scelta di batteria, 15/30/60/120 con 60 di default — e usarlo come
+TTL gli faceva decidere una cosa che non gli era stata chiesta: quanto possono essere
+vecchi i numeri *mentre il lettore li sta guardando*. Con il default significava che
+aprire l'app entro un'ora dall'ultima sincronizzazione mostrava quella
+sincronizzazione, temperatura e condizione comprese, e con 120 due ore. Nessuna delle
+due app lo diceva: `staleFor` scatta a 2× l'intervallo, quindi un HIT non è mai stale
+per costruzione — la riga `// stale` non poteva comparire proprio nell'intervallo in
+cui il documento invecchiava.
+
+Il TTL ora è `WeatherFreshness.ProviderResolution`, quindici minuti, cioè la
+risoluzione con cui il fornitore pubblica «adesso». Un valore più vecchio di così non
+è semplicemente vecchio: è un valore che Open-Meteo ha già sostituito, e rileggerlo
+costa una richiesta che il lettore ha chiesto aprendo l'app. I due intervalli tornano
+due numeri: `update_frequency_min` resta l'intervallo del worker e la base di
+`isStale`, e nient'altro. L'invariante «un cache HIT non può essere stale» regge
+meglio di prima (15 contro i 30 minuti del caso più stretto), e c'è un test che la
+verifica su tutti e quattro i valori selezionabili.
+
+**Il TTL da solo non bastava, e per motivi diversi nelle due app.**
+
+- **Chiaro** ricostruisce lo stato quando la pagina torna in primo piano
+  (`WhileSubscribed(5_000)`), quindi lì il TTL è tutta la correzione per il caso
+  «riapro l'app». Restava aperto l'altro: una pagina lasciata aperta congelava al
+  fetch che l'aveva aperta, perché il tick al minuto ridisegnava (età dichiarata,
+  verdetto di freschezza, taglio di recency) ma non rileggeva mai. Ora oltre i quindici
+  minuti il tick rilegge, in silenzio come ogni fetch automatico — e a costo zero
+  quando la pagina non è a schermo, visto che quel flusso viene cancellato cinque
+  secondi dopo.
+- **tweather** non aveva **niente**: `WeatherViewModel` costruisce il documento una
+  volta, al caricamento, e da lì invecchia sullo schermo. Un'app lasciata aperta alle
+  09:00 e sbloccata alle 11:00 stampava ancora il `## Current` delle 09:00, tagliava
+  `## Next hours` con un orologio indietro di due ore e non aveva nemmeno ricalcolato
+  se dire `// stale`. Ora c'è `onResumed()`, agganciato a `ON_RESUME` dallo schermo:
+  entro i quindici minuti è un HIT che non costa rete e ricostruisce comunque il
+  documento sull'ora vera, oltre è una rilettura. **Silenzioso di proposito** — niente
+  `// fetching…`, niente FAB che gira: una lettura automatica non ha niente da
+  annunciare, ed è la stessa riga che Chiaro traccia con `userRefreshing`.
+
+Un tick al minuto anche in tweather è stato **scartato**: lì lo stato è un
+`MutableStateFlow` nello scope del ViewModel, quindi un `while (true)` continuerebbe a
+girare in background, mentre in Chiaro vive dentro un flusso che si spegne da solo. Il
+documento di tweather è statico fra un caricamento e l'altro per costruzione, e il
+resume è il momento in cui la differenza si vede.
+
+### 25b — La notifica espansa diceva la stessa cosa, più alta (solo tweather)
+
+`AlertNotifier` costruiva i due corpi dalla stessa lista di campi: quello compatto
+piegato su una riga, quello espanso stampato su più righe sotto la riga di comando.
+Aprire la notifica restituiva quello che già si leggeva. Chiaro aveva già separato i
+due testi (sua Fase 6b) e il committente ha chiesto la stessa cosa qui, nel registro di
+quest'app: chiavi inglesi, valori localizzati.
+
+**Piegare nasconde i figli, non gli spazi.** Il corpo compatto resta esattamente
+com'era — è la riga che il sistema taglia, e mostra il sommario. Quello espanso apre i
+nodi annidati:
+
+- `window` — la corsa di ore a cui l'allerta appartiene davvero (`AlertDetails`, la
+  stessa aritmetica di Chiaro sugli stessi tipi di dominio), con il picco e la sua ora,
+  e l'escursione termica dentro la finestra. `"to": null` quando la corsa arriva in
+  fondo alla previsione: dichiarare una fine che la previsione non ha mai mostrato
+  sarebbe l'unica affermazione dell'oggetto che il lettore non può verificare.
+- `current_conditions` — dove sta il lettore adesso, temperatura, stato e vento. Il
+  vento sta **dentro** questo nodo e l'annidamento è il punto: l'orario non porta il
+  vento, quindi è la lettura del momento dell'invio, e stampata un livello più su,
+  sotto una finestra temporalesca, si leggerebbe come il vento del temporale.
+- per il riepilogo giornaliero, che non ha una corsa: `astronomical` (alba e tramonto,
+  o nessuno dei due), `uv_index_max` con la sua descrizione, `air_quality`.
+
+Un nodo di cui il report non ha i dati non viene scritto: mai un trattino al posto di
+un valore.
+
+**Anche gli altri due notificatori**, per lo stesso difetto e per tenere il passo con
+Chiaro, che li ha già entrambi:
+
+- `RuleNotifier` aggiungeva alla riga solo il comando. Ora apre **la regola**: le sue
+  condizioni come le stampa `alerts.rules`, con accanto, nel canale del commento, la
+  lettura che le ha rese vere. È la domanda che una regola scattata pone — perché
+  adesso? — nella grammatica del file. Una condizione che adesso non si risolve
+  (qualità dell'aria giù, finestra vuota) stampa la riga senza lettura, mai uno zero.
+- `SkyNotifier` aveva i due corpi **identici**. Ora l'espanso dice cosa significa l'id
+  puntato del titolo (il nome localizzato di `SkyJobNames`) e dove sta scritto il
+  resto: `$ man 7 <id>`, la pagina che la Fase 23 ha scritto esattamente per questo
+  lettore. Il nome è prosa e si traduce, l'id e il comando no.
+
+**Verifiche**: 671 test verdi (20 nuovi: `AlertNotifierTest` riscritto sui due corpi,
+`AlertDetailsTest` e `SkyNotifierTest` nuovi, tre casi nuovi in `RuleNotifierTest`, e
+`WeatherFreshnessTest` che tiene fermi i due intervalli), lint 0 errori. Su Chiaro la
+suite è verde con il `WeatherFreshnessTest` gemello.
+
+- [ ] Da verificare su device (committente)
+
+---
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

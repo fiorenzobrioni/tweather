@@ -91,8 +91,14 @@ fun WeatherReport.toReadmeMarkdown(
     // line rather than its own: Current stays a two-line glance. Same table
     // vocabulary (`readme_t_rain`), so "Pioggia" means one thing across the page.
     add(
-        "${s(R.string.readme_feels_like)}: ${temp(current.feelsLikeC)} · " +
-            "${s(R.string.readme_t_rain)}: ${current.precipitation.chancePct}%"
+        buildString {
+            append("${s(R.string.readme_feels_like)}: ${temp(current.feelsLikeC)}")
+            // No chance forecast for this hour, no rain fragment: the line simply
+            // stops after the feels-like rather than claiming 0% (Fase 26).
+            current.precipitation.chancePct?.let {
+                append(" · ${s(R.string.readme_t_rain)}: $it%")
+            }
+        }
     )
 
     add("")
@@ -207,7 +213,10 @@ fun WeatherReport.toReadmeMarkdown(
                     listOf(
                         TableCell(hour.time.format(ClockTime)),
                         TableCell(tempInt(hour.tempC)),
-                        TableCell("${hour.precipChancePct}%"),
+                        // `?` is this app's own word for "not known" — the same
+                        // glyph the sky module's `? unknown` verdict uses — and a
+                        // padded column needs a cell, so it cannot simply be dropped.
+                        TableCell(hour.precipChancePct?.let { "$it%" } ?: "?"),
                         TableCell(translate(hour.condition.description), hour.condition.emoji)
                     )
                 }
@@ -272,7 +281,9 @@ fun WeatherReport.toReadmeMarkdown(
     )
     add("💧 ${s(R.string.readme_humidity)}: ${current.humidityPct}%")
     add("🌡️ ${s(R.string.readme_pressure)}: ${decimal1(current.pressureMb)} mb")
-    add("👁️ ${s(R.string.readme_visibility)}: ${decimal1(current.visibilityKm)} km")
+    // Dropped rather than dashed when the model does not carry it (Fase 26): a
+    // curated summary may say less, it may not say nothing in the shape of a number.
+    current.visibilityKm?.let { add("👁️ ${s(R.string.readme_visibility)}: ${decimal1(it)} km") }
 
     // The sky's home in this document (Fase 16e). `VISION_SKY.md` first proposed a
     // separate `## Tonight` block after `## Next hours`, which would have put sunset,

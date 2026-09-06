@@ -52,7 +52,7 @@ object AlertDetails {
         hours: List<HourlyForecast>,
         at: LocalDateTime,
         thresholdPct: Int = AlertEngine.PRECIP_THRESHOLD_PCT
-    ): AlertWindow? = window(hours, at) { it.precipChancePct >= thresholdPct }
+    ): AlertWindow? = window(hours, at) { (it.precipChancePct ?: 0) >= thresholdPct }
 
     /**
      * The maximal run of consecutive hours around [at] for which [holds] is true.
@@ -72,11 +72,11 @@ object AlertDetails {
         var last = index
         while (last < hours.lastIndex && holds(hours[last + 1])) last++
         val run = hours.subList(first, last + 1)
-        val peak = run.maxBy { it.precipChancePct }
+        val peak = run.maxBy { it.precipChancePct ?: 0 }
         return AlertWindow(
             start = run.first().time,
             end = run.last().time,
-            peakPrecipPct = peak.precipChancePct,
+            peakPrecipPct = peak.precipChancePct ?: 0,
             peakPrecipAt = peak.time,
             lowC = run.minOf { it.tempC },
             highC = run.maxOf { it.tempC },

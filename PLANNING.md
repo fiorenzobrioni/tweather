@@ -1655,6 +1655,125 @@ perché `:app` non ha ancora un banco per i ViewModel.
 
 ---
 
+## Fase 26 — Come si legge il codice di stato, rivisto con i numeri (review, 6 set 2026)
+
+Il committente ha chiesto una review completa dell'interpretazione dello `weather_code`
+di Open-Meteo: la riparazione della nebbia della Fase 13c regge ancora, o conveniva
+lasciare il valore crudo? Misurato su dati veri scaricati quel giorno — **23 città su
+cinque continenti, 3 864 ore, 161 giorni-città**, più una seconda passata su 3 024 ore
+per la distribuzione dei codici.
+
+### Quello che regge, e i numeri che lo dicono
+
+La riparazione **va tenuta**, e il crudo era peggio:
+
+- riscrive **42 ore su 3 864 = 1,09%** (la Fase 13b misurò 1,1%: la regola non si è
+  mossa in un anno);
+- delle 25 ore servite come `45`/`48`, **17 (68%) hanno una visibilità sopra i 1 000 m
+  nella stessa risposta** — mediana 4 040 m, massimo **16 300 m**. Due volte su tre il
+  provider si contraddice da solo;
+- 25 ore vengono forzate *a* nebbia, 22 partendo da `3` overcast: è la direzione che
+  conta per la sicurezza, ed è esattamente il caso «160 m serviti come coperto» della
+  13c;
+- `skyCode(cloud_cover)` riproduce il codice di cielo del provider nel **90,5%** delle
+  ore, e i disaccordi sono quasi tutti di un gradino: quando la riparazione riscrive
+  una falsa nebbia scrive ciò che il provider avrebbe scritto;
+- il codice `48` continua a non essere mai emesso: il commento nel mapper è ancora
+  vero.
+
+Tornare al crudo rimetterebbe in produzione il bug segnalato allora (nebbia d'agosto in
+Pianura Padana) e perderebbe 22 ore di nebbia vera vendute come «coperto».
+
+### A — Il pavimento della pioviggine (il difetto vero)
+
+`dailyCode` lasciava che **qualsiasi** ora con codice ≥ 51 reclamasse il giorno, e il
+codice del giorno era il `max()` di quelle ore. Misurato: il 45% dei giorni tornava
+«bagnato», e il **47% di quelli lo era solo per codici di pioviggine** — dieci con meno
+di un millimetro in ventiquattr'ore, cinque con probabilità di picco sotto il 30%. I due
+casi peggiori:
+
+- **Singapore, 6 set, una sola ora, 0,1 mm, probabilità 1%** → tutta la giornata
+  «Pioviggine 🌦️» nella tabella della settimana e nel riepilogo mattutino;
+- **Milano, 8 set, una sola ora di codice 80, 0,0 mm** → tutta la giornata «Rovesci».
+
+È il difetto della nebbia in un'altra colonna: **un'ora non rappresentativa che
+etichetta un giorno**. Ora la precipitazione deve essere materiale prima di reclamare
+il giorno: **≥ 1 mm** (il "wet day" del Met Office) **oppure ≥ 3 ore**, la seconda
+clausola perché una pioviggine lunga e sottile *è* una giornata da pioviggine anche se
+non arriva al millimetro. I `HazardCodes` — gelate, i gradi forti, i rovesci violenti,
+tutti i temporali — reclamano il giorno **senza condizioni**: la porta può togliere una
+distorsione, mai un avviso, che è la stessa frase della 13b applicata al caso nuovo.
+
+Sui 161 giorni misurati la coppia sposta **5 giorni su 73**, e sono esattamente i
+cinque sbagliati (una o due ore, 0,0–0,4 mm). Il giorno più debole che tiene è sei ore e
+0,6 mm, cioè una giornata da giacca.
+
+Costo: `precipitation` entra fra le `HOURLY_VARIABLES`. **Misurato: +72 byte gzip** su
+una risposta da sette giorni — 168 valori quasi tutti a zero si comprimono a niente.
+`HourlyDto.precipitationMm` ha un default, così una voce di `ReportDiskCache` scritta
+prima non si perde: senza importi la clausola dei millimetri semplicemente non parla e
+decide il conteggio delle ore.
+
+### C — La nebbia non dura un'ora
+
+La soglia secca a 1 000 m decideva ora per ora su una variabile continua, e questo
+**quasi raddoppiava il tremolio**: sulle stesse 3 864 ore la serie del provider cambia
+stato nebbia/non-nebbia 10 volte, quella riparata 18. Ogni giro in più è una riga che
+cambia carattere per un'ora e una riga in `history.diff` che non dice niente.
+
+Provate due varianti: una banda morta 800–1500 m porta 18 → 16 (marginale, solo lo
+0,74% delle ore ci cade), la **persistenza** — nebbia scritta solo se anche l'ora
+accanto è sotto soglia — porta **18 → 14** costando due riscritture su 42. Adottata la
+seconda.
+
+La regola è **a senso unico** di proposito. Togliere un codice di nebbia che la
+visibilità del provider contraddice resta una decisione per ora: non c'è nessun
+argomento di «corsa» per tenere un valore che i dati smentiscono, e il 68% sopra dice
+quanto spesso succede. È solo la direzione che **inventa** a dover essere paziente.
+
+Il blocco `current` **non** riceve la persistenza, ed è una scelta: quello è
+un'osservazione di adesso, e se la visibilità è 300 m adesso allora c'è nebbia adesso —
+non c'è nessuna corsa da pretendere perché non c'è nessuna serie. La persistenza è una
+proprietà di una previsione, non di una misura.
+
+### Le due fragilità minori
+
+- **`CurrentDto.visibilityM` era non nullable** mentre l'orario lo era già. Un campo
+  assente nel blocco `current` faceva fallire l'intero fetch, previsione compresa. Mai
+  visto in dodici posti (McMurdo, mezzo Pacifico, Everest, Svalbard), ma `visibility`
+  dipende dal modello. Ora è `Double?` fino a `CurrentConditions.visibilityKm`: il JSON
+  scrive `null` come già fa per `air_quality`, e il README salta la riga invece di
+  stampare un trattino.
+- **`precipitationProbabilityPct ?: 0`** trasformava «non lo so» in «0%», che è una
+  previsione e non un ripiego. Ora `HourlyForecast.precipChancePct` è `Int?` e ogni
+  lettore risponde per conto suo: chi confronta tratta il null come soglia non
+  raggiunta (`AlertEngine`, `AlertDetails`, `SkyVerdictEngine`, `RainbowWindow`), chi
+  stampa stampa `null` nel JSON e `?` nella tabella del README — lo stesso glifo con
+  cui il modulo cielo dice `? unknown`. In `alerts.rules` le due variabili diventano
+  `optional`: una variabile che non si risolve fa **saltare** la regola invece di
+  farla leggere zero, che è quello che impediva a un `< 10` di scattare sul nulla.
+
+### Non toccato
+
+- **B, la banda della foschia** (1–5 km, 219 ore = 5,7% del campione, oggi senza alcun
+  trattamento): scelta di prodotto, non difetto. Aggiungere una condizione «foschia»
+  vorrebbe scrivere un codice WMO che il provider non manda mai — e quel numero esce
+  in `wmo_code`, lo legge `AlertEngine.SevereCodes` e in Chiaro `WeatherText`. Deciso
+  con il committente di lasciare com'è.
+- **L'inversione di severità di `max()`** (80 rovesci deboli batte 65 pioggia forte, 85
+  batte 82): reale in teoria, **zero occorrenze** su 68 giorni piovosi — 82, 66, 67 e 99
+  non compaiono mai in 3 024 ore. Resta scritta nel commento del mapper, con la misura
+  accanto.
+
+**Verifiche**: 681 test verdi (8 nuovi sul mapper: la porta di materialità in cinque
+casi compreso quello della cache senza importi, la persistenza in tre, e il null della
+probabilità), lint 0 errori. Su Chiaro la stessa modifica, con `:core` allineato byte
+per byte.
+
+- [ ] Da verificare su device (committente)
+
+---
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

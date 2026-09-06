@@ -8,6 +8,21 @@ All notable changes to tweather are documented here. The format follows
 
 ### Fixed
 
+- **A day is no longer called rainy because of one damp hour.** Any hour carrying a
+  precipitation code used to label the whole day, so a single hour of 0.1 mm at 1%
+  probability printed "Drizzle" across the week table and in the morning summary, and
+  one hour of 0.0 mm printed "Rain Showers". Measured over 161 city-days: 47% of the
+  days that came back wet were wet only from drizzle codes, ten of them with under a
+  millimetre in twenty-four hours. Rain now has to be real before it can name the day:
+  a millimetre over the day, or three hours of it. Storms, freezing rain and the heavy
+  grades still name the day whatever falls, because the rule may drop a label and
+  never a warning.
+- **Fog stops flickering on and off between hours.** Rewriting an isolated hour as fog
+  because its visibility dipped nearly doubled the number of times the week changed
+  its mind about fog. Fog is not one hour long at this resolution, so an hour is only
+  turned into fog when the hour beside it is murky too. Dropping a fog code the
+  forecast's own visibility contradicts is unchanged and still happens on the spot:
+  two thirds of the fog codes served are contradicted, some by sixteen kilometres.
 - **`## Current` is the current hour again, not the last one.** The report cache was
   held for as long as `update_frequency_min`, the background polling interval: with
   its default of 60 minutes, opening the app inside that hour showed the last
@@ -73,6 +88,12 @@ All notable changes to tweather are documented here. The format follows
   the conditions exactly as `alerts.rules` prints them, each with the reading that
   made it true. A condition whose data is missing right now prints no reading, never
   a zero.
+- **A field the app was not told is written as `null`, not as a zero.** An hour with
+  no forecast rain probability used to render as "0%", which is a forecast of its own
+  and was never made; visibility that a weather model does not carry used to be able
+  to sink the whole fetch. Both are now absent when they are absent: the JSON writes
+  `null`, `README.md` writes `?` in the table and drops the line, and a rule whose
+  variable cannot be read skips instead of reading zero.
 - **A sky reminder says what its job is called.** The title is the dotted id the
   crontab uses; expanded, the reminder now gives its name in your language and the
   `$ man 7` line where the rest of it is written.

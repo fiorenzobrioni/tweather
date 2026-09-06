@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
+import com.callbackdev.tweather.data.UnitSettings
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.data.local.ForecastDiff
 import com.callbackdev.tweather.data.local.SnapshotDiff
@@ -54,6 +55,15 @@ class LogsViewModel(
     val skyEnabled: StateFlow<Boolean> = settingsStore.settings
         .map { it.skyEnabled }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /**
+     * The units both diff files render in (Fase 28). The Room snapshots stay metric
+     * — a diff must never churn because a setting moved — so the conversion happens
+     * at render time, exactly where the language already did.
+     */
+    val units: StateFlow<UnitSettings> = settingsStore.settings
+        .map { it.units }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UnitSettings())
 
 
     val commits: StateFlow<List<CommitUi>> = repository.observeHistory()

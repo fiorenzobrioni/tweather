@@ -2081,7 +2081,109 @@ riga mancante si notava.
       2 sul widget; suite verde, lint 0 errori
 - [ ] Da verificare su device: il commit di una città senza region, e un fetch con la
       chiamata air quality caduta
-- [ ] Da decidere col committente: le unità nei Log (vedi sopra)
+
+## Fase 28b — Le due asimmetrie chiuse, e `forecast.diff` riletto (committente + review, 6 set 2026)
+
+Il committente ha chiesto di **chiudere le due asimmetrie** che la 28 aveva segnalato
+senza toccare (le unità e il vocabolario del cielo) e, già che c'ero, di verificare
+funzionamento e visualizzazione del **secondo file dei Log**.
+
+### A — Le unità: i Log erano l'ultima superficie metrica
+
+Con `units.temperature = fahrenheit` il JSON scriveva `temp_f: 65.3`, README, widget e
+notifiche convertivano, e i Log dicevano `18.5`. Non era una bugia — la chiave diceva
+`temp_c` — ma era esattamente l'asimmetria che la **9h** aveva trovato e chiuso per la
+lingua, e l'argomento si ricopiava parola per parola.
+
+**La conversione è a render time, come la lingua.** Lo snapshot Room resta metrico: ciò
+che viene *confrontato* non si muove mai, quindi un diff non churna né per lingua né per
+unità. Tutto quello che tocca l'impostazione del lettore vive adesso in un unico posto,
+`ui/logs/DiffValues.kt`, e vale per **entrambi** i file.
+
+**La chiave si rinomina col valore** (`temp_c` → `temp_f`, `wind_kph` → `wind_mph`,
+`high_c` → `high_f`), che è ciò che fa `weather_data.json`: un file JSON non mente sulle
+proprie unità. Il suffisso è il portatore dell'unità in tutti e due gli snapshot e non
+collide con nient'altro (`precip_pct`, `pressure_mb`, `uv_index`, `wind_dir` sono al
+sicuro). Con le unità metriche selezionate la stringa **non viene ritoccata**: il valore
+memorizzato *è* quello renderizzato, e ripassarlo da un arrotondatore sarebbe il modo di
+introdurre una differenza dove il dato non ne ha.
+
+**La coppia che l'arrotondamento cancella.** 10,1 e 10,2 km/h sono **tutti e due**
+6,3 mph: la conversione arrotonda, e una coppia `-`/`+` di due righe identiche si legge
+come un bug. Collassa nella riga di contesto che è diventata — il gemello, sulle unità,
+delle soglie anti-rumore di `ForecastDiff`. In `forecast.diff` non può succedere (1 °C
+di soglia sono 1,8 °F), in `history.diff` sì perché lì soglie non ce ne sono.
+
+### B — Il cielo diceva la stessa cosa con tre vocabolari
+
+La 1097 di questo file dice che la colonna delle prove è la stessa fra `sky.crontab`,
+`sky_runs.log` e le check line della history. Non lo era: le prime due stampano
+`✓ pass` / `~ unstable` / `✗ fail` (`SkyVerdictKind.glyph` + `.word`), la check line
+inventava `ran clear` / `ran, sky unsettled` / `ran unseen`, e `sky_runs.log` a sua
+volta si ricodificava le stesse stringhe a mano invece di leggerle dall'enum.
+
+Ora c'è **una funzione sola** (`skyGlyph`/`skyWord`/`skyEvidence`/`skyColor` in
+`ui/logs/`, che i due file del pacchetto condividono) e la check line legge
+`✓ sun.set pass  cloud 8%` — le parole comuni **più il numero da cui il verdetto è
+nato**, che la §7 di `VISION_SKY.md` chiede a ogni superficie che stampa un verdetto e
+che questa era l'unica a non stampare. `– skipped` resta lo stato che ha solo una *run*
+e non un verdetto: non è il `? unknown` del crontab, che è una previsione mancata, non
+un passato che nessuno stava guardando.
+
+### C — `forecast.diff`: il motore regge, l'intestazione no
+
+Simulato un percorso realistico (due città interlacciate, righe pre-colonna, un giorno
+che entra nell'orizzonte a mezzanotte, una deriva sotto soglia su tre fetch) e reso lo
+schermo vero con Robolectric, in italiano e in Fahrenheit.
+
+**`ForecastDiff` è corretto.** La baseline per data è l'ultima previsione *mostrata* e
+non l'ultimo fetch, quindi la deriva si accumula invece di sparire un passo alla volta:
+tre fetch sotto soglia non producono niente e il quarto si confronta con il primo, che è
+esattamente ciò che `--- a/... (18 ago 12:00)` dichiara. Le baseline sono per città (una
+mappa per `compute`, e `compute` è chiamata una volta per città). L'ordine dei campi è
+quello di importanza, le date sono ordinate, il primo affaccio di una data è un `new
+file`, una data che esce dall'orizzonte è silenzio. Niente da correggere.
+
+**L'intestazione dello hunk sì, ed era il difetto vero.** `@@ tomorrow @@` era calcolato
+dalla *posizione* nell'orizzonte del fetch: vero il giorno in cui quel fetch è successo
+e falso da lì in avanti. Scorrendo il file si incontravano le stesse tre parole su
+commit dopo commit, ognuna a indicare un giorno diverso — e **due revisioni dello stesso
+giorno**, che è l'unica cosa per cui questo file esiste, erano indistinguibili da due
+revisioni di giorni diversi. Adesso `@@ Gio 20 ago @@`: il giorno si **nomina**, non si
+colloca. `Hunk.dayLabel` sparisce dal motore (era una stringa inglese di presentazione
+dentro un engine puro) e resta `Hunk.date`, l'ISO, che la UI formatta nella lingua del
+lettore. La data esatta è comunque una riga sopra, nella coppia `---`/`+++`.
+
+**E il mese sopra parlava un'altra lingua.** `OtherDayTime` era inchiodato a
+`Locale.ENGLISH`, quindi un lettore italiano leggeva `Aug 5` quattro righe sopra
+`@@ Gio 20 ago @@`. Sono due nomi di mese: o si traducono tutti e due o nessuno.
+L'orologio resta cifre (`HH:mm`), e l'ordine passa a `d MMM` per accordarsi con
+l'intestazione sotto.
+
+**`1 revisioni`.** I tre contatori della status bar erano format string, quindi la barra
+dell'unica schermata che *conta* le cose non andava d'accordo col proprio numero a uno.
+Ora sono `<plurals>`. `commit` e `run` in italiano non flettono e le due forme sono la
+stessa parola: è un fatto della lingua, non un motivo per lasciare la striscia sulla
+risorsa sbagliata.
+
+### Segnalato e non toccato
+
+- `ForecastDiff` non emette una riga `-` per una chiave che sparisce dalla previsione
+  (itera solo su `current`), mentre `SnapshotDiff` lo fa. Oggi è irraggiungibile —
+  `flattenForecast` scrive sempre tutti e quattro i campi — e diventerebbe vero solo
+  rimuovendo un campo dallo schema.
+- `forecast.diff` non stampa la riga `diff --git`, che `history.diff` ha. Non è una
+  svista simmetrica: lì il file è uno e si nomina una volta, qui la coppia `---`/`+++`
+  nomina uno pseudo-file per data **e** porta i due orari, che sono il punto del file.
+
+- [x] `ui/logs/DiffValues.kt`: lingua, unità e collasso della coppia in un posto solo
+- [x] `LogsViewModel.units`; entrambi i file convertono e rinominano la chiave
+- [x] Vocabolario del cielo condiviso fra check line e `sky_runs.log`, con le prove
+- [x] `@@ Gio 20 ago @@`: `dayLabel` fuori dal motore, giorno nominato a render time
+- [x] `fetchTimeLabel` prende il locale; contatori della status bar a `<plurals>`
+- [x] Test: 9 su `DiffValues`, 3 su `LogsUnits`, 4 su `ForecastHunkHeader`, 1 sul
+      vocabolario condiviso, 1 sui plurali in italiano — suite a **720** verde, lint 0
+- [ ] Da verificare su device: i Log in Fahrenheit, e una check line del cielo vera
 
 ## Note trasversali
 

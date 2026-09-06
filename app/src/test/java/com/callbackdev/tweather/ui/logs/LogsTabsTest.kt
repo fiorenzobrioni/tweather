@@ -46,7 +46,6 @@ class LogsTabsTest {
             hunks = listOf(
                 ForecastDiff.Hunk(
                     date = "2026-08-18",
-                    dayLabel = "tomorrow",
                     baselineEpochSeconds = now - 15_000,
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "precip_pct", "20"),
@@ -71,7 +70,7 @@ class LogsTabsTest {
         compose.onNodeWithText("diff --git a/weather_data.json b/weather_data.json")
             .assertExists()
         compose.onNodeWithText("⎇ history").assertExists()
-        compose.onNodeWithText("@@ tomorrow @@").assertDoesNotExist()
+        compose.onNodeWithText("@@ Tue 18 Aug @@").assertDoesNotExist()
     }
 
     @Test
@@ -79,13 +78,28 @@ class LogsTabsTest {
         setContent()
         compose.onNodeWithText("forecast.diff").performClick()
         compose.onNodeWithText("forecast.diff").assertIsSelected()
-        compose.onNodeWithText("@@ tomorrow @@").assertExists()
+        compose.onNodeWithText("@@ Tue 18 Aug @@").assertExists()
         compose.onNodeWithText("- \"precip_pct\": 20").assertExists()
         compose.onNodeWithText("+ \"precip_pct\": 70").assertExists()
         compose.onNodeWithText("⎇ forecast").assertExists()
-        compose.onNodeWithText("1 revisions").assertExists()
+        // a plural since Fase 28: it used to read "1 revisions"
+        compose.onNodeWithText("1 revision").assertExists()
         compose.onNodeWithText("diff --git a/weather_data.json b/weather_data.json")
             .assertDoesNotExist()
+    }
+
+    /**
+     * Fase 28: the strip's counters are plurals now. `%1$d revisions` printed
+     * `1 revisions` in English and `1 revisioni` in Italian — the status bar of the
+     * one screen whose whole subject is counting things.
+     */
+    @Test
+    @Config(qualifiers = "it")
+    fun theCountersAgreeWithTheirNumberInItalianToo() {
+        setContent()
+        compose.onNodeWithText("1 commit").assertExists()
+        compose.onNodeWithText("forecast.diff").performClick()
+        compose.onNodeWithText("1 revisione").assertExists()
     }
 
     @Test

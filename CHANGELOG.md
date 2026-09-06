@@ -87,6 +87,34 @@ All notable changes to tweather are documented here. The format follows
   administrative region (Singapore, Monaco) had the header saying `[Singapore,
   Singapore]` and the `"location"` line under it saying `Singapore`, because only the
   header fell back to the country.
+- **The Logs read in your units.** `history.diff` and `forecast.diff` were the last
+  surfaces still printing Celsius and km/h while the editor tab, `README.md`, the
+  widget and the notifications all converted: with Fahrenheit selected the JSON said
+  `temp_f: 65.3` and the same fetch in the Logs said `18.5`. They convert now, and
+  rename the key with the value the way a JSON file would (`temp_c` → `temp_f`,
+  `wind_kph` → `wind_mph`). What is STORED stays metric, so a diff still never churns
+  because a setting moved; and a change that rounds to the same displayed number in
+  the new unit collapses back into a context line instead of showing two identical
+  `+`/`-` rows.
+- **One vocabulary for the sky, on every file that prints a verdict.** A run's check
+  line in `history.diff` read `✓ sun.set ran clear` while `sky_runs.log` and
+  `sky.crontab` both said `✓ pass` about the same column of the same row. It now says
+  `✓ sun.set pass  cloud 8%`: the shared words, plus the number the verdict was built
+  from, which the other two surfaces have always printed.
+- **`forecast.diff` names the day each hunk is about.** Every hunk header read
+  `@@ tomorrow @@` or `@@ in 2 days @@` — true of the fetch that wrote it and of
+  nothing afterwards. Scrolling the file you met the same three words on commit after
+  commit, each meaning a different day, and two revisions of the SAME day, which is
+  the one thing this file exists to show, were indistinguishable from two revisions of
+  two different days. The header now reads `@@ Thu 20 Aug @@`, and the weekday and
+  month follow the language you are reading in, like every other day name in the app.
+- **The baseline timestamp stops being the only English date on the page.** The line
+  above the hunk header printed `(Aug 16 23:40)` in any language, so an Italian reader
+  got `Aug` four lines above `ago`. Both are month names and both follow the reader
+  now; the clock stays digits.
+- **`1 revision`, not `1 revisions`.** The three Logs counters were format strings, so
+  the status bar disagreed with its own number at one — in Italian, `1 revisioni`.
+  They are plurals now.
 
 ### Added
 

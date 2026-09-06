@@ -1860,6 +1860,41 @@ una riga che nessun telefono avrebbe nascosto. `InitScreenTest` ha ora
 `@Config(qualifiers = "w360dp-h740dp")`, e `TweatherNavigationTest` identifica la sessione
 dalla **tab** (`tweather.sh`), che è il fatto di cui parla.
 
+**Un test rosso in CI che non era di questa fase.** Il primo push ha trovato
+`WeatherViewModelTest > battery saver skips the resume fetch but still rebuilds against
+the clock` caduto alla riga 439 — un test che questa fase non tocca. Riprodotto in locale
+eseguendo **solo quella classe**, quindi senza che nessuno dei test nuovi entrasse in
+gioco: 7 fallimenti su 22 esecuzioni, sempre la stessa asserzione. La corsa è arrivata
+con il test (Fase 25b) e finora aveva vinto tre volte su tre.
+
+Il messaggio la dice tutta: `staleFor: PT3H0.007707012S`, cioè il valore di *prima* —
+l'orologio era avanzato di due ore e il documento non era stato ricostruito.
+`onResumed()` rifiuta di fare qualcosa mentre un load è in volo, di proposito: un fetch
+già partito produrrà comunque il documento. Ma **arrivare sul documento non è la stessa
+cosa che avere finito il job**: `load()` assegna lo stato come sua *ultima* istruzione e
+la coroutine termina qualche istruzione dopo, su un altro thread. Il test faceva
+`onResumed()` nell'istante in cui `awaitState` tornava, e correva contro quella coda.
+
+`awaitResume(vm, from = landed)` riprova finché la ripresa non è quella che ha risposto —
+che è anche la lettura onesta dello scenario: nessuno torna su un'app due ore dopo e
+atterra dentro un fetch partito due ore prima. Il confronto è **strutturale e non per
+identità** perché un `MutableStateFlow` conflaziona: assegnare un valore `equals` a
+quello corrente lascia in piedi la vecchia istanza, quindi `!==` sarebbe stato un segnale
+che non può mai scattare — la prima versione della correzione lo usava ed è andata in
+timeout venti volte su venti, il che almeno lo ha dimostrato.
+
+Tolta quella, ne è emersa una seconda della stessa famiglia e nello stesso test:
+`tearDown` chiamava `Dispatchers.resetMain()` mentre un job del `viewModelScope` era
+ancora dentro il dispatcher (`Dispatchers.Main is used concurrently with setting it`,
+~1 esecuzione su 22). La classe costruisce i view model a mano e non può fare `join` su
+`viewModelScope`, quindi `tearDown` **aspetta** invece di asserire il tempismo: quelle
+coroutine non hanno più niente da fare, solo un return da eseguire. La correzione
+strutturale — un `ViewModelStore` da svuotare — riscriverebbe come tutti e dodici i test
+costruiscono il loro view model, e non è di questa fase.
+
+Il resto della pipeline è stato rifatto in locale sullo stesso commit: `assembleDebug` e
+`assembleRelease -PsignReleaseWithDebugKey` passano entrambi, lint 0 errori.
+
 **Verifiche**: suite verde (`InitScreenTest` 9 test, `TypistTest` 9), lint 0 errori.
 Decisione di serie: la stessa modifica sta in tsteps (Fase 23) e thabit (Fase 19), con le
 stesse due velocità, lo stesso overlay e lo stesso budget.

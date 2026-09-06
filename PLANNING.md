@@ -1774,6 +1774,100 @@ per byte.
 
 ---
 
+## Fase 27 — Il primo avvio si scrive da solo (chiesta dal committente, 6 set 2026)
+
+`$ tweather init` era già una sessione di terminale: era solo la **fotografia** di una.
+Il committente ha chiesto di darle vita — cursore a blocchi che scrive i commenti, mood da
+sviluppatore — e la richiesta coglie una cosa vera: una shell che ha evidentemente finito
+prima che tu la guardassi è l'unica cosa che una shell non è mai, e il `█`, il glifo che
+dice «la macchina è *qui*, adesso», non aveva un posto dove stare.
+
+**Due velocità, perché un transcript ha due autori.** La riga del comando si *digita*
+(`PromptMsPerChar = 20`, una mano su una tastiera); tutto quello che sta sotto si *stampa*
+(`PrintMsPerChar = 2`, cinquecento caratteri al secondo, otto per frame). Non è una
+macchina da scrivere: è un programma che scrive su una tty. Lo scarto fra le due velocità
+è ciò che fa leggere la prima riga come di qualcuno e il resto come la risposta della
+macchina. Due respiri: 160 ms dopo il comando, 60 ms fra una risposta offerta e la
+successiva. **Totale 1,5 s in inglese**, e un test lo tiene sotto i due secondi in
+entrambe le lingue — è il test con cui bisognerà litigare il giorno in cui l'introduzione
+vorrà diventare un carosello per accumulo.
+
+**Niente barre di avanzamento finte.** La regola della serie è che il file non mente, e
+uno spinner che conta fino a un numero che l'app ha già sarebbe la forma più pura di
+quella bugia: un'animazione che inventa lavoro. Quello che è animato è l'*arrivo* di un
+testo che sarebbe stato lì comunque, che è esattamente quello che fa un terminale.
+
+**Il clock dei frame, non un `delay` per carattere.** `withFrameNanos` dentro un
+`LaunchedEffect`: un `delay(2)` è una promessa che lo scheduler non può mantenere, e la
+deriva si vede come la macchina da scrivere lenta e a scatti che questa non deve essere.
+
+**Tre vie d'uscita, nell'ordine che conta:**
+
+- **Un tocco la chiude.** Mentre stampa, tutta la canvas è un bersaglio invisibile — un
+  `Box` in overlay, non un `clickable` sulla canvas, perché l'overlay viene colpito per
+  primo: il tocco che chiude l'animazione non può anche rispondere a una domanda che il
+  lettore non ha finito di leggere. Esce dalla composizione nell'istante in cui ha fatto
+  il suo unico lavoro, e un test verifica che nessuna delle tre risposte sia stata data.
+- **«Rimuovi animazioni» non la fa partire.** `ANIMATOR_DURATION_SCALE == 0`, lo stesso
+  interruttore che scrive l'accessibilità di Android (ed è quello che governa davvero le
+  animazioni dentro un'app). `finished` parte già `true`, quindi la schermata è completa
+  al **primo frame**: un frame dopo sarebbe un lampo, ed è il difetto che distingue
+  un'implementazione fatta da una dichiarata.
+- **Anche TalkBack la salta**, per un motivo suo: un transcript che cresce di un carattere
+  alla volta è un albero di semantica che cambia sessanta volte al secondo, e lo screen
+  reader leggerebbe l'introduzione a pezzi. Non è la stessa richiesta di «niente
+  animazioni» — sono due condizioni perché sono due domande diverse.
+
+**Il latch è un `rememberSaveable`**: `> use my position` apre un dialogo di sistema, e
+tornare indietro — o una rotazione — per rivedere l'introduzione scriversi da capo
+trasformerebbe un bel primo secondo in un ostacolo. Vale anche per la riga
+`# permission denied`, che arriva *dopo*: senza il latch il transcript si sarebbe
+allungato e l'animazione sarebbe ripartita dalla coda.
+
+**Questa canvas va sempre a capo**, qualunque cosa dica `word_wrap` — lo stesso override
+di `HELP.md` (Fase 22), per una ragione più netta: un cursore che esce dal bordo destro è
+un cursore che non si vede, e una schermata di primo avvio non può chiedere al lettore di
+trascinare di lato per scoprire dove è arrivata la macchina. Si muove solo il wrap, non
+`line_numbers`. **La status bar non dice `wrap`**, e qui la Fase 22 andava riletta e non
+copiata: quel marcatore esiste perché un file non sembri ignorare un interruttore che il
+lettore ha impostato, e al primo avvio nessuno ha ancora impostato niente. Questa non è la
+scheda di un file, è una sessione — e infatti non ha nemmeno `ro`/`rw`.
+
+**Il testo è cresciuto, e questa è metà della modifica.** Erano due righe `#`; ora sono
+quattro: cos'è l'app, in che forma scrive quello che sa, da dove arrivano i dati, cosa le
+serve per partire. Una sessione che impiega un secondo e mezzo a stamparsi se le può
+permettere; una schermata ferma no, perché davanti a un muro di testo già tutto lì si
+salta alla prima riga azzurra. Restano prosa localizzata, la stessa eccezione di
+`README.md`, e restano **quattro righe**: il tetto non è il gusto, è il budget di due
+secondi qui sopra.
+
+**`Typist` è una timeline pura**: dato un millisecondo, quali righe sono a video e quanta
+parte dell'ultima. Nessun clock, nessun Compose. Un'animazione che si può giudicare solo
+guardandola è un'animazione che nessuno può tenere onesta, e le due cose che qui contano
+davvero — che il cursore stia dove sta scrivendo, e che la corsa sia breve — sono
+aritmetica. Nove test in `TypistTest`, compreso il caso della pausa (il cursore resta
+parcheggiato a fine riga, non salta alla successiva) e quello del frame in ritardo.
+
+**Una riga a metà non è ancora una risposta**: il `CodeLine` troncato perde il suo
+`onClick`. È superfluo, visto che l'overlay intercetta tutto — ma è il tipo di verità che
+si scrive nel modello, non in un commento.
+
+**Il dispositivo di default di Robolectric non è un telefono.** Il transcript tiene
+l'ultima riga in vista (un terminale fa così: è la differenza fra avere le risposte sullo
+schermo e averle sotto), quindi su uno schermo più corto del documento la testa della
+sessione è onestamente scorsa via — e su un 320×470dp che nessuno vende i test cercavano
+una riga che nessun telefono avrebbe nascosto. `InitScreenTest` ha ora
+`@Config(qualifiers = "w360dp-h740dp")`, e `TweatherNavigationTest` identifica la sessione
+dalla **tab** (`tweather.sh`), che è il fatto di cui parla.
+
+**Verifiche**: suite verde (`InitScreenTest` 9 test, `TypistTest` 9), lint 0 errori.
+Decisione di serie: la stessa modifica sta in tsteps (Fase 23) e thabit (Fase 19), con le
+stesse due velocità, lo stesso overlay e lo stesso budget.
+
+- [ ] Da verificare su device: la velocità (deve sembrare fluida, non una macchina da
+      scrivere), il tap-to-skip a metà stampa, «Rimuovi animazioni» in Accessibilità,
+      TalkBack, e che le quattro righe più le risposte ci stiano su uno schermo da 360×640
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

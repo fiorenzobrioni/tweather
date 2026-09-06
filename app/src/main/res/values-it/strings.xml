@@ -125,9 +125,12 @@
         <item>Perché un file si legge tutto insieme, e perché ci piace così. E se qualche parola qui sopra resta oscura, non importa: il meteo te lo dice lo stesso.</item>
     </string-array>
 
-    <!-- `$ tweather init` (Fase 14c): prosa per chi vede l'app per la prima volta -->
-    <string name="init_intro">tweather ha bisogno di una località per iniziare.</string>
-    <string name="init_privacy">Le previsioni arrivano da open-meteo.com. Dal telefono non esce altro.</string>
+    <!-- `$ tweather init` (Fase 14c): prosa per chi vede l'app per la prima volta.
+         Dalla Fase 27 il transcript si scrive da solo. -->
+    <string name="init_intro">tweather è un\'app meteo che sembra un editor di codice.</string>
+    <string name="init_files">Le previsioni sono un file JSON, la stessa giornata in parole è un README, il cielo è un crontab.</string>
+    <string name="init_privacy">I dati arrivano da open-meteo.com. Niente account, niente pubblicità: dal telefono non esce altro.</string>
+    <string name="init_ask">Per iniziare gli serve una località.</string>
     <string name="init_option_gps">usa la mia posizione</string>
     <string name="init_option_gps_note">posizione approssimata, te la chiede Android</string>
     <string name="init_option_search">cerca una città</string>

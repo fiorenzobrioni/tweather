@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.ServiceLocator
+import com.callbackdev.tweather.ui.init.SetupFile
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -93,12 +94,20 @@ class TweatherNavigationTest {
         compose.onNodeWithText("weather_data.json").assertExists()
     }
 
-    /** Fase 14c: a fresh install is asked for a location before it gets a workspace. */
+    /**
+     * Fase 14c: a fresh install is asked for a location before it gets a workspace.
+     *
+     * The session is identified by its tab and not by the `$ tweather init` line:
+     * since Fase 27 the transcript prints itself and keeps its last line in sight,
+     * so on a screen too short for it — which Robolectric's default device is — the
+     * command has honestly scrolled off the top. The tab is the file, and the file
+     * is the fact this test is about.
+     */
     @Test
     fun aFreshInstallLandsOnTweatherInit() {
         setApp(used = false)
 
-        compose.onNodeWithText("tweather init", substring = true).assertExists()
+        compose.onNodeWithText(SetupFile).assertExists()
         compose.onNodeWithText("weather_data.json").assertDoesNotExist()
     }
 

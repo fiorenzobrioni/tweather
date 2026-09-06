@@ -1,7 +1,6 @@
 package com.callbackdev.tweather.ui.init
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -14,10 +13,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.callbackdev.tweather.R
-import com.callbackdev.tweather.ui.components.CanvasLine
-import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
 import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.StatusBarDivider
@@ -37,6 +33,12 @@ import com.callbackdev.tweather.ui.theme.TweatherTheme
  * (a location), and the vocabulary lives in `HELP.md`, which is there whenever the
  * question actually comes up.
  *
+ * Since Fase 27 the transcript **prints itself** rather than being already there:
+ * see [TypedTranscript] for the two speeds, the tap that ends it and the two
+ * accessibility switches that never start it. The four `#` lines above the choices
+ * grew with it — a session that takes a second and a half to print can afford to
+ * say what the app *is* before saying what it needs, and a still screen could not.
+ *
  * Localized, unlike the terminal output elsewhere in the app: the same exception
  * `README.md` already makes. The fiction is carried by the shape — the prompt, the
  * `>` choices, the `#` notes — not by the language, and this is the one screen whose
@@ -52,10 +54,12 @@ fun InitScreen(
     permissionDenied: Boolean = false
 ) {
     val syntax = TweatherTheme.syntax
-    val lines = buildInitLines(
+    val script = buildInitScript(
         syntax = syntax,
         intro = stringResource(R.string.init_intro),
+        files = stringResource(R.string.init_files),
         privacy = stringResource(R.string.init_privacy),
+        ask = stringResource(R.string.init_ask),
         gps = stringResource(R.string.init_option_gps),
         gpsNote = stringResource(R.string.init_option_gps_note),
         search = stringResource(R.string.init_option_search),
@@ -70,12 +74,7 @@ fun InitScreen(
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.fillMaxSize()) {
             EditorTabs(fileNames = listOf(SetupFile), activeIndex = 0, onSelect = {})
-            CodeCanvas(
-                lines = lines,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                showIndentGuides = false
-            )
+            TypedTranscript(script = script, modifier = Modifier.weight(1f))
             TerminalStatusBar {
                 Text("⎇ setup")
                 StatusBarDivider()
@@ -88,10 +87,19 @@ fun InitScreen(
 /** The "file" this screen opens: a session, not a document — hence the shell name. */
 internal const val SetupFile = "tweather.sh"
 
-internal fun buildInitLines(
+/**
+ * The transcript as a pure value, with the time each line takes to arrive.
+ *
+ * The command is the only line typed at a hand's speed; everything else is the
+ * program answering. The beats are where a real session breathes — after the
+ * command, and between one offered answer and the next.
+ */
+internal fun buildInitScript(
     syntax: SyntaxColors,
     intro: String,
+    files: String,
     privacy: String,
+    ask: String,
     gps: String,
     gpsNote: String,
     search: String,
@@ -102,21 +110,32 @@ internal fun buildInitLines(
     onUseGps: () -> Unit,
     onSearchCity: () -> Unit,
     onSkip: () -> Unit
-): List<CanvasLine> = buildList {
+): List<TypedLine> = buildList {
     add(
-        CodeLine(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
-                withStyle(SpanStyle(color = syntax.string)) { append("tweather init") }
-            }
+        TypedLine(
+            CodeLine(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = syntax.comment)) { append("$ ") }
+                    withStyle(SpanStyle(color = syntax.string)) { append("tweather init") }
+                }
+            ),
+            msPerChar = PromptMsPerChar,
+            pauseAfterMs = PromptPauseMs
         )
     )
     add(blank())
-    add(comment(intro, syntax))
-    add(comment(privacy, syntax))
+    add(printed(comment(intro, syntax)))
+    add(printed(comment(files, syntax)))
+    add(printed(comment(privacy, syntax)))
+    add(printed(comment(ask, syntax), pauseAfterMs = StanzaPauseMs))
     denied?.let {
         add(blank())
-        add(CodeLine(AnnotatedString(it, SpanStyle(color = syntax.diffDel))))
+        add(
+            printed(
+                CodeLine(AnnotatedString(it, SpanStyle(color = syntax.diffDel))),
+                pauseAfterMs = StanzaPauseMs
+            )
+        )
     }
     option(gps, gpsNote, syntax, onUseGps)
     option(search, searchNote, syntax, onSearchCity)
@@ -124,7 +143,7 @@ internal fun buildInitLines(
 }
 
 /** `> choice` plus its `#` note: one tap target, the note explains what it costs. */
-private fun MutableList<CanvasLine>.option(
+private fun MutableList<TypedLine>.option(
     label: String,
     note: String,
     syntax: SyntaxColors,
@@ -132,22 +151,27 @@ private fun MutableList<CanvasLine>.option(
 ) {
     add(blank())
     add(
-        CodeLine(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = syntax.comment)) { append("> ") }
-                withStyle(SpanStyle(color = syntax.key)) { append(label) }
-            },
-            onClick = onClick,
-            onClickLabel = label
+        printed(
+            CodeLine(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = syntax.comment)) { append("> ") }
+                    withStyle(SpanStyle(color = syntax.key)) { append(label) }
+                },
+                onClick = onClick,
+                onClickLabel = label
+            )
         )
     )
-    add(comment(note, syntax, indent = 1))
+    add(printed(comment(note, syntax, indent = 1), pauseAfterMs = StanzaPauseMs))
 }
+
+private fun printed(line: CodeLine, pauseAfterMs: Int = 0): TypedLine =
+    TypedLine(line, msPerChar = PrintMsPerChar, pauseAfterMs = pauseAfterMs)
 
 private fun comment(text: String, syntax: SyntaxColors, indent: Int = 0): CodeLine =
     CodeLine(AnnotatedString("# $text", SpanStyle(color = syntax.comment)), indent)
 
-private fun blank(): CodeLine = CodeLine(AnnotatedString(""))
+private fun blank(): TypedLine = TypedLine(CodeLine(AnnotatedString("")))
 
 @Preview(showBackground = true, backgroundColor = 0xFF10141A)
 @Composable

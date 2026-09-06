@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.LocationProvider
+import com.callbackdev.tweather.data.PowerSaveState
 import com.callbackdev.tweather.data.SettingsStore
 import com.callbackdev.tweather.data.SkySubscriptionStore
 import com.callbackdev.tweather.data.WeatherRepository
@@ -22,17 +23,20 @@ import com.callbackdev.tweather.data.remote.dto.CurrentDto
 import com.callbackdev.tweather.data.remote.dto.DailyDto
 import com.callbackdev.tweather.data.remote.dto.ForecastResponseDto
 import com.callbackdev.tweather.data.remote.dto.HourlyDto
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -40,7 +44,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -81,8 +87,21 @@ class WeatherViewModelTest {
         }
     }
 
+    /** A clock the test moves by hand, so "the document was rebuilt against the real
+     * now" is an assertion rather than a hope about wall-clock drift. */
+    private class TestClock(var now: Instant) : Clock() {
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+        override fun withZone(zone: ZoneId): Clock = this
+        override fun instant(): Instant = now
+        fun advance(by: Duration) { now = now.plus(by) }
+    }
+
     @get:Rule
     val tmp = TemporaryFolder()
+
+    /** Every request that actually left the app, cache hits excluded by construction. */
+    @Volatile
+    private var httpCalls = 0
 
     private val storeScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val json = Json { ignoreUnknownKeys = true }
@@ -118,8 +137,17 @@ class WeatherViewModelTest {
             ApplicationProvider.getApplicationContext(),
             TweatherDatabase::class.java
         ).allowMainThreadQueries().build()
+        val counting = OkHttpClient.Builder()
+            .addInterceptor(
+                Interceptor { chain ->
+                    httpCalls++ // counted before it fails: the point is that it tried
+                    chain.proceed(chain.request())
+                }
+            )
+            .build()
         val retrofit = Retrofit.Builder()
             .baseUrl("http://127.0.0.1:1/") // nothing listens: instant NoNetwork
+            .client(counting)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
         diskCache = ReportDiskCache(tmp.newFolder("reports-${System.nanoTime()}"), json)
@@ -149,10 +177,14 @@ class WeatherViewModelTest {
         )
     }
 
-    private fun viewModel(provider: LocationProvider) =
-        WeatherViewModel(
-            repository, cityStore, settingsStore, provider, workspaceStore, skyStore
-        )
+    private fun viewModel(
+        provider: LocationProvider,
+        clock: Clock = Clock.systemUTC(),
+        powerSave: PowerSaveState = PowerSaveState.Off
+    ) = WeatherViewModel(
+        repository, cityStore, settingsStore, provider, workspaceStore, skyStore,
+        clock, powerSave
+    )
 
     private fun awaitState(
         viewModel: WeatherViewModel,
@@ -355,6 +387,84 @@ class WeatherViewModelTest {
 
         assertNull(state.report)
         assertNull(state.staleFor)
+    }
+
+    // -------------------------------------------------- Fase 25: coming back to it
+
+    /** Waits until at least [target] requests have left the app. */
+    private fun awaitHttp(target: Int): Int = runBlocking {
+        withTimeout(10_000) {
+            while (httpCalls < target) delay(5)
+            httpCalls
+        }
+    }
+
+    /**
+     * Battery saver drops the NETWORK half of the resume re-read and keeps the other
+     * half, and both halves are asserted here.
+     *
+     * The second phase is what makes the first one mean anything: with saver off the
+     * same call does reach the network, so the counter standing still under saver is
+     * a decision and not a broken instrument.
+     */
+    @Test
+    fun `battery saver skips the resume fetch but still rebuilds against the clock`() {
+        val city = CityStore.DefaultCity
+        val zone = ZoneId.of(city.timezone!!)
+        seedDiskCache(city, ageHours = 3)
+        runBlocking { cityStore.add(city) }
+
+        var saving = false
+        val clock = TestClock(Instant.now())
+        val vm = viewModel(
+            FakeLocationProvider { milanFix },
+            clock = clock,
+            powerSave = { saving }
+        )
+        val landed = awaitState(vm) { it.report != null && !it.isLoading }
+        val staleBefore = landed.staleFor!!
+        val firstHourBefore = landed.report!!.hourly.first().time
+        val callsBefore = httpCalls
+
+        // Two hours later, under saver.
+        saving = true
+        clock.advance(Duration.ofHours(2))
+        vm.onResumed()
+
+        val saved = vm.uiState.value
+        assertEquals("saver must not spend a request", callsBefore, httpCalls)
+        assertNotNull("and must not blank the document either", saved.report)
+        // The clock moved and the document knows: it says it is two hours further
+        // behind, and it no longer opens with two hours that are over.
+        assertTrue(
+            "staleFor: ${saved.staleFor}",
+            saved.staleFor!! >= staleBefore.plusHours(2)
+        )
+        assertEquals(firstHourBefore.plusHours(2), saved.report!!.hourly.first().time)
+        assertEquals(
+            clock.now.atZone(zone).toLocalDateTime().truncatedTo(ChronoUnit.HOURS),
+            saved.report!!.hourly.first().time
+        )
+
+        // Saver off: the very same call goes to the network.
+        saving = false
+        vm.onResumed()
+        assertTrue(awaitHttp(callsBefore + 1) > callsBefore)
+    }
+
+    /** The FAB is an explicit request and is never quietly ignored. */
+    @Test
+    fun `battery saver does not silence the refresh the reader asked for`() {
+        val city = CityStore.DefaultCity
+        seedDiskCache(city, ageHours = 3)
+        runBlocking { cityStore.add(city) }
+
+        val vm = viewModel(FakeLocationProvider { milanFix }, powerSave = { true })
+        awaitState(vm) { it.report != null && !it.isLoading }
+        val callsBefore = httpCalls
+
+        vm.refresh()
+        assertTrue(awaitHttp(callsBefore + 1) > callsBefore)
     }
 
     /** Nothing cached at all: the editor says what happened and nothing more. */

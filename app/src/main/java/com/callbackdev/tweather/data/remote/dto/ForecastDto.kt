@@ -27,7 +27,14 @@ data class CurrentDto(
     @SerialName("wind_speed_10m") val windSpeedKph: Double,
     @SerialName("wind_direction_10m") val windDirectionDeg: Int,
     @SerialName("wind_gusts_10m") val windGustsKph: Double,
-    @SerialName("visibility") val visibilityM: Double,
+    /**
+     * Nullable since Fase 26, like [HourlyDto]'s. Never seen absent — probed on twelve
+     * places including McMurdo, mid-Pacific, Everest and Svalbard — but `visibility`
+     * is a model-dependent field, and a non-nullable one here means a model that stops
+     * carrying it fails the WHOLE fetch, current block, forecast and all. The hourly
+     * DTO has always tolerated it; there was no reason for the two to disagree.
+     */
+    @SerialName("visibility") val visibilityM: Double? = null,
     @SerialName("cloud_cover") val cloudCoverPct: Int,
     @SerialName("uv_index") val uvIndex: Double
 )
@@ -37,6 +44,13 @@ data class HourlyDto(
     val time: List<String>,
     @SerialName("temperature_2m") val temperatureC: List<Double>,
     @SerialName("weather_code") val weatherCode: List<Int>,
+    /**
+     * Millimetres in the hour. Defaulted so a `ReportDiskCache` entry written before
+     * Fase 26 still deserializes: an offline phone must not lose its week of forecast
+     * to an app update, and the daily code degrades to its hour-count rule when the
+     * amounts are not there.
+     */
+    @SerialName("precipitation") val precipitationMm: List<Double> = emptyList(),
     @SerialName("precipitation_probability") val precipitationProbabilityPct: List<Int?>,
     @SerialName("is_day") val isDay: List<Int>,
     @SerialName("visibility") val visibilityM: List<Double?>,

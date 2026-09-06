@@ -31,6 +31,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import android.content.res.Resources
@@ -69,6 +71,12 @@ fun WeatherScreen(
     onOpenHelp: () -> Unit = {},
     viewModel: WeatherViewModel = viewModel(factory = WeatherViewModel.Factory)
 ) {
+    // Fase 25: coming back to the editor re-reads the active city. A cache HIT
+    // inside the provider's fifteen minutes, a real fetch past them, and either way
+    // the document is rebuilt against the current clock instead of the one it was
+    // written with. Silent by design — see WeatherViewModel.onResumed.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResumed() }
+
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val displayOptions by viewModel.displayOptions.collectAsStateWithLifecycle()
     val activeFile by viewModel.activeFile.collectAsStateWithLifecycle()

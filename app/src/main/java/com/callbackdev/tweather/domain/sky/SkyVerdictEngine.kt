@@ -140,7 +140,9 @@ object SkyVerdictEngine {
             return SkyVerdict(SkyVerdictKind.UNKNOWN, note = SkyVerdictNote.NO_COVERAGE)
         }
         val cloudPct = clouds.average().roundToInt()
-        val precipPct = window.maxOf { it.precipChancePct }
+        // An hour with no forecast chance contributes nothing to the worst case:
+        // a verdict is never made worse by what the app was not told (Fase 26).
+        val precipPct = window.maxOf { it.precipChancePct ?: 0 }
 
         val fromWeather = when {
             precipPct >= PRECIP_FAIL_PCT ->

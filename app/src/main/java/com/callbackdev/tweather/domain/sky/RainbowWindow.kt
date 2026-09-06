@@ -78,7 +78,7 @@ object RainbowWindow {
             current = null
             val start = run.first().time.atZone(zone).toInstant()
             val end = run.last().time.atZone(zone).toInstant().plus(Duration.ofHours(1))
-            val best = run.maxBy { it.precipChancePct }
+            val best = run.maxBy { it.precipChancePct ?: 0 }
             val middle = best.time.atZone(zone).toInstant().plus(Duration.ofMinutes(30))
             open += Rainbow(
                 start = start,
@@ -86,7 +86,7 @@ object RainbowWindow {
                 // Opposite the sun, which is where the bow is centred. The reader is
                 // told to turn their back on the sun and this is that sentence's number.
                 lookTowardsDeg = (AstronomyEngine.sunAzimuth(middle, coords) + 180.0) % 360.0,
-                precipChancePct = best.precipChancePct
+                precipChancePct = best.precipChancePct ?: 0
             )
         }
 
@@ -94,7 +94,7 @@ object RainbowWindow {
             val middle = hour.time.atZone(zone).toInstant().plus(Duration.ofMinutes(30))
             val altitude = AstronomyEngine.sunAltitude(middle, coords)
             val qualifies = altitude > 0 && altitude < MAX_SUN_ALTITUDE &&
-                hour.precipChancePct >= MIN_PRECIP_PCT &&
+                (hour.precipChancePct ?: 0) >= MIN_PRECIP_PCT &&
                 hour.cloudCoverPct <= MAX_CLOUD_PCT
             if (qualifies) {
                 (current ?: mutableListOf<HourlyForecast>().also { current = it }).add(hour)

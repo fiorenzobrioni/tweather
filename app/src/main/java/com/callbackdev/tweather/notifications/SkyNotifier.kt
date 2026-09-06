@@ -12,6 +12,8 @@ import com.callbackdev.tweather.domain.sky.SkyJobCatalog
 import com.callbackdev.tweather.domain.sky.SkyVerdict
 import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.domain.sky.SkyVerdictNote
+import com.callbackdev.tweather.ui.sky.SkyJobNames
+import com.callbackdev.tweather.ui.sky.SkyManPages
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -23,6 +25,12 @@ import java.time.format.DateTimeFormatter
  * Same idiom as the rest of the app: a localized title over a body that reads like
  * the file it came from — the job's own name, the time, and the verdict WITH the
  * number behind it. Never anything motivational, never a digest.
+ *
+ * Collapsed and expanded are two texts since Fase 25; they were one, and pulling a
+ * reminder open gave back the line it already showed. The dotted id in the title is
+ * what `sky.crontab` calls this job and stays exactly that, so the unfold says what
+ * it MEANS — the localized name from [SkyJobNames] — and where the rest of it is
+ * written: `$ man 7 <id>`, the page Fase 23 wrote for precisely this reader.
  *
  * One channel and one notification id per job, so a second reminder for the same job
  * overwrites rather than stacking.
@@ -61,9 +69,11 @@ object SkyNotifier {
             .setSmallIcon(R.drawable.ic_stat_tweather)
             .setContentTitle(context.getString(R.string.sky_notification_title, jobId))
             .setContentText(body)
-            // Same text expanded: the line is short enough to fit, and BigTextStyle is
-            // what stops the system from eliding the verdict on a narrow screen.
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            // BigTextStyle is also what stops the system from eliding the verdict on
+            // a narrow screen — but it carries more than the line now, see above.
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(expandedBody(context, jobId, body))
+            )
             .setContentIntent(openApp(context))
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
@@ -91,6 +101,22 @@ object SkyNotifier {
         append(context.getString(R.string.sky_notification_in, minutes))
         append(" · ").append(occurrenceAt.atZone(zone).format(ClockTime))
         verdict?.let { append(" · ").append(shortVerdict(it)) }
+    }
+
+    /**
+     * The line, with what the job is called and where it is explained.
+     *
+     * The name is prose and localizes; the id and the command do not — the id is what
+     * the file prints and what the manual is indexed by, and translating it would
+     * break the tie with both. Internal for the test.
+     */
+    internal fun expandedBody(context: Context, jobId: String, body: String): String {
+        val name = SkyJobNames.label(context.resources, jobId)
+        return if (SkyManPages.hasPage(jobId)) {
+            "$name\n$body\n$ man ${SkyManPages.SECTION} $jobId"
+        } else {
+            "$name\n$body"
+        }
     }
 
     private fun shortVerdict(verdict: SkyVerdict): String = buildString {

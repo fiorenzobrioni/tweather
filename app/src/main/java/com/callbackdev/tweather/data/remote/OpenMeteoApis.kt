@@ -41,9 +41,15 @@ interface OpenMeteoForecastApi {
         // WeatherReportMapper. Hourly cloud_cover has a second reader since Fase 16a:
         // it is carried into the domain for the sky module's verdicts. Still not a
         // rendered field, and still fetched for the same price as before.
+        // `precipitation` joined the hourly list in Fase 26: WeatherReportMapper's
+        // daily code needs to know whether a day's precipitation is MATERIAL before
+        // letting it label the day, and millimetres are the quantity that answers
+        // that. Measured at **+72 bytes gzipped** on a 7-day response — 168 mostly-zero
+        // values compress to almost nothing, which is why the amount was worth asking
+        // for rather than inferring from the probability the app already had.
         const val HOURLY_VARIABLES =
-            "temperature_2m,weather_code,precipitation_probability,is_day," +
-                "visibility,cloud_cover"
+            "temperature_2m,weather_code,precipitation,precipitation_probability," +
+                "is_day,visibility,cloud_cover"
         const val DAILY_VARIABLES =
             "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset," +
                 "daylight_duration,precipitation_probability_max,uv_index_max"

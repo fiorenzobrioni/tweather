@@ -54,9 +54,66 @@ class RuleNotifierTest {
             "Take an umbrella — 78% at 18:00",
             extras.getString(Notification.EXTRA_TEXT)
         )
+        // Expanded says what the collapsed line cannot: the rule that fired, written
+        // the way `alerts.rules` writes it, with the reading behind each condition.
         assertEquals(
-            "$ tweather run umbrella\nTake an umbrella — 78% at 18:00",
+            """
+            $ tweather run umbrella
+            Take an umbrella — 78% at 18:00
+
+            if: next_6h.precip_chance_max  >=  10  // 10
+            """.trimIndent(),
             extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
+        )
+    }
+
+    @Test
+    fun `both conditions are printed, in the units the file shows them in`() {
+        val two = trigger().let {
+            it.copy(
+                rule = it.rule.copy(
+                    conditions = listOf(
+                        RuleCondition("current.temp_c", RuleOp.GT, 10.0),
+                        RuleCondition("current.humidity_pct", RuleOp.LT, 80.0)
+                    )
+                )
+            )
+        }
+        RuleNotifier.notify(context, two, "Milan", report, now, UnitSettings())
+        assertEquals(
+            """
+            $ tweather run umbrella
+            Take an umbrella — 78% at 18:00
+
+            if: current.temp_c  >  10  // 18.5
+            and: current.humidity_pct  <  80  // 54
+            """.trimIndent(),
+            shadowOf(manager).allNotifications.single()
+                .extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
+        )
+    }
+
+    @Test
+    fun `a condition with no reading right now prints no reading, never a zero`() {
+        val noAir = trigger().let {
+            it.copy(
+                rule = it.rule.copy(
+                    conditions = listOf(RuleCondition("current.aqi_index", RuleOp.GT, 50.0))
+                )
+            )
+        }
+        RuleNotifier.notify(
+            context, noAir, "Milan", report.copy(airQuality = null), now, UnitSettings()
+        )
+        assertEquals(
+            """
+            $ tweather run umbrella
+            Take an umbrella — 78% at 18:00
+
+            if: current.aqi_index  >  50
+            """.trimIndent(),
+            shadowOf(manager).allNotifications.single()
+                .extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
         )
     }
 

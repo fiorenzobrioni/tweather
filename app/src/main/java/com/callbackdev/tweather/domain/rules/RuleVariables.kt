@@ -47,11 +47,13 @@ object RuleVariables {
         current("current.uv_index", RuleVariableKind.NUMBER) { it.current.uvIndex.toDouble() }
         current("current.wind.speed_kph", RuleVariableKind.SPEED) { it.current.wind.speedKph }
         current("current.wind.gust_kph", RuleVariableKind.SPEED) { it.current.wind.gustKph }
-        current("current.precipitation.chance_pct", RuleVariableKind.NUMBER) {
-            it.current.precipitation.chancePct.toDouble()
+        // Fase 26: both of these can be absent, and a variable that does not resolve
+        // makes its rule skip rather than read as zero — which is what `optional` is.
+        optional("current.precipitation.chance_pct", RuleVariableKind.NUMBER) {
+            it.current.precipitation.chancePct?.toDouble()
         }
         current("current.pressure_mb", RuleVariableKind.NUMBER) { it.current.pressureMb }
-        current("current.visibility_km", RuleVariableKind.NUMBER) { it.current.visibilityKm }
+        optional("current.visibility_km", RuleVariableKind.NUMBER) { it.current.visibilityKm }
         // Air quality is best-effort upstream: null when the AQ API had failed
         add(
             RuleVariable("current.aqi_index", RuleVariableKind.NUMBER) { report, _ ->
@@ -61,8 +63,9 @@ object RuleVariables {
 
         for (hours in listOf(6L, 12L)) {
             window("next_${hours}h.precip_chance_max", RuleVariableKind.NUMBER, hours) { w ->
-                w.maxByOrNull { it.precipChancePct }
-                    ?.let { ResolvedValue(it.precipChancePct.toDouble(), it.time) }
+                w.mapNotNull { h -> h.precipChancePct?.let { h to it } }
+                    .maxByOrNull { (_, pct) -> pct }
+                    ?.let { (hour, pct) -> ResolvedValue(pct.toDouble(), hour.time) }
             }
             window("next_${hours}h.temp_c_min", RuleVariableKind.TEMPERATURE, hours) { w ->
                 w.minByOrNull { it.tempC }?.let { ResolvedValue(it.tempC, it.time) }
@@ -174,6 +177,18 @@ object RuleVariables {
         kind: RuleVariableKind,
         value: (WeatherReport) -> Double
     ) = add(RuleVariable(id, kind) { report, _ -> ResolvedValue(value(report)) })
+
+    /**
+     * Like [current], for a reading the report may simply not carry (Fase 26): a null
+     * makes the variable unresolvable, and an unresolvable variable makes its rule
+     * skip — the engine's existing contract, and the only honest reading of "we were
+     * not told". Filling it with a zero would let `< 10` fire on missing data.
+     */
+    private fun MutableList<RuleVariable>.optional(
+        id: String,
+        kind: RuleVariableKind,
+        value: (WeatherReport) -> Double?
+    ) = add(RuleVariable(id, kind) { report, _ -> value(report)?.let { ResolvedValue(it) } })
 
     private fun MutableList<RuleVariable>.window(
         id: String,

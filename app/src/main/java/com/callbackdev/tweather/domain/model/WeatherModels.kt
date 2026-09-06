@@ -60,7 +60,8 @@ data class Wind(
 
 data class Precipitation(
     val lastHourMm: Double,
-    val chancePct: Int
+    /** Null when the provider did not forecast one for this hour — never a silent 0. */
+    val chancePct: Int?
 )
 
 data class CurrentConditions(
@@ -69,7 +70,8 @@ data class CurrentConditions(
     val feelsLikeC: Double,
     val humidityPct: Int,
     val dewPointC: Double,
-    val visibilityKm: Double,
+    /** Null when the model behind this response does not carry visibility. */
+    val visibilityKm: Double?,
     val pressureMb: Double,
     val uvIndex: Int,
     val uvDescription: String,
@@ -127,7 +129,16 @@ data class HourlyForecast(
     val time: LocalDateTime,
     val tempC: Double,
     val condition: WeatherCondition,
-    val precipChancePct: Int,
+    /**
+     * Chance of precipitation, 0..100, or **null when the provider did not forecast
+     * one for this hour** (Fase 26). It used to be a non-nullable Int that the mapper
+     * filled with `0` whenever the field came back null — which is a claim, not a
+     * fallback: "no chance of rain" is a forecast, and "we were not told" is not.
+     * Probed on twelve places across five continents and never seen null, so this
+     * closes a rule rather than a bug; every reader either compares it (where null
+     * simply does not meet a threshold) or prints it (where null prints as null).
+     */
+    val precipChancePct: Int?,
     /**
      * Total cloud cover, 0..100 (Fase 16a). Open-Meteo has been sending it since Fase
      * 13c, where it repairs `weather_code`'s unreliable fog inside the mapper, but it

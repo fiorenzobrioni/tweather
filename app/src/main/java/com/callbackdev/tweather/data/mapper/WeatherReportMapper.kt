@@ -71,6 +71,36 @@ private val FogCodes = setOf(45, 48)
 /** Open-Meteo's own fog threshold, `WeatherCode.swift:99`: `visibility <= 1000 → fog`. */
 private const val FOG_VISIBILITY_M = 1000.0
 
+/**
+ * WMO codes that declare an intensity or a hazard of their own: freezing anything,
+ * the heavy grades, violent showers, every thunderstorm. These claim the day
+ * unconditionally in [WeatherReportMapper.dailyCode] — the materiality gate below is
+ * allowed to drop a label, never a warning.
+ */
+private val HazardCodes = setOf(56, 57, 65, 66, 67, 75, 82, 86, 95, 96, 99)
+
+/**
+ * How much has to fall before precipitation may label the whole day (Fase 26), and
+ * the escape hatch for the day where little falls but it falls all afternoon.
+ *
+ * `dailyCode` used to let ANY hour with a code ≥ 51 claim the day. Measured 6 Sep
+ * 2026 on 23 cities across five continents, 161 city-days: 45% of days came back
+ * "wet", and 47% of those were wet only from drizzle codes — ten of them with under a
+ * millimetre in twenty-four hours, five with a peak probability below 30%. The worst
+ * was Singapore, one hour, 0.1 mm, **1% probability**, and the whole day printed
+ * `Drizzle 🌦️` in the week table and in the morning summary; Milan the same with
+ * `Rain Showers` for **0.0 mm**. That is the fog defect again in another column: one
+ * unrepresentative hour labelling a day.
+ *
+ * One millimetre is the Met Office's own "wet day", and three hours is what keeps a
+ * long soft drizzle — which really does look like a drizzly day — from being dropped
+ * by an accumulation rule. On the same 161 days the pair moves 5 days out of 73, and
+ * all five are the ones above: one or two hours, 0.0–0.4 mm. The weakest day it keeps
+ * is six hours and 0.6 mm, which is a day you take a jacket for.
+ */
+private const val WET_DAY_MM = 1.0
+private const val WET_DAY_HOURS = 3
+
 object WeatherReportMapper {
 
     const val SOURCE = "Open-Meteo API"
@@ -104,14 +134,20 @@ object WeatherReportMapper {
             ),
             current = CurrentConditions(
                 condition = WeatherCodes.condition(
-                    repairFog(current.weatherCode, current.visibilityM, current.cloudCoverPct),
+                    repairFog(
+                        code = current.weatherCode,
+                        visibilityM = current.visibilityM,
+                        cloudCoverPct = current.cloudCoverPct,
+                        // An observation has no run to belong to — see repairFog.
+                        fogPersists = true
+                    ),
                     isDay
                 ),
                 tempC = current.temperatureC,
                 feelsLikeC = current.apparentTemperatureC,
                 humidityPct = current.humidityPct,
                 dewPointC = current.dewPointC,
-                visibilityKm = current.visibilityM / 1000.0,
+                visibilityKm = current.visibilityM?.div(1000.0),
                 pressureMb = current.pressureMslHpa,
                 uvIndex = current.uvIndex.roundToInt(),
                 uvDescription = WeatherCodes.uvDescription(current.uvIndex.roundToInt()),
@@ -124,7 +160,7 @@ object WeatherReportMapper {
                 precipitation = Precipitation(
                     lastHourMm = current.precipitationMm,
                     chancePct = forecast.hourly.precipitationProbabilityPct
-                        .getOrNull(currentHourIndex) ?: 0
+                        .getOrNull(currentHourIndex)
                 )
             ),
             airQuality = airQuality?.toAirQuality(),
@@ -157,7 +193,7 @@ object WeatherReportMapper {
                         codes[i],
                         isDay = hourly.isDay[i] == 1
                     ),
-                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i) ?: 0,
+                    precipChancePct = hourly.precipitationProbabilityPct.getOrNull(i),
                     // Read like its siblings: the parallel arrays are the same length
                     // in any response that deserialized, and `repairedCodes()` has
                     // already indexed this very column over all of them.
@@ -184,6 +220,7 @@ object WeatherReportMapper {
                     dailyCode(
                         hourlyCodes,
                         forecast.hourly.isDay,
+                        forecast.hourly.precipitationMm,
                         hoursByDate[day].orEmpty(),
                         daily.weatherCode[i]
                     ),
@@ -206,13 +243,19 @@ object WeatherReportMapper {
      * CAPE spike. Measured 22 Aug 2026 on 8 Po Valley cities — see Fase 13b in PLANNING.md
      * for the numbers behind every choice below.
      *
-     * Rain first, over the WHOLE day: any precipitation code (≥ 51) outranks every sky code,
-     * as it does for the provider. Scoping this half to the daylight too was the first cut
-     * and it dropped the precipitation from 17 days out of 56, 8 of them turning a night
-     * thunderstorm into `Overcast` — this rule may remove a distortion, never a warning.
+     * Rain first, over the WHOLE day — but only rain that is REALLY there (Fase 26).
+     * Any precipitation code used to outrank every sky code, which handed the day to a
+     * single hour of 0.1 mm at 1% probability; now the light codes have to clear
+     * [WET_DAY_MM] over the day or run for [WET_DAY_HOURS] of it, and [HazardCodes]
+     * clear nothing because a warning is never dropped. Scoping the rain half to the
+     * daylight too was the first cut, back in 13b, and it dropped the precipitation
+     * from 17 days out of 56, 8 of them turning a night thunderstorm into `Overcast`:
+     * this rule may remove a distortion, never a warning, and that is exactly why the
+     * hazard clause comes first.
      * `max()` within the precipitation family keeps Open-Meteo's own ordering, where 80
      * (slight showers) outranks 65 (heavy rain): imprecise about intensity, never wrong
-     * about whether it rains.
+     * about whether it rains. Measured 6 Sep 2026 over 3 024 hours, the codes that make
+     * that inversion possible (82, 66, 67, 99) were not emitted once, so it stays.
      *
      * The sky, with no rain to report, is the daylight's: the row answers "how will the day
      * look", so a single closed hour at 4am neither darkens nor fogs a sunny day. Apple
@@ -226,22 +269,54 @@ object WeatherReportMapper {
     private fun dailyCode(
         codes: List<Int>,
         isDay: List<Int>,
+        precipMm: List<Double>,
         hours: List<Int>,
         fallback: Int
     ): Int {
         if (hours.isEmpty()) return fallback
-        hours.map { codes[it] }
-            .filter { it >= FIRST_PRECIP_CODE }
-            .maxOrNull()
-            ?.let { return it }
+        val wet = hours.filter { codes[it] >= FIRST_PRECIP_CODE }
+        // An empty `precipMm` is a cache entry written before the field was requested:
+        // the amount clause simply cannot speak, and the hour count answers alone.
+        val claimsTheDay = wet.any { codes[it] in HazardCodes } ||
+            wet.size >= WET_DAY_HOURS ||
+            wet.sumOf { precipMm.getOrElse(it) { 0.0 } } >= WET_DAY_MM
+        if (claimsTheDay) wet.map { codes[it] }.maxOrNull()?.let { return it }
         val daylight = hours.filter { isDay[it] == 1 }.ifEmpty { hours }
         return daylight.map { codes[it] }
             .groupingBy { it }.eachCount()
             .maxWithOrNull(compareBy({ it.value }, { it.key }))?.key ?: fallback
     }
 
-    private fun HourlyDto.repairedCodes(): List<Int> = weatherCode.indices.map { i ->
-        repairFog(weatherCode[i], visibilityM.getOrNull(i), cloudCoverPct[i])
+    /**
+     * The hourly codes with [repairFog] applied, plus the one thing a series can say
+     * that a single hour cannot: **fog is not one hour long** (Fase 26).
+     *
+     * Writing fog into an hour whose neighbours are both clear-aired nearly doubled
+     * the fog↔non-fog transitions of the week — measured 6 Sep 2026 over 23 cities and
+     * 3 864 hours: the provider's own series turns 10 times, the repaired one 18.
+     * Every one of those extra turns is a row that changes character for an hour and
+     * a line in `history.diff` that says nothing happened twice. Requiring one
+     * neighbour below the threshold takes it to 14 and costs two rewrites out of 42.
+     *
+     * The requirement is deliberately **one-sided**. Removing a fog code the
+     * provider's own visibility contradicts stays a per-hour decision: there is no
+     * "run" argument for keeping a value the data disagrees with, and 68% of the fog
+     * codes served are contradicted (median 4 km, worst 16.3 km). It is only the
+     * INVENTING direction that has to be patient.
+     */
+    private fun HourlyDto.repairedCodes(): List<Int> {
+        val lowVisibility = weatherCode.indices.map {
+            visibilityM.getOrNull(it)?.let { v -> v <= FOG_VISIBILITY_M } == true
+        }
+        return weatherCode.indices.map { i ->
+            repairFog(
+                code = weatherCode[i],
+                visibilityM = visibilityM.getOrNull(i),
+                cloudCoverPct = cloudCoverPct[i],
+                fogPersists = lowVisibility[i] &&
+                    (lowVisibility.getOrNull(i - 1) == true || lowVisibility.getOrNull(i + 1) == true)
+            )
+        }
     }
 
     /**
@@ -262,15 +337,27 @@ object WeatherReportMapper {
      * the visibility. Precipitation (>= 51) is never touched: it is not derived from
      * visibility, and thunderstorms need CAPE fields the app does not fetch.
      *
-     * A null visibility (never seen in 8 cities across 3 continents, but the field is
+     * A null visibility (never seen in 20 cities across 5 continents, but the field is
      * model-dependent) leaves the code exactly as the provider sent it.
+     *
+     * [fogPersists] is the series' veto on inventing fog, and it is false for the
+     * `current` block on purpose: that block is an observation of NOW, and if the
+     * visibility is 300 metres right now then it is foggy right now — there is no run
+     * to require, because there is no series. Persistence is a property of a forecast,
+     * not of a measurement. Callers with a series pass [HourlyDto.repairedCodes]'
+     * answer; the one caller without one passes `true` and gets the old rule.
      */
-    private fun repairFog(code: Int, visibilityM: Double?, cloudCoverPct: Int): Int {
+    private fun repairFog(
+        code: Int,
+        visibilityM: Double?,
+        cloudCoverPct: Int,
+        fogPersists: Boolean
+    ): Int {
         if (code >= FIRST_PRECIP_CODE || visibilityM == null) return code
         val foggy = visibilityM <= FOG_VISIBILITY_M
         return when {
             code in FogCodes && !foggy -> skyCode(cloudCoverPct)
-            code !in FogCodes && foggy -> WMO_FOG
+            code !in FogCodes && foggy && fogPersists -> WMO_FOG
             else -> code
         }
     }

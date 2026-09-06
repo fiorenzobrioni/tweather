@@ -74,7 +74,10 @@ fun WeatherReport.toDisplayJson(
         put("humidity_pct", current.humidityPct)
         if (details) {
             putDecimal("dew_point_$tempKey", temp(current.dewPointC))
-            putDecimal("visibility_km", current.visibilityKm)
+            // `null` rather than a number the model did not send — the file's own
+            // way of saying a field is absent, as with air_quality and pollen.
+            current.visibilityKm?.let { putDecimal("visibility_km", it) }
+                ?: put("visibility_km", JsonNull)
             putDecimal("pressure_mb", current.pressureMb)
         }
         put("uv_index", current.uvIndex)
@@ -89,7 +92,7 @@ fun WeatherReport.toDisplayJson(
         }
         putJsonObject("precipitation") {
             putDecimal("last_hour_mm", current.precipitation.lastHourMm)
-            put("chance_pct", current.precipitation.chancePct)
+            putNullableInt("chance_pct", current.precipitation.chancePct)
         }
     }
     // NOTE: no `?.let { putJsonObject(...) } ?: put(key, JsonNull)` here — the
@@ -151,7 +154,7 @@ fun WeatherReport.toDisplayJson(
                 put("time", h.time.format(ClockTime))
                 put("temp_$tempKey", temp(h.tempC).roundToInt())
                 put("status", "${translate(h.condition.description)} ${h.condition.emoji}")
-                put("precip_chance", h.precipChancePct)
+                putNullableInt("precip_chance", h.precipChancePct)
             })
         }
     }
@@ -182,6 +185,11 @@ private fun JsonObjectBuilder.putNullable(key: String, value: String?) {
     if (value == null) put(key, JsonNull) else put(key, value)
 }
 
+/** The same for a number the provider may not have forecast (Fase 26). */
+private fun JsonObjectBuilder.putNullableInt(key: String, value: Int?) {
+    if (value == null) put(key, JsonNull) else put(key, value)
+}
+
 // internal: AlertNotifier keys its temperatures the same way (`high_c`/`high_f`)
 internal val TemperatureUnit.keySuffix: String
     get() = if (this == TemperatureUnit.CELSIUS) "c" else "f"
@@ -193,7 +201,8 @@ internal fun TemperatureUnit.convert(celsius: Double): Double =
 internal val TemperatureUnit.symbol: String
     get() = if (this == TemperatureUnit.CELSIUS) "°C" else "°F"
 
-private val WindSpeedUnit.keySuffix: String
+// internal: AlertNotifier keys its wind the same way (`speed_kph`/`speed_mph`)
+internal val WindSpeedUnit.keySuffix: String
     get() = if (this == WindSpeedUnit.KMH) "kph" else "mph"
 
 // internal: the home widget renders wind in the user's unit too

@@ -128,7 +128,9 @@ object AlertEngine {
         val end = now.plusHours(PRECIP_LOOKAHEAD_HOURS)
         val hit = report.hourly.firstOrNull { hour ->
             !hour.time.isBefore(now) && !hour.time.isAfter(end) &&
-                hour.precipChancePct >= PRECIP_THRESHOLD_PCT
+                // A chance the provider did not forecast does not meet a threshold:
+                // "we were not told" has never been a reason to warn (Fase 26).
+                (hour.precipChancePct ?: 0) >= PRECIP_THRESHOLD_PCT
         } ?: return null
         // Half-day bucket: at most two rain warnings per day per city
         val halfDay = if (hit.time.hour < 12) "AM" else "PM"

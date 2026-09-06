@@ -1903,6 +1903,49 @@ stesse due velocità, lo stesso overlay e lo stesso budget.
       scrivere), il tap-to-skip a metà stampa, «Rimuovi animazioni» in Accessibilità,
       TalkBack, e che le quattro righe più le risposte ci stiano su uno schermo da 360×640
 
+## Fase 27b — Il primo avvio, riletto sul telefono (device, 6 set 2026)
+
+Due cose dal giro del committente su tsteps e thabit, e la seconda non era della
+Fase 27.
+
+**Era troppo veloce.** Cinquecento caratteri al secondo, sessione finita in un secondo e
+mezzo: sul telefono non si legge come una cosa che si sta scrivendo, si legge come un
+tremolio. Il testo arriva più in fretta di quanto l'occhio lo insegua, che è esattamente
+la «fuffa» che l'animazione doveva evitare — e il cursore, che è l'unico motivo per cui
+l'animazione esiste, non lo si vede muovere: è già in fondo. Metà velocità
+(`PrintMsPerChar = 4`, ~250 car/s), il comando digitato a poco più del doppio del tempo
+(`PromptMsPerChar = 45`: una mano vera fa circa ventidue caratteri al secondo, non
+cinquanta) e un respiro di 40 ms dopo **ogni** riga stampata, perché una riga atterri
+come una riga e non come un pezzo di flusso. La corsa passa da 1,5 s a circa 3,2 s
+(3,3 s in italiano, che è la lingua lunga).
+
+**E il budget del test diventa un intervallo.** «Sotto i due secondi» era il guardiano
+che aveva permesso il tremolio: un tetto senza pavimento sorveglia una sola delle due
+cose che possono andare storte. Ora è `2_000..4_000` ms in entrambe le lingue, e il
+pavimento porta scritto il motivo.
+
+**La schermata finiva sotto le barre di sistema**: la tab `tweather.sh` sotto l'orologio,
+la barra di stato del terminale sotto la pillola dei gesti. Non è un difetto della
+Fase 27 — `InitScreen` non ha mai applicato gli inset, e il workspace lo fa dal giorno in
+cui esiste (`statusBarsPadding()` sulla sua Column radice). Qui non c'è Scaffold e non
+c'è nav bar, quindi la Column prende lo stesso `statusBarsPadding()`, e la
+`TerminalStatusBar` — che su questa schermata è l'elemento più in basso, cosa che nel
+workspace non è mai — si prende l'inset dei gesti come se lo prende `EditorNavBar`: il
+colore della striscia arriva al bordo e il testo sta sopra la pillola. Lo sfondo è
+dipinto al punto di chiamata perché il padding deve stare DENTRO di esso, e il componente
+applica il proprio dopo il modifier che riceve.
+
+**Un effetto collaterale da mettere a verbale**: `TypedLine.pauseAfterMs` ora vale
+`LinePauseMs` di default invece di zero, quindi `TypistTest` scrive tutti i suoi respiri
+per esteso. Quei test parlano dell'aritmetica della timeline; i default sono il gusto
+dello schermo in fatto di ritmo, e si sono già mossi una volta.
+
+**Verifiche**: suite verde, lint 0 errori. Decisione di serie: stessa modifica in tsteps
+(Fase 23b) e thabit (Fase 19b).
+
+- [ ] Da verificare su device: la nuova velocità, e che tab e barra di stato stiano dentro
+      le loro barre di sistema (navigazione a gesti e a tre bottoni)
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

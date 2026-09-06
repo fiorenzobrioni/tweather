@@ -1584,6 +1584,18 @@ verifica su tutti e quattro i valori selezionabili.
   `// fetching…`, niente FAB che gira: una lettura automatica non ha niente da
   annunciare, ed è la stessa riga che Chiaro traccia con `userRefreshing`.
 
+**Risparmio energetico** (chiesto dal committente subito dopo): sotto battery saver
+`onResumed()` lascia cadere la metà di RETE e tiene l'altra. Un fetch che nessuno ha
+chiesto ad alta voce è esattamente il lavoro che quella modalità rimanda — e il FAB
+resta a un tocco, perché una richiesta esplicita non viene mai ignorata di nascosto.
+Ricostruire il documento sull'ora vera invece non costa né radio né disco, solo
+l'aritmetica di `WeatherRecency.trim` e `WeatherFreshness`, e saltarla lascerebbe
+l'editor a stampare ore già passate tacendo di essere indietro. Risparmiare batteria
+non è una licenza per far mentire il file. Nemmeno `weather-sync` è toccato: quel job
+lo differisce già il sistema con Doze e App Standby, e zittirlo qui silenzierebbe
+un'allerta grave proprio sul telefono con meno carica. `PowerSaveState` è letto come
+funzione, non come valore: l'interruttore può essere spostato a processo vivo.
+
 Un tick al minuto anche in tweather è stato **scartato**: lì lo stato è un
 `MutableStateFlow` nello scope del ViewModel, quindi un `while (true)` continuerebbe a
 girare in background, mentre in Chiaro vive dentro un flusso che si spegne da solo. Il
@@ -1630,10 +1642,14 @@ Chiaro, che li ha già entrambi:
   resto: `$ man 7 <id>`, la pagina che la Fase 23 ha scritto esattamente per questo
   lettore. Il nome è prosa e si traduce, l'id e il comando no.
 
-**Verifiche**: 671 test verdi (20 nuovi: `AlertNotifierTest` riscritto sui due corpi,
-`AlertDetailsTest` e `SkyNotifierTest` nuovi, tre casi nuovi in `RuleNotifierTest`, e
-`WeatherFreshnessTest` che tiene fermi i due intervalli), lint 0 errori. Su Chiaro la
-suite è verde con il `WeatherFreshnessTest` gemello.
+**Verifiche**: 673 test verdi (22 nuovi: `AlertNotifierTest` riscritto sui due corpi,
+`AlertDetailsTest` e `SkyNotifierTest` nuovi, tre casi nuovi in `RuleNotifierTest`,
+`WeatherFreshnessTest` che tiene fermi i due intervalli, e due casi in
+`WeatherViewModelTest` sul battery saver — che ora conta le richieste HTTP davvero
+partite e guida un orologio a mano, così «non ha speso rete» e «ha comunque riletto
+l'orologio» sono due asserzioni e non due speranze), lint 0 errori. Su Chiaro la suite
+è verde con il `WeatherFreshnessTest` gemello; la guardia del saver lì non è coperta
+perché `:app` non ha ancora un banco per i ViewModel.
 
 - [ ] Da verificare su device (committente)
 

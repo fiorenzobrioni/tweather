@@ -9,6 +9,7 @@ import com.callbackdev.tweather.data.ActiveSource
 import com.callbackdev.tweather.data.CityStore
 import com.callbackdev.tweather.data.LocationProvider
 import com.callbackdev.tweather.data.MainEditorFile
+import com.callbackdev.tweather.data.PowerSaveState
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.DefaultUpdateFrequencyMin
 import com.callbackdev.tweather.data.SettingsStore
@@ -72,7 +73,8 @@ class WeatherViewModel(
     private val locationProvider: LocationProvider,
     private val workspaceStore: WorkspaceStore,
     private val skySubscriptionStore: SkySubscriptionStore,
-    private val clock: Clock = Clock.systemUTC()
+    private val clock: Clock = Clock.systemUTC(),
+    private val powerSave: PowerSaveState = PowerSaveState.Off
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeatherUiState())
@@ -261,10 +263,25 @@ class WeatherViewModel(
      * that is what the FAB means there ([refresh]) and what `revalidateFix` does once
      * per selection. Taking a fix on every unlock is the cost the whole location
      * strategy is written to avoid.
+     *
+     * Under battery saver the NETWORK half is dropped and the other half is not, and
+     * the split is the point. A fetch nobody asked for out loud is exactly the work
+     * that mode exists to postpone — and the FAB is still one tap away, because an
+     * explicit request is never quietly ignored. But rebuilding the document against
+     * the real clock costs no radio and no disk, only the arithmetic of
+     * [WeatherRecency.trim] and [WeatherFreshness], and skipping THAT would leave the
+     * editor printing hours that are over and staying silent about being behind.
+     * Saving battery is not a licence to let the file lie: under saver the reader gets
+     * the same data, correctly trimmed, with `// stale` when it is due.
      */
     fun onResumed() {
         if (loadJob?.isActive == true || gpsJob?.isActive == true) return
-        if (_uiState.value.report == null) return
+        val state = _uiState.value
+        if (state.report == null) return
+        if (powerSave.isOn()) {
+            _uiState.value = documentOf(state.report, state.error)
+            return
+        }
         city?.let { load(it, forceRefresh = false, clearReport = false, announce = false) }
     }
 
@@ -408,7 +425,8 @@ class WeatherViewModel(
                     settingsStore = ServiceLocator.settingsStore(app),
                     locationProvider = ServiceLocator.locationProvider(app),
                     workspaceStore = ServiceLocator.workspaceStore(app),
-                    skySubscriptionStore = ServiceLocator.skySubscriptionStore(app)
+                    skySubscriptionStore = ServiceLocator.skySubscriptionStore(app),
+                    powerSave = PowerSaveState.of(app)
                 )
             }
         }

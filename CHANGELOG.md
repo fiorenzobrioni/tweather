@@ -16,6 +16,13 @@ All notable changes to tweather are documented here. The format follows
   not appear inside it. Open-Meteo publishes its current readings on a fifteen minute
   grid, and that is the TTL now. `update_frequency_min` is back to meaning one thing:
   how often the app wakes up in the background.
+- **Battery saver postpones the re-read, not the honesty.** Under the system's
+  battery saver the resume re-read does not go to the network — it is a convenience
+  nobody asked for out loud, which is what that mode is for — but the document is
+  still rebuilt against the real clock, so hours that are over still disappear and
+  `// stale` still appears when it is due. The refresh FAB is never postponed, and
+  neither is the background sync: silencing that would drop a severe-weather alert on
+  the phone with the least charge left.
 - **The editor no longer ages on screen.** Coming back to the app re-reads the active
   city, which within those fifteen minutes costs nothing and still rebuilds the
   document against the real clock: an app opened at 09:00 and unlocked at 11:00 used

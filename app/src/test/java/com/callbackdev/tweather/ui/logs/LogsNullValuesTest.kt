@@ -34,7 +34,7 @@ class LogsNullValuesTest {
         cityLabel = "Tromsø, Troms",
         author = "sys@tweather.app",
         timestampEpochSeconds = now - 600,
-        isInitial = false,
+        baselineEpochSeconds = now - 4_200,
         lines = lines.toList()
     )
 

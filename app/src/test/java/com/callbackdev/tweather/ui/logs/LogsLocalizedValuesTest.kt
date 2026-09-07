@@ -31,7 +31,7 @@ class LogsLocalizedValuesTest {
             cityLabel = "Milan, Lombardy",
             author = "sys@tweather.app",
             timestampEpochSeconds = now - 600,
-            isInitial = false,
+            baselineEpochSeconds = now - 4_200,
             lines = listOf(
                 SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "location", "Milan, Lombardy"),
                 SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "current.status", "Overcast ☁️"),

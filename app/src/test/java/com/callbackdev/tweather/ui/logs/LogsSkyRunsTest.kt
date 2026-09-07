@@ -39,7 +39,7 @@ class LogsSkyRunsTest {
         cityLabel = "Milan, Lombardy",
         author = "sys@tweather.app",
         timestampEpochSeconds = at + 720,
-        isInitial = false,
+        baselineEpochSeconds = at - 3_600,
         lines = listOf(SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "current.temp_c", "20.0")),
         skyRuns = listOf(run)
     )

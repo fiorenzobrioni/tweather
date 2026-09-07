@@ -89,6 +89,9 @@ private const val FORECAST_FILE = "forecast.diff"
  */
 private const val SKY_RUNS_FILE = "sky_runs.log"
 
+/** What `history.diff` is a diff OF — the document the main editor tab renders. */
+private const val WEATHER_FILE = "weather_data.json"
+
 /**
  * Logs screen: two fake files behind a real editor tab bar (Fase 9h).
  *
@@ -170,7 +173,10 @@ fun LogsScreen(
         commits, revisions, skyRuns, syntax, nowEpochSeconds, active, render, resources, locale
     ) {
         when (active) {
-            0 -> buildLogLines(commits, syntax, nowEpochSeconds, resources, render)
+            0 -> buildLogLines(
+                commits, syntax, nowEpochSeconds, ZoneId.systemDefault(), resources, locale,
+                render
+            )
             1 -> buildForecastLines(
                 revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), resources, locale,
                 render
@@ -282,7 +288,9 @@ private fun buildLogLines(
     commits: List<CommitUi>,
     syntax: SyntaxColors,
     now: Long,
+    zone: ZoneId,
     resources: Resources,
+    locale: Locale,
     render: (List<SnapshotDiff.Line>) -> List<SnapshotDiff.Line> = { it }
 ): List<CanvasLine> {
     if (commits.isEmpty()) {
@@ -322,10 +330,16 @@ private fun buildLogLines(
                     )
                 )
             }
-            add(commentLine("diff --git a/weather_data.json b/weather_data.json", syntax))
-            if (commit.isInitial) {
-                add(commentLine("new file mode 100644", syntax))
-            }
+            addAll(
+                fileHeaderLines(
+                    file = WEATHER_FILE,
+                    baselineEpochSeconds = commit.baselineEpochSeconds,
+                    fetchEpochSeconds = commit.timestampEpochSeconds,
+                    zone = zone,
+                    locale = locale,
+                    syntax = syntax
+                )
+            )
             render(commit.lines).forEach { line -> add(diffLine(line, syntax)) }
         }
     }
@@ -353,24 +367,60 @@ private fun buildForecastLines(
             add(commentLine("Author: System <${revision.author}>", syntax))
             add(commentLine("Date:   ${relativeTime(revision.timestampEpochSeconds, now)}", syntax))
             revision.hunks.forEach { hunk ->
-                val file = "forecast_${hunk.date}.json"
-                val fetchTime = fetchTimeLabel(
-                    revision.timestampEpochSeconds, revision.timestampEpochSeconds, zone, locale
-                )
-                if (hunk.baselineEpochSeconds == null) {
-                    add(commentLine("--- /dev/null", syntax))
-                } else {
-                    val baseTime = fetchTimeLabel(
-                        hunk.baselineEpochSeconds, revision.timestampEpochSeconds, zone, locale
+                addAll(
+                    fileHeaderLines(
+                        file = "forecast_${hunk.date}.json",
+                        baselineEpochSeconds = hunk.baselineEpochSeconds,
+                        fetchEpochSeconds = revision.timestampEpochSeconds,
+                        zone = zone,
+                        locale = locale,
+                        syntax = syntax
                     )
-                    add(commentLine("--- a/$file ($baseTime)", syntax))
-                }
-                add(commentLine("+++ b/$file ($fetchTime)", syntax))
+                )
                 add(hunkHeaderLine(hunk.date, locale, syntax))
                 render(hunk.lines).forEach { line -> add(diffLine(line, syntax)) }
             }
         }
     }
+}
+
+/**
+ * The `---`/`+++` pair both diff files open a file with: the same name twice, and
+ * beside each side the fetch that produced it.
+ *
+ *     --- a/weather_data.json (11:00)
+ *     +++ b/weather_data.json (14:30)
+ *
+ * `forecast.diff` has been written this way since Fase 9h; `history.diff` joined it
+ * in Fase 28c, on the committente's reading, replacing a bare
+ * `diff --git a/weather_data.json b/weather_data.json`. That line named the file and
+ * said nothing else, while the two TIMES are the half of a comparison the reader
+ * could not otherwise reach: `history.diff` diffs against the previous commit of the
+ * SAME city, which with two cities interleaved is not the row above — it can be three
+ * hours back while the row above is fifteen minutes old. The `Date:` line has only
+ * ever spoken about the near side.
+ *
+ * A first appearance is `--- /dev/null`, git's own way of saying new file, which is
+ * why `new file mode 100644` left with `diff --git`: it belongs to that line's
+ * extended header block, and alone it would be a fragment of a grammar the file no
+ * longer speaks.
+ */
+private fun fileHeaderLines(
+    file: String,
+    baselineEpochSeconds: Long?,
+    fetchEpochSeconds: Long,
+    zone: ZoneId,
+    locale: Locale,
+    syntax: SyntaxColors
+): List<CanvasLine> = buildList {
+    if (baselineEpochSeconds == null) {
+        add(commentLine("--- /dev/null", syntax))
+    } else {
+        val baseTime = fetchTimeLabel(baselineEpochSeconds, fetchEpochSeconds, zone, locale)
+        add(commentLine("--- a/$file ($baseTime)", syntax))
+    }
+    val fetchTime = fetchTimeLabel(fetchEpochSeconds, fetchEpochSeconds, zone, locale)
+    add(commentLine("+++ b/$file ($fetchTime)", syntax))
 }
 
 /**
@@ -509,7 +559,7 @@ private fun LogsScreenPreview() {
                     cityLabel = "Milan, Lombardy",
                     author = "sys@tweather.app",
                     timestampEpochSeconds = System.currentTimeMillis() / 1000 - 600,
-                    isInitial = false,
+                    baselineEpochSeconds = System.currentTimeMillis() / 1000 - 7_800,
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "location", "Milan, Lombardy"),
                         SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "current.temp_c", "18.2"),
@@ -524,7 +574,7 @@ private fun LogsScreenPreview() {
                     cityLabel = "Milan, Lombardy",
                     author = "sys@tweather.app",
                     timestampEpochSeconds = System.currentTimeMillis() / 1000 - 7_800,
-                    isInitial = true,
+                    baselineEpochSeconds = null,
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "location", "Milan, Lombardy"),
                         SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "current.temp_c", "18.2")

@@ -115,6 +115,16 @@ All notable changes to tweather are documented here. The format follows
 - **`1 revision`, not `1 revisions`.** The three Logs counters were format strings, so
   the status bar disagreed with its own number at one — in Italian, `1 revisioni`.
   They are plurals now.
+- **A commit in `history.diff` says which fetch it is being compared against.** It
+  opened with `diff --git a/weather_data.json b/weather_data.json`, which named the
+  file and said nothing else, while the `Date:` line above spoke only about the near
+  end of the comparison. The far end was unreachable, and it is not obvious: this file
+  diffs against the previous commit of the SAME city, so with two cities interleaved
+  it is not the row above — it can be fifteen hours back while the row above is fifteen
+  minutes old. Each commit now opens the way `forecast.diff` always has, with the file
+  named twice and the fetch behind each side: `--- a/weather_data.json (17 Aug 23:40)`
+  over `+++ b/weather_data.json (14:30)`. A first commit reads `--- /dev/null`, which
+  is git's own way of writing a new file.
 
 ### Added
 

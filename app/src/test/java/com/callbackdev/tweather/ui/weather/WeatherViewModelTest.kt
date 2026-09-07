@@ -30,6 +30,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicBoolean
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,7 +90,16 @@ class WeatherViewModelTest {
 
     /** A clock the test moves by hand, so "the document was rebuilt against the real
      * now" is an assertion rather than a hope about wall-clock drift. */
-    private class TestClock(var now: Instant) : Clock() {
+    /**
+     * `@Volatile` for the same reason [httpCalls] is: the test thread moves this
+     * clock and a coroutine on a dispatcher thread reads it, with no happens-before
+     * edge between them. Without it a resume could compute against the instant
+     * before `advance`, which is a stale read the assertions cannot tell apart from
+     * a resume that never ran.
+     */
+    private class TestClock(start: Instant) : Clock() {
+        @Volatile
+        var now: Instant = start
         override fun getZone(): ZoneId = ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock = this
         override fun instant(): Instant = now
@@ -464,12 +474,16 @@ class WeatherViewModelTest {
         seedDiskCache(city, ageHours = 3)
         runBlocking { cityStore.add(city) }
 
-        var saving = false
+        // Atomic, not a plain `var`: the flag is written on the test thread and read
+        // on a dispatcher one. A stale `false` sends the resume down the NETWORK path
+        // and the run fails on `saver must not spend a request` — about one full-suite
+        // run in three, and never when the class runs alone.
+        val saving = AtomicBoolean(false)
         val clock = TestClock(Instant.now())
         val vm = viewModel(
             FakeLocationProvider { milanFix },
             clock = clock,
-            powerSave = { saving }
+            powerSave = { saving.get() }
         )
         val landed = awaitState(vm) { it.report != null && !it.isLoading }
         val staleBefore = landed.staleFor!!
@@ -477,7 +491,7 @@ class WeatherViewModelTest {
         val callsBefore = httpCalls
 
         // Two hours later, under saver.
-        saving = true
+        saving.set(true)
         clock.advance(Duration.ofHours(2))
         val saved = awaitResume(vm, from = landed)
 
@@ -496,7 +510,7 @@ class WeatherViewModelTest {
         )
 
         // Saver off: the very same call goes to the network.
-        saving = false
+        saving.set(false)
         vm.onResumed()
         assertTrue(awaitHttp(callsBefore + 1) > callsBefore)
     }

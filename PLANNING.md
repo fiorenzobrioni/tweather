@@ -2185,6 +2185,70 @@ risorsa sbagliata.
       vocabolario condiviso, 1 sui plurali in italiano — suite a **720** verde, lint 0
 - [ ] Da verificare su device: i Log in Fahrenheit, e una check line del cielo vera
 
+## Fase 28c — `history.diff` apre come `forecast.diff` (committente, 6 set 2026)
+
+Lettura del committente sul file appena rivisto: *«se sulla riga `diff --git` ci fosse
+anche data e ora dei due file in comparazione sarebbe più chiaro — anzi, tanto vale
+togliere il `diff --git` e mettere `---` e `+++` con lo stesso nome file e fra parentesi
+per ognuno la data e l'ora»*. Ha ragione, e il secondo pensiero batte il primo:
+`diff --git a/x b/x (11:00) (14:30)` sarebbe sintassi inventata, mentre `---`/`+++` con
+la parentesi è già la grammatica che l'app usa **dalla 9h** nell'altro file, e mette
+ogni orario accanto al lato a cui appartiene.
+
+### Non è chiarezza in più: è un fatto che mancava
+
+`history.diff` confronta col commit precedente **della stessa città**. Con due città
+interlacciate quello non è il commit sopra: può essere di quindici ore prima mentre la
+riga sopra è di quindici minuti fa. La riga `Date:` ha sempre parlato solo del lato
+vicino, e `diff --git` nominava il file e basta — quindi **il lato lontano non era
+raggiungibile da nessuna parte dello schermo**. Reso su un caso a due città
+interlacciate, il primo commit lo dice da solo:
+
+    commit a1b2c3d [Milan, Lombardy]
+    Date:   19 days ago
+    --- a/weather_data.json (17 Aug 23:40)
+    +++ b/weather_data.json (14:30)
+
+sopra due righe di New York delle 14:15 e delle 13:15. E la forma lunga
+(`17 Aug 23:40` invece del solo orologio) dice pure che ha scavalcato il giorno,
+gratis: è lo stesso `fetchTimeLabel` che il forecast usa dalla 9h, ora condiviso.
+
+### Quello che se n'è andato con la riga
+
+`new file mode 100644` esce insieme al `diff --git`: appartiene al blocco di header
+esteso *di quella riga*, e da solo sarebbe un frammento di una grammatica che il file
+non parla più. Il primo commit di una città legge `--- /dev/null`, che è come git
+scrive un file nuovo — ed è già quello che `forecast.diff` fa per una data al primo
+affaccio. `CommitUi.isInitial` sparisce: al suo posto `baselineEpochSeconds`, che dice
+la stessa cosa (`null` = niente prima) **più** l'orario, e i due file condividono
+`fileHeaderLines`.
+
+`buildCommits` diventa top-level e `internal` come il gemello `buildForecastRevisions`,
+per lo stesso motivo: i test esercitano la mappatura senza Room e senza ViewModel.
+
+### E un flake vero, trovato per strada
+
+`WeatherViewModelTest > battery saver skips the resume fetch…` è caduto **due giri di
+suite su tre** mentre lavoravo, con `saver must not spend a request expected:<1> but
+was:<2>` — e passava 3 su 3 lanciando la classe da sola. Non c'entra niente con i Log:
+è un problema di **visibilità fra thread**. Il test scrive `saving = true` e
+`clock.advance(2h)` sul thread di JUnit, e il ViewModel li legge su un thread del
+dispatcher senza nessun happens-before fra i due. Con la macchina carica il coroutine
+legge ancora `false`, prende il ramo NETWORK e il contatore va a 2. `httpCalls` era già
+`@Volatile` — qualcuno aveva incontrato la stessa classe di problema — ma il flag e
+l'orologio no. Ora il flag è un `AtomicBoolean` e `TestClock.now` è `@Volatile`: tre
+giri di suite completi verdi di fila.
+
+- [x] `fileHeaderLines` condiviso: `--- a/<file> (baseline)` / `+++ b/<file> (fetch)`
+- [x] `history.diff` perde `diff --git` e `new file mode 100644`; primo commit a
+      `--- /dev/null`
+- [x] `CommitUi.isInitial` → `baselineEpochSeconds`; `buildCommits` top-level internal
+- [x] Flake del battery saver: `AtomicBoolean` + `TestClock.now` `@Volatile`
+- [x] Test: 3 su `HistoryFileHeader` (baseline della stessa città, la coppia coi due
+      orari e la forma lunga a cavallo del giorno, il file nuovo) — suite a **724**
+      verde su tre giri, lint 0
+- [ ] Da verificare su device: due città alternate, che è il caso per cui la riga esiste
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

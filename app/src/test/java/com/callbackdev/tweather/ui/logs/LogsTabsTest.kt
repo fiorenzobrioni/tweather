@@ -30,7 +30,7 @@ class LogsTabsTest {
             cityLabel = "Milan, Lombardy",
             author = "sys@tweather.app",
             timestampEpochSeconds = now - 600,
-            isInitial = true,
+            baselineEpochSeconds = null,
             lines = listOf(
                 SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "current.temp_c", "31.0")
             )
@@ -67,8 +67,10 @@ class LogsTabsTest {
         setContent()
         compose.onNodeWithText("history.diff").assertIsSelected()
         compose.onNodeWithText("forecast.diff").assertIsNotSelected()
-        compose.onNodeWithText("diff --git a/weather_data.json b/weather_data.json")
-            .assertExists()
+        // Fase 28c: the file opens with the `---`/`+++` pair both diffs now use,
+        // in place of a bare `diff --git` that named the file and said nothing else.
+        compose.onNodeWithText("--- /dev/null").assertExists()
+        compose.onNodeWithText("+++ b/weather_data.json", substring = true).assertExists()
         compose.onNodeWithText("⎇ history").assertExists()
         compose.onNodeWithText("@@ Tue 18 Aug @@").assertDoesNotExist()
     }
@@ -84,7 +86,9 @@ class LogsTabsTest {
         compose.onNodeWithText("⎇ forecast").assertExists()
         // a plural since Fase 28: it used to read "1 revisions"
         compose.onNodeWithText("1 revision").assertExists()
-        compose.onNodeWithText("diff --git a/weather_data.json b/weather_data.json")
+        // the two files share a grammar now, so what tells them apart is the name
+        // inside it: this one diffs a pseudo-file per target date
+        compose.onNodeWithText("+++ b/weather_data.json", substring = true)
             .assertDoesNotExist()
     }
 
@@ -120,7 +124,7 @@ class LogsTabsTest {
                 cityLabel = "Milan, Lombardy",
                 author = "sys@tweather.app",
                 timestampEpochSeconds = now - i * 600,
-                isInitial = false,
+                baselineEpochSeconds = null,
                 lines = listOf(
                     SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "current.temp_c", "$i.0"),
                     SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "current.temp_c", "${i + 1}.0")

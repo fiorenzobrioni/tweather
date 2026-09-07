@@ -278,6 +278,35 @@ class WidgetContentBuilderTest {
         assertEquals(listOf("Location", "Temp", "Feels", "Status", "Humidity", "Rain", "UV", "Wind", "Sun"), noAqi.keys())
     }
 
+    @Test
+    fun `a null value drops its line instead of printing the word`() {
+        // What WeatherSnapshots writes when the providers had nothing: no sunrise
+        // above the Arctic circle in June, no precipitation probability from a model
+        // that does not carry one, a failed air-quality call. Read as a string these
+        // printed `Rain: null%` and `Sun: null → null` on a home screen.
+        val polar = sample + mapOf(
+            "current.precip_chance_pct" to "null",
+            "air_quality.aqi" to "null",
+            "astronomical.sunrise" to "null",
+            "astronomical.sunset" to "null"
+        )
+        val content = build(polar, tier = WidgetTier.Terminal(11))
+
+        assertEquals(
+            listOf("Location", "Temp", "Feels", "Status", "Humidity", "UV", "Wind"),
+            content.keys()
+        )
+        assertTrue(content.bodyLines.none { it.text.contains("null") })
+    }
+
+    @Test
+    fun `a null temperature falls back to the placeholder like an unparsable one`() {
+        val content = build(sample + ("current.temp_c" to "null"), tier = WidgetTier.Terminal(11))
+
+        assertNull(content.line("Temp"))
+        assertEquals("--°", content.smallTemp.text)
+    }
+
     // --- degenerate snapshots ---
 
     @Test

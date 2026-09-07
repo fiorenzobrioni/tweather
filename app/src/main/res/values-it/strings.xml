@@ -33,8 +33,16 @@
     <string name="status_results">%1$d risultati</string>
     <string name="status_querying">interrogo…</string>
     <string name="status_files">%1$d file</string>
-    <string name="status_commits">%1$d commit</string>
-    <string name="status_revisions">%1$d revisioni</string>
+    <plurals name="status_commits">
+        <item quantity="one">%1$d commit</item>
+        <item quantity="many">%1$d commit</item>
+        <item quantity="other">%1$d commit</item>
+    </plurals>
+    <plurals name="status_revisions">
+        <item quantity="one">%1$d revisione</item>
+        <item quantity="many">%1$d revisioni</item>
+        <item quantity="other">%1$d revisioni</item>
+    </plurals>
     <string name="status_sources">%1$d sorgenti</string>
     <string name="status_rules">%1$d regole</string>
     <string name="search_placeholder">Cerca località</string>
@@ -376,7 +384,11 @@
     <string name="readme_moonrise">sorge</string>
     <string name="readme_moonset">tramonta</string>
     <string name="readme_status_sky">%1$s alle %2$s: %3$s</string>
-    <string name="status_sky_runs">%1$d run</string>
+    <plurals name="status_sky_runs">
+        <item quantity="one">%1$d run</item>
+        <item quantity="many">%1$d run</item>
+        <item quantity="other">%1$d run</item>
+    </plurals>
     <string name="cd_widget_sky_line">Attiva o disattiva la riga del cielo su questo widget</string>
     <string name="cd_sky_cycle_lead">Cambia il promemoria di %1$s</string>
     <string name="sky_channel_name">Promemoria del cielo</string>

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.callbackdev.tweather.data.ServiceLocator
 import com.callbackdev.tweather.data.SettingsStore
+import com.callbackdev.tweather.data.UnitSettings
 import com.callbackdev.tweather.data.WeatherRepository
 import com.callbackdev.tweather.data.local.ForecastDiff
 import com.callbackdev.tweather.data.local.SnapshotDiff
@@ -25,7 +26,18 @@ data class CommitUi(
     val cityLabel: String,
     val author: String,
     val timestampEpochSeconds: Long,
-    val isInitial: Boolean,
+    /**
+     * When the fetch this commit is diffed AGAINST happened, or null when there is
+     * none and every line is an addition (Fase 28c).
+     *
+     * It replaces an `isInitial` flag that said only *whether* there was a previous
+     * fetch. The file now prints the two ends of the comparison as a `---`/`+++`
+     * pair, the way `forecast.diff` has since Fase 9h, and the baseline's time is the
+     * half the reader could not otherwise get to: the previous commit of the SAME
+     * city is not the one above it on screen when two cities are interleaved — it can
+     * be three hours back while the row above is fifteen minutes old.
+     */
+    val baselineEpochSeconds: Long?,
     val lines: List<SnapshotDiff.Line>,
     val firedRules: List<String> = emptyList(),
     /** Fase 16e: the sky jobs this fetch was the first to observe as past. */
@@ -55,9 +67,18 @@ class LogsViewModel(
         .map { it.skyEnabled }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    /**
+     * The units both diff files render in (Fase 28). The Room snapshots stay metric
+     * — a diff must never churn because a setting moved — so the conversion happens
+     * at render time, exactly where the language already did.
+     */
+    val units: StateFlow<UnitSettings> = settingsStore.settings
+        .map { it.units }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UnitSettings())
+
 
     val commits: StateFlow<List<CommitUi>> = repository.observeHistory()
-        .map(::buildCommits)
+        .map { buildCommits(it, json) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /**
@@ -80,29 +101,6 @@ class LogsViewModel(
         .map { buildForecastRevisions(it, json) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** [entries] arrive newest-first; each diffs against the next OLDER same-city one. */
-    private fun buildCommits(entries: List<WeatherHistoryEntry>): List<CommitUi> =
-        entries.mapIndexed { index, entry ->
-            val previous = entries.subList(index + 1, entries.size)
-                .firstOrNull { it.cityKey == entry.cityKey }
-            val current = decode(entry.snapshotJson, json)
-            val old = previous?.snapshotJson?.let { decode(it, json) }
-            CommitUi(
-                hash = entry.hash,
-                cityLabel = entry.cityLabel,
-                author = entry.author,
-                timestampEpochSeconds = entry.timestampEpochSeconds,
-                isInitial = old == null,
-                lines = SnapshotDiff.compute(old, current),
-                firedRules = entry.firedRulesJson
-                    ?.let { runCatching { json.decodeFromString<List<String>>(it) }.getOrNull() }
-                    ?: emptyList(),
-                skyRuns = entry.skyRunsJson
-                    ?.let { runCatching { json.decodeFromString<List<SkyRun>>(it) }.getOrNull() }
-                    ?: emptyList()
-            )
-        }
-
     companion object {
         val Factory = viewModelFactory {
             initializer {
@@ -116,6 +114,36 @@ class LogsViewModel(
         }
     }
 }
+
+/**
+ * [entries] arrive newest-first; each diffs against the next OLDER **same-city** one,
+ * whose timestamp rides along as [CommitUi.baselineEpochSeconds] so the file can print
+ * both ends of the comparison.
+ *
+ * Top-level and internal like [buildForecastRevisions], and for the same reason: tests
+ * exercise the mapping without Room or a ViewModel.
+ */
+internal fun buildCommits(entries: List<WeatherHistoryEntry>, json: Json): List<CommitUi> =
+    entries.mapIndexed { index, entry ->
+        val previous = entries.subList(index + 1, entries.size)
+            .firstOrNull { it.cityKey == entry.cityKey }
+        val current = decode(entry.snapshotJson, json)
+        val old = previous?.snapshotJson?.let { decode(it, json) }
+        CommitUi(
+            hash = entry.hash,
+            cityLabel = entry.cityLabel,
+            author = entry.author,
+            timestampEpochSeconds = entry.timestampEpochSeconds,
+            baselineEpochSeconds = previous?.timestampEpochSeconds,
+            lines = SnapshotDiff.compute(old, current),
+            firedRules = entry.firedRulesJson
+                ?.let { runCatching { json.decodeFromString<List<String>>(it) }.getOrNull() }
+                ?: emptyList(),
+            skyRuns = entry.skyRunsJson
+                ?.let { runCatching { json.decodeFromString<List<SkyRun>>(it) }.getOrNull() }
+                ?: emptyList()
+        )
+    }
 
 /**
  * [entries] arrive newest-first, possibly interleaved across cities; each city's

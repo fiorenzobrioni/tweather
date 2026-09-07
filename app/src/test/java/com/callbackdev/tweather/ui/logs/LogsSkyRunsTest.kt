@@ -39,7 +39,7 @@ class LogsSkyRunsTest {
         cityLabel = "Milan, Lombardy",
         author = "sys@tweather.app",
         timestampEpochSeconds = at + 720,
-        isInitial = false,
+        baselineEpochSeconds = at - 3_600,
         lines = listOf(SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "current.temp_c", "20.0")),
         skyRuns = listOf(run)
     )
@@ -90,12 +90,28 @@ class LogsSkyRunsTest {
      * changed" and gets a check line; `sky_runs.log` answers "what the sky did" and
      * gets a row. Neither can disagree with the other, because there is one column
      * behind both.
+     *
+     * Since Fase 28 they do not disagree about the WORDS either. The check line used
+     * to read `✓ sun.set ran clear` — a third vocabulary beside the `✓ pass` that
+     * `sky.crontab` and `sky_runs.log` both print, on a fact all three take from the
+     * same column. It also carries the number the verdict was built from now, which
+     * `VISION_SKY.md` §7 asks of every surface that prints a verdict.
      */
     @Test
     fun `the run leaves a check line on the commit that observed it`() {
         setScreen()
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("sun.set", substring = true))
-        compose.onNodeWithText("✓ sun.set ran clear").assertIsDisplayed()
+        compose.onNodeWithText("✓ sun.set pass  cloud 8%").assertIsDisplayed()
+    }
+
+    @Test
+    fun `both views of the run say the same word about it`() {
+        setScreen()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("sun.set", substring = true))
+        compose.onNodeWithText("pass", substring = true).assertIsDisplayed()
+
+        compose.onNodeWithText("sky_runs.log").performClick()
+        compose.onNodeWithText("✓ pass", substring = true).assertIsDisplayed()
     }
 
     @Test

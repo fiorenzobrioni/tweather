@@ -31,7 +31,7 @@ class LogsLocalizedValuesTest {
             cityLabel = "Milan, Lombardy",
             author = "sys@tweather.app",
             timestampEpochSeconds = now - 600,
-            isInitial = false,
+            baselineEpochSeconds = now - 4_200,
             lines = listOf(
                 SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "location", "Milan, Lombardy"),
                 SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "current.status", "Overcast ☁️"),
@@ -52,7 +52,6 @@ class LogsLocalizedValuesTest {
             hunks = listOf(
                 ForecastDiff.Hunk(
                     date = "2026-08-18",
-                    dayLabel = "tomorrow",
                     baselineEpochSeconds = now - 15_000,
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "status", "Overcast ☁️"),
@@ -89,7 +88,7 @@ class LogsLocalizedValuesTest {
         compose.onNodeWithText("forecast.diff").performClick()
         compose.onNodeWithText("- \"status\": \"Coperto ☁️\"").assertExists()
         compose.onNodeWithText("+ \"status\": \"Pioggia 🌧️\"").assertExists()
-        compose.onNodeWithText("@@ tomorrow @@").assertExists() // hunk header is code
+        compose.onNodeWithText("@@ Mar 18 ago @@").assertExists() // `@@` is code, the day is data
     }
 
     @Test

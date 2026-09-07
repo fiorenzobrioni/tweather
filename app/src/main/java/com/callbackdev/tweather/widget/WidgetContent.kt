@@ -3,6 +3,7 @@ package com.callbackdev.tweather.widget
 import com.callbackdev.tweather.data.DefaultUpdateFrequencyMin
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.WindSpeedUnit
+import com.callbackdev.tweather.data.local.WeatherSnapshots
 import com.callbackdev.tweather.domain.WeatherFreshness
 import com.callbackdev.tweather.ui.weather.convert
 import com.callbackdev.tweather.ui.weather.symbol
@@ -116,9 +117,9 @@ object WidgetContentBuilder {
 
         // City only, never "city, region": the region is what the user already knows
         // and it is what pushes the city name itself into the ellipsis.
-        val city = snapshot["location"]?.substringBefore(",")
-        val (statusDesc, emoji) = splitStatus(snapshot["current.status"])
-        val temp = snapshot["current.temp_c"].formatTemp(temperature)
+        val city = snapshot.value("location")?.substringBefore(",")
+        val (statusDesc, emoji) = splitStatus(snapshot.value("current.status"))
+        val temp = snapshot.value("current.temp_c").formatTemp(temperature)
         val stale = isStale(timestampEpochSeconds, updateFrequencyMin, now)
         val syncLine = timestampEpochSeconds?.let {
             val stamp = SyncTime.format(Instant.ofEpochSecond(it).atZone(zone))
@@ -131,16 +132,16 @@ object WidgetContentBuilder {
         val transcript = buildList {
             city?.let { add(kvString("Location", it)) }
             temp?.let { add(kvNumber("Temp", it)) }
-            snapshot["current.feels_like_c"].formatTemp(temperature)?.let {
+            snapshot.value("current.feels_like_c").formatTemp(temperature)?.let {
                 add(kvNumber("Feels", it))
             }
             statusDesc?.let { add(kvString("Status", translate(it))) }
-            snapshot["current.humidity_pct"]?.let { add(kvNumber("Humidity", "$it%")) }
+            snapshot.value("current.humidity_pct")?.let { add(kvNumber("Humidity", "$it%")) }
             // "will it rain?" outranks the rest — it is why a weather widget is read
-            snapshot["current.precip_chance_pct"]?.let { add(kvNumber("Rain", "$it%")) }
-            snapshot["current.uv_index"]?.trimDecimal()?.let { add(kvNumber("UV", it)) }
+            snapshot.value("current.precip_chance_pct")?.let { add(kvNumber("Rain", "$it%")) }
+            snapshot.value("current.uv_index")?.trimDecimal()?.let { add(kvNumber("UV", it)) }
             formatWind(snapshot, windSpeed)?.let { add(kvNumber("Wind", it)) }
-            snapshot["air_quality.aqi"]?.let { add(kvNumber("AQI", it)) }
+            snapshot.value("air_quality.aqi")?.let { add(kvNumber("AQI", it)) }
             formatSun(snapshot)?.let { add(kvNumber("Sun", it)) }
             syncLine?.let { add(it) }
             skyLine?.let { add(comment(it)) }
@@ -220,16 +221,31 @@ object WidgetContentBuilder {
         this?.toDoubleOrNull()?.let { "${unit.convert(it).roundToInt()}${unit.symbol}" }
 
     private fun formatWind(snapshot: Map<String, String>, unit: WindSpeedUnit): String? {
-        val speed = snapshot["current.wind_kph"]?.toDoubleOrNull() ?: return null
-        val dir = snapshot["current.wind_dir"]?.let { " $it" } ?: ""
+        val speed = snapshot.value("current.wind_kph")?.toDoubleOrNull() ?: return null
+        val dir = snapshot.value("current.wind_dir")?.let { " $it" } ?: ""
         return "${unit.convert(speed).roundToInt()} ${unit.symbol}$dir"
     }
 
     private fun formatSun(snapshot: Map<String, String>): String? {
-        val sunrise = snapshot["astronomical.sunrise"] ?: return null
-        val sunset = snapshot["astronomical.sunset"] ?: return null
+        val sunrise = snapshot.value("astronomical.sunrise") ?: return null
+        val sunset = snapshot.value("astronomical.sunset") ?: return null
         return "$sunrise → $sunset"
     }
+
+    /**
+     * A snapshot value, or null when the key is missing **or holds
+     * [WeatherSnapshots.NullValue]**.
+     *
+     * The snapshot writes `null` where the providers had nothing — no sunrise above
+     * the Arctic circle in June, no precipitation probability from a model that does
+     * not carry one, no AQI when that call failed — and every line here is built with
+     * `?.let`, so an absent key simply leaves the transcript. A `null` VALUE has to do
+     * the same thing: read as a string it printed `Rain: null%` and `Sun: null →
+     * null`, which is worse than the missing line it was standing in for, and on the
+     * one surface with the least room to explain itself.
+     */
+    private fun Map<String, String>.value(key: String): String? =
+        this[key]?.takeUnless { it == WeatherSnapshots.NullValue }
 
     private fun kvString(key: String, value: String) = TerminalLine(
         listOf(

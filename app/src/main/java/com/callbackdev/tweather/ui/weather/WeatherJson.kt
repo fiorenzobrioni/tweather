@@ -3,8 +3,8 @@ package com.callbackdev.tweather.ui.weather
 import com.callbackdev.tweather.data.TemperatureUnit
 import com.callbackdev.tweather.data.WindSpeedUnit
 import com.callbackdev.tweather.domain.model.WeatherReport
+import com.callbackdev.tweather.domain.model.hhMm
 import java.time.DayOfWeek
-import java.time.Duration
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -222,9 +222,6 @@ private const val HourlyJsonRows = 24
 
 private val LocalTimeStamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 private val ClockTime = DateTimeFormatter.ofPattern("HH:mm")
-
-/** Sample formats durations as `"10h 52m"`. internal: README.md's Astronomy too. */
-internal fun Duration.hhMm(): String = "${toHours()}h ${toMinutesPart()}m"
 
 /** Capitalized short day name (`Mon`, `Lun`) — Italian locales give lowercase.
  * internal: README.md's forecast table uses the same day names. */

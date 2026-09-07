@@ -45,8 +45,14 @@
     <string name="status_results">%1$d results</string>
     <string name="status_querying">querying…</string>
     <string name="status_files">%1$d files</string>
-    <string name="status_commits">%1$d commits</string>
-    <string name="status_revisions">%1$d revisions</string>
+    <plurals name="status_commits">
+        <item quantity="one">%1$d commit</item>
+        <item quantity="other">%1$d commits</item>
+    </plurals>
+    <plurals name="status_revisions">
+        <item quantity="one">%1$d revision</item>
+        <item quantity="other">%1$d revisions</item>
+    </plurals>
     <string name="status_sources">%1$d sources</string>
     <string name="status_rules">%1$d rules</string>
     <string name="search_placeholder">Search Location</string>
@@ -400,7 +406,10 @@
     <string name="readme_moonrise">rises</string>
     <string name="readme_moonset">sets</string>
     <string name="readme_status_sky">%1$s at %2$s: %3$s</string>
-    <string name="status_sky_runs">%1$d runs</string>
+    <plurals name="status_sky_runs">
+        <item quantity="one">%1$d run</item>
+        <item quantity="other">%1$d runs</item>
+    </plurals>
     <string name="cd_widget_sky_line">Toggle the sky line on this widget</string>
     <string name="cd_sky_cycle_lead">Change the reminder for %1$s</string>
     <string name="sky_channel_name">Sky reminders</string>

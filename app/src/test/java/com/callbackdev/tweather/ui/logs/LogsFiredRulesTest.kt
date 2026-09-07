@@ -21,7 +21,7 @@ class LogsFiredRulesTest {
         cityLabel = "Milan, Lombardy",
         author = "sys@tweather.app",
         timestampEpochSeconds = System.currentTimeMillis() / 1000 - 600,
-        isInitial = false,
+        baselineEpochSeconds = null,
         lines = listOf(SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "current.temp_c", "18.5")),
         firedRules = firedRules
     )

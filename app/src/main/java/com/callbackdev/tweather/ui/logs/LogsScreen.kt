@@ -1,6 +1,7 @@
 package com.callbackdev.tweather.ui.logs
 
 import android.content.res.Resources
+import androidx.annotation.PluralsRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -42,13 +44,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.callbackdev.tweather.R
+import com.callbackdev.tweather.data.UnitSettings
 import com.callbackdev.tweather.data.local.ForecastDiff
 import com.callbackdev.tweather.data.local.SnapshotDiff
+import com.callbackdev.tweather.data.local.WeatherSnapshots
 import com.callbackdev.tweather.ui.components.CanvasLine
 import com.callbackdev.tweather.ui.components.CodeCanvas
 import com.callbackdev.tweather.ui.components.CodeLine
-import com.callbackdev.tweather.domain.sky.SkyRun
-import com.callbackdev.tweather.domain.sky.SkyVerdictKind
 import com.callbackdev.tweather.ui.components.EditorTabs
 import com.callbackdev.tweather.ui.components.StatusBarDivider
 import com.callbackdev.tweather.ui.components.TerminalStatusBar
@@ -57,7 +59,9 @@ import com.callbackdev.tweather.ui.theme.SyntaxColors
 import com.callbackdev.tweather.ui.theme.TweatherTheme
 import com.callbackdev.tweather.ui.theme.editorBorder
 import com.callbackdev.tweather.ui.weather.WeatherTranslations
+import com.callbackdev.tweather.ui.weather.shortName
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -85,6 +89,9 @@ private const val FORECAST_FILE = "forecast.diff"
  */
 private const val SKY_RUNS_FILE = "sky_runs.log"
 
+/** What `history.diff` is a diff OF — the document the main editor tab renders. */
+private const val WEATHER_FILE = "weather_data.json"
+
 /**
  * Logs screen: two fake files behind a real editor tab bar (Fase 9h).
  *
@@ -93,8 +100,9 @@ private const val SKY_RUNS_FILE = "sky_runs.log"
  *   actually changed since the previous fetch of the same city.
  * - `forecast.diff` (Fase 9h): same commits, different question — how did
  *   the *prediction* for the same target date change between fetches. Per-date
- *   `---`/`+++` headers and `@@ tomorrow @@` hunks; sub-threshold model wiggle is
- *   filtered out by [ForecastDiff], so the file only contains real revisions.
+ *   `---`/`+++` headers and one `@@ Thu 20 Aug @@` hunk per target day;
+ *   sub-threshold model wiggle is filtered out by [ForecastDiff], so the file only
+ *   contains real revisions.
  *
  * L10n follows the app-wide rule (decided with the committente, post-9h): the git
  * format is code and stays English — hashes, `Author:`/`Date:`, `diff`/`---`/`@@`
@@ -109,11 +117,13 @@ fun LogsScreen(viewModel: LogsViewModel = viewModel(factory = LogsViewModel.Fact
     val revisions by viewModel.revisions.collectAsStateWithLifecycle()
     val skyRuns by viewModel.skyRuns.collectAsStateWithLifecycle()
     val skyEnabled by viewModel.skyEnabled.collectAsStateWithLifecycle()
+    val units by viewModel.units.collectAsStateWithLifecycle()
     LogsScreen(
         commits = commits,
         revisions = revisions,
         skyRuns = skyRuns,
-        skyEnabled = skyEnabled
+        skyEnabled = skyEnabled,
+        units = units
     )
 }
 
@@ -122,11 +132,17 @@ fun LogsScreen(
     commits: List<CommitUi>,
     revisions: List<ForecastRevisionUi>,
     skyRuns: List<SkyRunsLog.Row> = emptyList(),
-    skyEnabled: Boolean = false
+    skyEnabled: Boolean = false,
+    units: UnitSettings = UnitSettings()
 ) {
     val syntax = TweatherTheme.syntax
     val resources = LocalContext.current.resources
+    val locale = LocalConfiguration.current.locales[0] ?: Locale.getDefault()
     val translate = remember(resources) { WeatherTranslations.valueTranslator(resources) }
+    // Language AND units are render-time (see `rendered`): the snapshots stay
+    // canonical so a diff never churns when either setting changes.
+    val render: (List<SnapshotDiff.Line>) -> List<SnapshotDiff.Line> =
+        remember(units, translate) { { it.rendered(units, translate) } }
     var activeFile by rememberSaveable { mutableIntStateOf(0) }
     // Relative dates rot while the screen sits open (commits can be hours apart),
     // so the clock re-ticks every minute — only while this composable is on screen
@@ -154,12 +170,16 @@ fun LogsScreen(
     // activity with new resources, and the file has to be rebuilt in the language
     // it is now being read in.
     val lines = remember(
-        commits, revisions, skyRuns, syntax, nowEpochSeconds, active, translate, resources
+        commits, revisions, skyRuns, syntax, nowEpochSeconds, active, render, resources, locale
     ) {
         when (active) {
-            0 -> buildLogLines(commits, syntax, nowEpochSeconds, resources, translate)
+            0 -> buildLogLines(
+                commits, syntax, nowEpochSeconds, ZoneId.systemDefault(), resources, locale,
+                render
+            )
             1 -> buildForecastLines(
-                revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), resources, translate
+                revisions, syntax, nowEpochSeconds, ZoneId.systemDefault(), resources, locale,
+                render
             )
             else -> SkyRunsLog.build(skyRuns, ZoneId.systemDefault(), syntax, resources)
         }
@@ -199,17 +219,17 @@ fun LogsScreen(
                     0 -> {
                         Text("⎇ history")
                         StatusBarDivider()
-                        Text(stringResource(R.string.status_commits, commits.size))
+                        Text(count(R.plurals.status_commits, commits.size))
                     }
                     1 -> {
                         Text("⎇ forecast")
                         StatusBarDivider()
-                        Text(stringResource(R.string.status_revisions, revisions.size))
+                        Text(count(R.plurals.status_revisions, revisions.size))
                     }
                     else -> {
                         Text("⎇ sky")
                         StatusBarDivider()
-                        Text(stringResource(R.string.status_sky_runs, skyRuns.size))
+                        Text(count(R.plurals.status_sky_runs, skyRuns.size))
                     }
                 }
                 Spacer(Modifier.weight(1f))
@@ -218,6 +238,17 @@ fun LogsScreen(
         }
     }
 }
+
+/**
+ * `1 revision` / `2 revisions` — a plural, not a format string (Fase 28). The status
+ * bar counted with `%1$d revisions` and said `1 revisions` in English and
+ * `1 revisioni` in Italian. `commit` and `run` are loanwords Italian does not
+ * inflect, so their two forms are the same word; that is a fact about the language,
+ * not a reason to keep the whole strip on the wrong kind of resource.
+ */
+@Composable
+private fun count(@PluralsRes id: Int, quantity: Int): String =
+    LocalContext.current.resources.getQuantityString(id, quantity, quantity)
 
 /**
  * Floating "back to top" for long diffs: appears once the file is scrolled past
@@ -257,8 +288,10 @@ private fun buildLogLines(
     commits: List<CommitUi>,
     syntax: SyntaxColors,
     now: Long,
+    zone: ZoneId,
     resources: Resources,
-    translate: (String) -> String = { it }
+    locale: Locale,
+    render: (List<SnapshotDiff.Line>) -> List<SnapshotDiff.Line> = { it }
 ): List<CanvasLine> {
     if (commits.isEmpty()) {
         // The marker is the file's syntax and stays; the sentence after it is
@@ -291,41 +324,25 @@ private fun buildLogLines(
                 add(
                     CodeLine(
                         AnnotatedString(
-                            "${checkGlyph(run)} ${run.jobId} ${checkWord(run)}",
-                            SpanStyle(color = checkColor(run, syntax))
+                            "${skyGlyph(run)} ${run.jobId} ${skyWord(run)}${skyEvidence(run)}",
+                            SpanStyle(color = skyColor(run, syntax))
                         )
                     )
                 )
             }
-            add(commentLine("diff --git a/weather_data.json b/weather_data.json", syntax))
-            if (commit.isInitial) {
-                add(commentLine("new file mode 100644", syntax))
-            }
-            commit.lines.forEach { line -> add(diffLine(line.localized(translate), syntax)) }
+            addAll(
+                fileHeaderLines(
+                    file = WEATHER_FILE,
+                    baselineEpochSeconds = commit.baselineEpochSeconds,
+                    fetchEpochSeconds = commit.timestampEpochSeconds,
+                    zone = zone,
+                    locale = locale,
+                    syntax = syntax
+                )
+            )
+            render(commit.lines).forEach { line -> add(diffLine(line, syntax)) }
         }
     }
-}
-
-/** `✓`, `~`, `✗` — or `–` for a run no fetch came near enough to judge. */
-private fun checkGlyph(run: SkyRun): String = when (run.verdict) {
-    SkyVerdictKind.PASS -> "✓"
-    SkyVerdictKind.UNSTABLE -> "~"
-    SkyVerdictKind.FAIL -> "✗"
-    else -> "–"
-}
-
-private fun checkWord(run: SkyRun): String = when (run.verdict) {
-    SkyVerdictKind.PASS -> "ran clear"
-    SkyVerdictKind.UNSTABLE -> "ran, sky unsettled"
-    SkyVerdictKind.FAIL -> "ran unseen"
-    else -> "ran, no data near it"
-}
-
-private fun checkColor(run: SkyRun, syntax: SyntaxColors) = when (run.verdict) {
-    SkyVerdictKind.PASS -> syntax.diffAdd
-    SkyVerdictKind.FAIL -> syntax.diffDel
-    SkyVerdictKind.UNSTABLE -> syntax.number
-    else -> syntax.comment
 }
 
 private fun buildForecastLines(
@@ -334,7 +351,8 @@ private fun buildForecastLines(
     now: Long,
     zone: ZoneId,
     resources: Resources,
-    translate: (String) -> String = { it }
+    locale: Locale,
+    render: (List<SnapshotDiff.Line>) -> List<SnapshotDiff.Line> = { it }
 ): List<CanvasLine> {
     if (revisions.isEmpty()) {
         return listOf(
@@ -349,44 +367,111 @@ private fun buildForecastLines(
             add(commentLine("Author: System <${revision.author}>", syntax))
             add(commentLine("Date:   ${relativeTime(revision.timestampEpochSeconds, now)}", syntax))
             revision.hunks.forEach { hunk ->
-                val file = "forecast_${hunk.date}.json"
-                val fetchTime = fetchTimeLabel(
-                    revision.timestampEpochSeconds, revision.timestampEpochSeconds, zone
-                )
-                if (hunk.baselineEpochSeconds == null) {
-                    add(commentLine("--- /dev/null", syntax))
-                } else {
-                    val baseTime = fetchTimeLabel(
-                        hunk.baselineEpochSeconds, revision.timestampEpochSeconds, zone
+                addAll(
+                    fileHeaderLines(
+                        file = "forecast_${hunk.date}.json",
+                        baselineEpochSeconds = hunk.baselineEpochSeconds,
+                        fetchEpochSeconds = revision.timestampEpochSeconds,
+                        zone = zone,
+                        locale = locale,
+                        syntax = syntax
                     )
-                    add(commentLine("--- a/$file ($baseTime)", syntax))
-                }
-                add(commentLine("+++ b/$file ($fetchTime)", syntax))
-                add(hunkHeaderLine(hunk.dayLabel, syntax))
-                hunk.lines.forEach { line -> add(diffLine(line.localized(translate), syntax)) }
+                )
+                add(hunkHeaderLine(hunk.date, locale, syntax))
+                render(hunk.lines).forEach { line -> add(diffLine(line, syntax)) }
             }
         }
     }
 }
 
-/** Git colors hunk headers apart from the body; key-blue is our cyan. */
-private fun hunkHeaderLine(dayLabel: String, syntax: SyntaxColors) = CodeLine(
-    AnnotatedString("@@ $dayLabel @@", SpanStyle(color = syntax.key))
-)
+/**
+ * The `---`/`+++` pair both diff files open a file with: the same name twice, and
+ * beside each side the fetch that produced it.
+ *
+ *     --- a/weather_data.json (11:00)
+ *     +++ b/weather_data.json (14:30)
+ *
+ * `forecast.diff` has been written this way since Fase 9h; `history.diff` joined it
+ * in Fase 28c, on the committente's reading, replacing a bare
+ * `diff --git a/weather_data.json b/weather_data.json`. That line named the file and
+ * said nothing else, while the two TIMES are the half of a comparison the reader
+ * could not otherwise reach: `history.diff` diffs against the previous commit of the
+ * SAME city, which with two cities interleaved is not the row above — it can be three
+ * hours back while the row above is fifteen minutes old. The `Date:` line has only
+ * ever spoken about the near side.
+ *
+ * A first appearance is `--- /dev/null`, git's own way of saying new file, which is
+ * why `new file mode 100644` left with `diff --git`: it belongs to that line's
+ * extended header block, and alone it would be a fragment of a grammar the file no
+ * longer speaks.
+ */
+private fun fileHeaderLines(
+    file: String,
+    baselineEpochSeconds: Long?,
+    fetchEpochSeconds: Long,
+    zone: ZoneId,
+    locale: Locale,
+    syntax: SyntaxColors
+): List<CanvasLine> = buildList {
+    if (baselineEpochSeconds == null) {
+        add(commentLine("--- /dev/null", syntax))
+    } else {
+        val baseTime = fetchTimeLabel(baselineEpochSeconds, fetchEpochSeconds, zone, locale)
+        add(commentLine("--- a/$file ($baseTime)", syntax))
+    }
+    val fetchTime = fetchTimeLabel(fetchEpochSeconds, fetchEpochSeconds, zone, locale)
+    add(commentLine("+++ b/$file ($fetchTime)", syntax))
+}
+
+/**
+ * `@@ Thu 20 Aug @@` — git colors hunk headers apart from the body, and key-blue is
+ * our cyan.
+ *
+ * **The day is NAMED, not placed** (Fase 28). The header used to read
+ * `@@ tomorrow @@` / `@@ in 2 days @@`, which was true of the fetch that wrote it and
+ * of nothing after: scrolling the file you met the same three words on every commit,
+ * each meaning a different day, and two revisions OF THE SAME DAY — the one thing
+ * this file exists to show — were indistinguishable by their headers. A day the
+ * reader can name is the whole point of a section header.
+ *
+ * The weekday localizes, like every other day name in the app (Fase 18: data
+ * localizes, `@@` does not). The ISO date is still one line above, in the `---`/`+++`
+ * pair, for anyone who wants it exact.
+ */
+private fun hunkHeaderLine(date: String, locale: Locale, syntax: SyntaxColors): CodeLine {
+    val day = runCatching { LocalDate.parse(date) }.getOrNull()
+    val label = day?.let { "${it.dayOfWeek.shortName(locale)} ${it.format(dayAndMonth(locale))}" }
+        ?: date
+    return CodeLine(AnnotatedString("@@ $label @@", SpanStyle(color = syntax.key)))
+}
+
+/** `20 Aug` / `20 ago` — the month localizes with the weekday beside it. */
+private fun dayAndMonth(locale: Locale): DateTimeFormatter =
+    DateTimeFormatter.ofPattern("d MMM", locale)
 
 private val SameDayTime = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
-private val OtherDayTime = DateTimeFormatter.ofPattern("MMM d HH:mm", Locale.ENGLISH)
 
 /**
  * `(12:04)` when the compared prediction is from the same local day as the fetch,
- * `(Aug 16 23:40)` when it is older — two forecasts hours apart read differently
+ * `(16 ago 23:40)` when it is older — two forecasts hours apart read differently
  * from two a day apart, and a bare clock time would hide that.
+ *
+ * The clock is digits and takes [Locale.ENGLISH] to stay `HH:mm` everywhere; the
+ * MONTH is a name and follows the reader, like the weekday in the hunk header four
+ * lines below it (Fase 28). Until then it was pinned English, so an Italian reader
+ * got `Aug 5` above a `@@ Gio 20 ago @@` — the half-finished translation the register
+ * rule exists to prevent.
  */
-internal fun fetchTimeLabel(epochSeconds: Long, fetchEpochSeconds: Long, zone: ZoneId): String {
+internal fun fetchTimeLabel(
+    epochSeconds: Long,
+    fetchEpochSeconds: Long,
+    zone: ZoneId,
+    locale: Locale = Locale.ENGLISH
+): String {
     val time = Instant.ofEpochSecond(epochSeconds).atZone(zone)
     val fetchDay = Instant.ofEpochSecond(fetchEpochSeconds).atZone(zone).toLocalDate()
     return if (time.toLocalDate() == fetchDay) time.format(SameDayTime)
-    else time.format(OtherDayTime)
+    else time.format(DateTimeFormatter.ofPattern("d MMM HH:mm", locale))
 }
 
 private fun commitHeaderLine(hash: String, cityLabel: String, syntax: SyntaxColors) = CodeLine(
@@ -395,19 +480,6 @@ private fun commitHeaderLine(hash: String, cityLabel: String, syntax: SyntaxColo
         withStyle(SpanStyle(color = syntax.comment)) { append(" [$cityLabel]") }
     }
 )
-
-/**
- * Weather DATA values localize at render time (app-wide l10n rule); everything
- * else in a diff line — keys, city names, compass points, clock times — is code
- * or proper nouns and passes through. Gated by key so a future snapshot value
- * that happens to collide with a translated word cannot be mistranslated.
- */
-private fun SnapshotDiff.Line.localized(translate: (String) -> String): SnapshotDiff.Line =
-    if (key == "status" || key.endsWith(".status") || key.endsWith(".moon_phase")) {
-        copy(value = translate(value))
-    } else {
-        this
-    }
 
 private fun diffLine(line: SnapshotDiff.Line, syntax: SyntaxColors): CodeLine = when (line.type) {
     SnapshotDiff.Type.CONTEXT -> CodeLine(
@@ -438,15 +510,30 @@ private fun signedLine(
     gutterColor = color
 )
 
-/** Numbers render bare like in JSON, anything else quoted. */
-private fun formatValue(value: String): String =
-    if (value.toDoubleOrNull() != null) value else "\"$value\""
+/**
+ * Numbers and [WeatherSnapshots.NullValue] render bare like in JSON, anything else
+ * quoted. The null matters: a fetch above the Arctic circle in June has no sunrise,
+ * and quoting it would print `"astronomical.sunrise": "null"` — a time whose value
+ * is the word null, rather than the absence `weather_data.json` writes as `null` in
+ * the very same place.
+ */
+private fun formatValue(value: String): String = when {
+    value == WeatherSnapshots.NullValue -> value
+    value.toDoubleOrNull() != null -> value
+    else -> "\"$value\""
+}
 
 private fun AnnotatedString.Builder.appendValue(value: String, syntax: SyntaxColors) {
-    if (value.toDoubleOrNull() != null) {
-        withStyle(SpanStyle(color = syntax.number)) { append(value) }
-    } else {
-        withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
+    when {
+        // JSON's `null` is neither a number nor a string; the file paints it in the
+        // gray it gives braces and comments, which is where the eye already reads
+        // "structure, not data".
+        value == WeatherSnapshots.NullValue ->
+            withStyle(SpanStyle(color = syntax.comment)) { append(value) }
+        value.toDoubleOrNull() != null ->
+            withStyle(SpanStyle(color = syntax.number)) { append(value) }
+        else ->
+            withStyle(SpanStyle(color = syntax.string)) { append("\"$value\"") }
     }
 }
 
@@ -472,7 +559,7 @@ private fun LogsScreenPreview() {
                     cityLabel = "Milan, Lombardy",
                     author = "sys@tweather.app",
                     timestampEpochSeconds = System.currentTimeMillis() / 1000 - 600,
-                    isInitial = false,
+                    baselineEpochSeconds = System.currentTimeMillis() / 1000 - 7_800,
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.CONTEXT, "location", "Milan, Lombardy"),
                         SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "current.temp_c", "18.2"),
@@ -487,7 +574,7 @@ private fun LogsScreenPreview() {
                     cityLabel = "Milan, Lombardy",
                     author = "sys@tweather.app",
                     timestampEpochSeconds = System.currentTimeMillis() / 1000 - 7_800,
-                    isInitial = true,
+                    baselineEpochSeconds = null,
                     lines = listOf(
                         SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "location", "Milan, Lombardy"),
                         SnapshotDiff.Line(SnapshotDiff.Type.ADDED, "current.temp_c", "18.2")
@@ -503,7 +590,6 @@ private fun LogsScreenPreview() {
                     hunks = listOf(
                         ForecastDiff.Hunk(
                             date = "2026-08-18",
-                            dayLabel = "tomorrow",
                             baselineEpochSeconds = System.currentTimeMillis() / 1000 - 15_000,
                             lines = listOf(
                                 SnapshotDiff.Line(SnapshotDiff.Type.REMOVED, "precip_pct", "20"),

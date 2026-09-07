@@ -31,7 +31,6 @@ class ForecastDiffTest {
         assertEquals(1, revisions.size)
         val hunks = revisions.single().hunks
         assertEquals(listOf("2026-08-18", "2026-08-19"), hunks.map { it.date })
-        assertEquals(listOf("tomorrow", "in 2 days"), hunks.map { it.dayLabel })
         hunks.forEach { hunk ->
             assertNull(hunk.baselineEpochSeconds)
             assertTrue(hunk.lines.all { it.type == SnapshotDiff.Type.ADDED })
@@ -152,11 +151,17 @@ class ForecastDiffTest {
         assertTrue(second.hunks.single().lines.all { it.type == SnapshotDiff.Type.ADDED })
     }
 
+    /**
+     * Fase 28: the hunk carries the target DATE and nothing about where that date
+     * sat relative to the fetch. It used to carry "tomorrow"/"in 2 days", computed
+     * from the position in the horizon — a reading that is only true on the day the
+     * fetch happened, in a row that is then read for a hundred commits.
+     */
     @Test
-    fun `the remaining single date reads as tomorrow`() {
+    fun `a hunk is identified by its target date, not by a relative word`() {
         val revisions = ForecastDiff.compute(
             listOf(fetch(1000, day("2026-08-18")))
         )
-        assertEquals("tomorrow", revisions.single().hunks.single().dayLabel)
+        assertEquals("2026-08-18", revisions.single().hunks.single().date)
     }
 }

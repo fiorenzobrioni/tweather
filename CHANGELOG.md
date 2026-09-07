@@ -62,6 +62,69 @@ All notable changes to tweather are documented here. The format follows
   the other half of "Milano" while standing in Segrate. They are now ranked by how far
   you may be from each one by now: the accuracy it declares plus the ground you could
   have covered since.
+- **`history.diff` diffs the whole sky block, daylight included.** The commit body
+  carried the sunrise and the sunset and not the span between them, so a reader
+  watching the days get shorter had to subtract two clock times for themselves, on a
+  line `weather_data.json` prints two fields away. `astronomical.daylight_duration`
+  is now a line of the diff like the other three, written in the same `10h 52m` the
+  JSON uses.
+- **A value the providers could not fill reads as `null`, not as the word.** Three
+  keys can genuinely be empty: there is no sunrise above the Arctic circle in June,
+  some forecast models carry no precipitation probability, and the air-quality call
+  can fail while the forecast succeeds. The first two were written into the history
+  with `toString()`, which turns null into the four letters n-u-l-l, and the diff then
+  quoted them: `"astronomical.sunrise": "null"`, a sunrise at a time spelled like a
+  word. They now print bare and gray, exactly as `weather_data.json` prints a `null`
+  in the same place, and the home widget no longer renders `Rain: null%` or
+  `Sun: null → null` when it reads one back.
+- **The air-quality line stays in place instead of leaving the file.** The AQI key was
+  only written when that call had succeeded, so a failed one dropped it from the
+  snapshot: the diff then trailed it at the bottom, below the astronomy, and put it
+  back mid-file two fetches later when the call recovered. The commit body now has the
+  same fifteen lines whatever a fetch came back with, and a section that has nothing
+  to report changes value in place.
+- **The city in a commit body matches the city in its header.** A place with no
+  administrative region (Singapore, Monaco) had the header saying `[Singapore,
+  Singapore]` and the `"location"` line under it saying `Singapore`, because only the
+  header fell back to the country.
+- **The Logs read in your units.** `history.diff` and `forecast.diff` were the last
+  surfaces still printing Celsius and km/h while the editor tab, `README.md`, the
+  widget and the notifications all converted: with Fahrenheit selected the JSON said
+  `temp_f: 65.3` and the same fetch in the Logs said `18.5`. They convert now, and
+  rename the key with the value the way a JSON file would (`temp_c` → `temp_f`,
+  `wind_kph` → `wind_mph`). What is STORED stays metric, so a diff still never churns
+  because a setting moved; and a change that rounds to the same displayed number in
+  the new unit collapses back into a context line instead of showing two identical
+  `+`/`-` rows.
+- **One vocabulary for the sky, on every file that prints a verdict.** A run's check
+  line in `history.diff` read `✓ sun.set ran clear` while `sky_runs.log` and
+  `sky.crontab` both said `✓ pass` about the same column of the same row. It now says
+  `✓ sun.set pass  cloud 8%`: the shared words, plus the number the verdict was built
+  from, which the other two surfaces have always printed.
+- **`forecast.diff` names the day each hunk is about.** Every hunk header read
+  `@@ tomorrow @@` or `@@ in 2 days @@` — true of the fetch that wrote it and of
+  nothing afterwards. Scrolling the file you met the same three words on commit after
+  commit, each meaning a different day, and two revisions of the SAME day, which is
+  the one thing this file exists to show, were indistinguishable from two revisions of
+  two different days. The header now reads `@@ Thu 20 Aug @@`, and the weekday and
+  month follow the language you are reading in, like every other day name in the app.
+- **The baseline timestamp stops being the only English date on the page.** The line
+  above the hunk header printed `(Aug 16 23:40)` in any language, so an Italian reader
+  got `Aug` four lines above `ago`. Both are month names and both follow the reader
+  now; the clock stays digits.
+- **`1 revision`, not `1 revisions`.** The three Logs counters were format strings, so
+  the status bar disagreed with its own number at one — in Italian, `1 revisioni`.
+  They are plurals now.
+- **A commit in `history.diff` says which fetch it is being compared against.** It
+  opened with `diff --git a/weather_data.json b/weather_data.json`, which named the
+  file and said nothing else, while the `Date:` line above spoke only about the near
+  end of the comparison. The far end was unreachable, and it is not obvious: this file
+  diffs against the previous commit of the SAME city, so with two cities interleaved
+  it is not the row above — it can be fifteen hours back while the row above is fifteen
+  minutes old. Each commit now opens the way `forecast.diff` always has, with the file
+  named twice and the fetch behind each side: `--- a/weather_data.json (17 Aug 23:40)`
+  over `+++ b/weather_data.json (14:30)`. A first commit reads `--- /dev/null`, which
+  is git's own way of writing a new file.
 
 ### Added
 

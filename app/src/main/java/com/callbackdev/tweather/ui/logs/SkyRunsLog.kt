@@ -27,7 +27,7 @@ import java.time.format.DateTimeFormatter
  * from the `sky_runs` column of a `weather_history` commit, which is also where the
  * `✓ …` check lines in `history.diff` come from. Two files, one truth, no
  * reconciliation test to write — and the retention solves itself, because runs age
- * out with the 200 commits the history already keeps.
+ * out with the 100 commits the history already keeps.
  */
 object SkyRunsLog {
 
@@ -74,7 +74,7 @@ object SkyRunsLog {
         val text = buildString {
             append(at.format(ClockTime)).append("  ")
             append(row.run.jobId.padEnd(nameWidth + 2))
-            append(verdictText(row.run).padEnd(VERDICT_COLUMN))
+            append("${skyGlyph(row.run)} ${skyWord(row.run)}".padEnd(VERDICT_COLUMN))
             row.run.cloudPct?.let { append("cloud ").append(it.toString().padStart(3)).append("%  ") }
             // How far the observing fetch was from the event. Printed because a
             // verdict resolved from a reading forty minutes away is a weaker claim
@@ -82,23 +82,7 @@ object SkyRunsLog {
             // would be dishonest.
             append("obs +").append(row.run.obsMinutes).append("m")
         }
-        return CodeLine(AnnotatedString(text, SpanStyle(color = color(row.run, syntax))))
-    }
-
-    private fun verdictText(run: SkyRun): String = when (run.verdict) {
-        SkyVerdictKind.PASS -> "✓ pass"
-        SkyVerdictKind.UNSTABLE -> "~ unstable"
-        SkyVerdictKind.FAIL -> "✗ fail"
-        // The coverage state: no fetch came near enough to the event to have an
-        // opinion, so none was invented. These count in no statistic.
-        else -> "– skipped"
-    }
-
-    private fun color(run: SkyRun, syntax: SyntaxColors) = when (run.verdict) {
-        SkyVerdictKind.PASS -> syntax.diffAdd
-        SkyVerdictKind.FAIL -> syntax.diffDel
-        SkyVerdictKind.UNSTABLE -> syntax.number
-        else -> syntax.comment
+        return CodeLine(AnnotatedString(text, SpanStyle(color = skyColor(row.run, syntax))))
     }
 
     /** `4 passed · 1 unstable · 1 skipped` — and a skipped run counts nowhere else. */
@@ -114,4 +98,39 @@ object SkyRunsLog {
 
     /** Wide enough for `~ unstable`, so the numbers line up under each other. */
     private const val VERDICT_COLUMN = 12
+}
+
+/**
+ * The run's glyph, in the vocabulary `sky.crontab` and `sky_runs.log` already print
+ * (`SkyVerdictKind.glyph`), plus the one state a RUN has and a forecast verdict does
+ * not.
+ */
+internal fun skyGlyph(run: SkyRun): String = run.verdict
+    ?.takeUnless { it == SkyVerdictKind.UNKNOWN }
+    ?.glyph
+    // The coverage state: no fetch came near enough to the event to have an opinion,
+    // so none was invented. These count in no statistic, and they are not the
+    // crontab's `? unknown` — that one is a claim about a future the app cannot see,
+    // this one is a past it was not looking at.
+    ?: "–"
+
+/** `pass`, `unstable`, `fail` — or `skipped`, the run-only state [skyGlyph] explains. */
+internal fun skyWord(run: SkyRun): String = run.verdict
+    ?.takeUnless { it == SkyVerdictKind.UNKNOWN }
+    ?.word
+    ?: "skipped"
+
+/**
+ * `  cloud 8%` — the number the verdict was built from, or nothing when there is
+ * none. `VISION_SKY.md` §7: a verdict whose evidence is invisible is an opinion, and
+ * this app does not print opinions. Two spaces, like the crontab's own column.
+ */
+internal fun skyEvidence(run: SkyRun): String =
+    run.cloudPct?.let { "  cloud $it%" }.orEmpty()
+
+internal fun skyColor(run: SkyRun, syntax: SyntaxColors) = when (run.verdict) {
+    SkyVerdictKind.PASS -> syntax.diffAdd
+    SkyVerdictKind.FAIL -> syntax.diffDel
+    SkyVerdictKind.UNSTABLE -> syntax.number
+    else -> syntax.comment
 }

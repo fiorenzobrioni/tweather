@@ -284,6 +284,7 @@
     <string name="note_sky_polar_night">notte polare: qui il sole resta sotto l\'orizzonte</string>
     <string name="note_sky_moon_absent">la luna non lo fa in questo giorno di calendario</string>
     <string name="note_sky_no_darkness">il sole resta troppo alto: niente notte astronomica</string>
+    <string name="note_sky_dark_all_day">buio tutto il giorno: il sole non risale mai fino al crepuscolo</string>
     <string name="note_sky_darkness_all_year">qui la notte diventa del tutto buia tutto l\'anno</string>
     <string name="note_sky_ecliptic_flat">in questa stagione l\'eclittica è troppo bassa</string>
     <string name="note_sky_core_too_low">stanotte il centro galattico resta troppo basso</string>

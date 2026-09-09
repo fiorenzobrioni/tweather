@@ -20,6 +20,15 @@ enum class SkyNotScheduled {
     /** The sun never gets 18° below the horizon: no astronomical darkness tonight. */
     NO_DARKNESS,
 
+    /**
+     * The opposite sky with the same empty window (8 set 2026): the sun never climbs
+     * back UP to 18° below the horizon, so the day has no dusk and no dawn because it
+     * is dark throughout — the deep polar night, above 84.6° of latitude at the
+     * solstice. Told apart from [NO_DARKNESS] because the two sentences a screen would
+     * print for them are each other's reverse.
+     */
+    DARK_ALL_DAY,
+
     /** The night is astronomically dark all year here: there are no white nights. */
     DARKNESS_ALL_YEAR,
 
@@ -258,7 +267,22 @@ object SkyScheduler {
         val tomorrow = SkyAlmanac.solarDay(date.plusDays(1), zone, coords)
         val dusk = tonight.astronomicalDusk
         val dawn = tomorrow.astronomicalDawn
-        if (dusk == null || dawn == null) return SkyOccurrence.None(job, SkyNotScheduled.NO_DARKNESS)
+        if (dusk == null || dawn == null) {
+            // Two opposite skies have no window, and until 8 set 2026 both were called
+            // NO_DARKNESS: the sun that never sinks 18° under the horizon (a white
+            // night), and the sun that never climbs back UP to 18° under — the deep
+            // polar night, above 84.6° of latitude at the solstice, where it is dark at
+            // noon. "The sky never gets fully dark" is the exact reverse of that sky.
+            // The night is judged at its brightest, tonight's solar noon: still under
+            // astronomical twilight there means there was never a twilight to wait for.
+            val darkAllDay = tonight.sunDownAllDay &&
+                AstronomyEngine.sunAltitude(tonight.solarNoon, coords) <
+                AstronomyEngine.ASTRONOMICAL_TWILIGHT
+            return SkyOccurrence.None(
+                job,
+                if (darkAllDay) SkyNotScheduled.DARK_ALL_DAY else SkyNotScheduled.NO_DARKNESS
+            )
+        }
         return SkyOccurrence.At(job, dusk, dawn)
     }
 
@@ -277,8 +301,12 @@ object SkyScheduler {
         zone: ZoneId,
         coords: Coordinates
     ): SkyOccurrence {
-        val dark = darkness(job, date, zone, coords) as? SkyOccurrence.At
-            ?: return SkyOccurrence.None(job, SkyNotScheduled.NO_DARKNESS)
+        // No dark window, no core: the window's own reason travels with the answer,
+        // so a polar night is not renamed a white night on the way through.
+        val dark = when (val tonight = darkness(job, date, zone, coords)) {
+            is SkyOccurrence.At -> tonight
+            is SkyOccurrence.None -> return tonight
+        }
         val window = AstronomyEngine.galacticCoreAbove(
             dark.start, dark.end ?: dark.start, coords, CORE_MIN_ALTITUDE
         ) ?: return SkyOccurrence.None(job, SkyNotScheduled.CORE_TOO_LOW)

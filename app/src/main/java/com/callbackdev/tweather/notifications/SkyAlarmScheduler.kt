@@ -79,7 +79,9 @@ object SkyAlarmScheduler {
                 }
             }
         if (jobs.isEmpty()) return null
-        val zone = runCatching { ZoneId.of(city.timezone) }.getOrElse { ZoneId.systemDefault() }
+        val zone = city.timezone
+            ?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+            ?: ZoneId.systemDefault()
         return SkyReminderPlanner.next(jobs, now, zone, city.coordinates)
     }
 

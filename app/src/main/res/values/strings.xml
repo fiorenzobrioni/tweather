@@ -306,6 +306,7 @@
     <string name="note_sky_polar_night">polar night: the sun stays below the horizon here</string>
     <string name="note_sky_moon_absent">the moon does not do that on this calendar day</string>
     <string name="note_sky_no_darkness">the sun stays too high: no astronomical night</string>
+    <string name="note_sky_dark_all_day">dark all day: the sun never climbs back up to twilight</string>
     <string name="note_sky_darkness_all_year">the night gets fully dark here all year</string>
     <string name="note_sky_ecliptic_flat">the ecliptic lies too flat this season</string>
     <string name="note_sky_core_too_low">the galactic core stays too low tonight</string>

@@ -39,6 +39,7 @@ class SkyNotesTest {
         assertEquals(en.polarNight, fromResources.polarNight)
         assertEquals(en.moonAbsent, fromResources.moonAbsent)
         assertEquals(en.noDarkness, fromResources.noDarkness)
+        assertEquals(en.darkAllDay, fromResources.darkAllDay)
         assertEquals(en.beyondHorizon, fromResources.beyondHorizon)
         assertEquals(en.noFetchYet, fromResources.noFetchYet)
         assertEquals(en.staleData, fromResources.staleData)

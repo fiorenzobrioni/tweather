@@ -24,15 +24,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * dependencies: the platform [LocationManager] + [Geocoder] cover everything on
  * minSdk 33, and staying off play-services keeps the GPL build Google-free.
  *
- * The acquisition strategy of Fase 20 came from Chiaro's review of the same file —
- * the two copies were byte-for-byte identical, so all three defects it found were
- * this one's too (see `UPSTREAM.md` in that repo). Keep them in step.
+ * This file is kept byte-for-byte identical (package name aside) with its copy in the
+ * sibling app — Chiaro's `UPSTREAM.md` is the ledger. Every defect found in it so far
+ * was a defect in both, so a fix made here is a fix to carry there the same day.
  */
 interface LocationProvider {
     /**
      * The device position, reverse-geocoded best-effort.
      *
-     * [maxAge] is the whole battery contract (Fase 20). A position the system already
+     * [maxAge] is the whole battery contract (4 set 2026). A position the system already
      * holds costs no radio at all, so when one that young exists it IS the answer and
      * nothing is powered up; only past that age is an acquisition worth starting.
      * [LocationProvider.Now] means the reader asked out loud and nothing already
@@ -128,7 +128,7 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
      *
      * Every provider is asked, not just the one an acquisition would use: fused can be
      * empty on a phone that has just booted while network still holds this morning's
-     * fix. What decides between them is NOT which arrived last (Fase 20's answer, and
+     * fix. What decides between them is NOT which arrived last (the 4 set 2026 answer, and
      * the one that put the reader in the wrong town). The providers do not answer with
      * the same thing — fused hands over a position another app has already paid for,
      * network can hand over the mast the phone is attached to — and coarse permission
@@ -163,8 +163,8 @@ class AndroidLocationProvider(private val context: Context) : LocationProvider {
      * Rounds what leaves the app; geocodes what the platform handed over.
      *
      * The 2 decimals (~1.1 km) are the coarse-accuracy scale and map exactly onto
-     * `City.cacheKey`, so cache and history fragment only on real movement. Fase 20
-     * also began handing the rounded pair to the [Geocoder], on the grounds that the
+     * `City.cacheKey`, so cache and history fragment only on real movement. The 4 set
+     * 2026 review also began handing the rounded pair to the [Geocoder]: the
      * most precise coordinate the app owns was going to the one service the app does
      * not control — but under `ACCESS_COARSE_LOCATION` the app owns no precise
      * coordinate to protect: the platform has already quantized the position onto a

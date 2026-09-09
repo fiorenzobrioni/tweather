@@ -190,7 +190,8 @@ class WeatherReportMapperTest {
         // 14, and rain outranks any sky code.
         assertEquals("Light Rain 🌧️", daily.first().condition.label)
         assertEquals(55, daily.first().precipPct)
-        assertEquals(0, daily[1].precipPct)                  // null max probability → 0
+        // The model carried no probability, so neither does the day.
+        assertNull(daily[1].precipPct)
         // uv_index_max was fetched and parsed all along but never mapped, so the
         // README's "Today" section fell back to the instant reading (Aug 2026 fix)
         assertEquals(6, daily.first().uvIndexMax)

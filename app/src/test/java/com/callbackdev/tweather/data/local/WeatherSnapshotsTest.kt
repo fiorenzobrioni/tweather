@@ -150,6 +150,19 @@ class WeatherSnapshotsTest {
         )
     }
 
+    /** Fase 29: the day's probability is nullable, and the forecast snapshot writes
+     * the same bare `null` the current one does for a value the model did not fill. */
+    @Test
+    fun `a day with no probability writes null, never a zero`() {
+        val report = reportWithDaily(
+            DailyForecast(today.plusDays(1), 20.0, 12.0, sunny, null, 5, "Moderate ☀️")
+        )
+        assertEquals(
+            WeatherSnapshots.NullValue,
+            WeatherSnapshots.flattenForecast(report)["2023-10-28.precip_pct"]
+        )
+    }
+
     @Test
     fun `empty daily flattens to an empty map`() {
         assertEquals(

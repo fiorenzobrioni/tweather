@@ -147,6 +147,12 @@ data class SkyNotes(
     val polarNight: String,
     val moonAbsent: String,
     val noDarkness: String,
+    /**
+     * The opposite sky with the same empty window (9 set 2026, from Chiaro): the sun
+     * never climbs back up to astronomical twilight, so it is dark at noon. Until then
+     * both skies printed [noDarkness], which is that sky's exact reverse.
+     */
+    val darkAllDay: String,
     /** Fase 19's four: a job a place or a season simply cannot have. */
     val darknessAllYear: String,
     val eclipticTooFlat: String,
@@ -185,6 +191,7 @@ data class SkyNotes(
             polarNight = "polar night: the sun stays below the horizon here",
             moonAbsent = "the moon does not do that on this calendar day",
             noDarkness = "the sun stays too high: no astronomical night",
+            darkAllDay = "dark all day: the sun never climbs back up to twilight",
             darknessAllYear = "the night gets fully dark here all year",
             eclipticTooFlat = "the ecliptic lies too flat this season",
             coreTooLow = "the galactic core stays too low tonight",
@@ -598,6 +605,7 @@ object SkyDocumentBuilder {
         SkyNotScheduled.POLAR_NIGHT -> notes.polarNight
         SkyNotScheduled.MOON_ABSENT -> notes.moonAbsent
         SkyNotScheduled.NO_DARKNESS -> notes.noDarkness
+        SkyNotScheduled.DARK_ALL_DAY -> notes.darkAllDay
         SkyNotScheduled.DARKNESS_ALL_YEAR -> notes.darknessAllYear
         SkyNotScheduled.ECLIPTIC_TOO_FLAT -> notes.eclipticTooFlat
         SkyNotScheduled.CORE_TOO_LOW -> notes.coreTooLow

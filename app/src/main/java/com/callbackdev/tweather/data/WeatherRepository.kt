@@ -72,14 +72,15 @@ class WeatherRepository(
 
     /**
      * Report for [city]: fresh cache entry unless expired or [forceRefresh] (the
-     * FAB). Cache hits keep the original `last_sync` and flip `cache_status` to HIT.
+     * refresh the reader asked for). Cache hits keep the original `last_sync` and
+     * flip `cache_status` to HIT.
      *
-     * [ttl] defaults to [WeatherFreshness.ProviderResolution] and every caller now
-     * takes that default (Fase 25). It used to be handed the user's
+     * [ttl] defaults to [WeatherFreshness.ProviderResolution] and every caller takes
+     * that default since the 6 set 2026 fix. It used to be handed the reader's
      * `update_frequency_min`, which turned a battery setting into the answer to "how
-     * old may the numbers be while the reader is looking at them" — an hour by
-     * default, two at the top of the range. The parameter stays because a test wants
-     * to name its own window, not because a caller should.
+     * old may the numbers be while somebody is looking at them" — an hour by default,
+     * two at the top of the range. The parameter stays because a test wants to name
+     * its own window, not because a caller should.
      */
     suspend fun getWeather(
         city: City,

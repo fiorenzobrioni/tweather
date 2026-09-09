@@ -10,13 +10,15 @@ import android.os.PowerManager
  * automatic threshold can trip) while the process is alive, and the answer has to be
  * the one that holds at the moment it is asked.
  *
- * The one caller is the editor's silent re-read on resume
- * ([com.callbackdev.tweather.ui.weather.WeatherViewModel.onResumed]) — a convenience
- * fetch nobody asked for out loud, which is exactly the kind of work battery saver
- * exists to postpone. Deliberately NOT consulted by the FAB (an explicit request is
- * never quietly ignored) nor by `weather-sync` (the OS already defers that job under
- * Doze and App Standby, and suppressing it here would silence a severe-weather alert
- * precisely on the phone that has the least charge left to spare).
+ * Its callers are the automatic re-reads a screen makes on its own, the one on coming
+ * back to the foreground first of all: conveniences nobody asked for out loud, which
+ * is exactly the kind of work battery saver exists to postpone. Deliberately NOT
+ * consulted by an explicit refresh (a request made out loud is never quietly
+ * ignored), by a screen that has nothing to show yet (postponing there leaves it
+ * empty, and an empty screen is not a cheaper one), nor by the periodic sync job: the
+ * OS already defers that under Doze and App Standby, and suppressing it here would
+ * silence a severe-weather alert precisely on the phone with the least charge left to
+ * spare.
  */
 fun interface PowerSaveState {
     fun isOn(): Boolean

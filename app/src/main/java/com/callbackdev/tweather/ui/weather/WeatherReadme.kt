@@ -106,7 +106,7 @@ fun WeatherReport.toReadmeMarkdown(
     add("## ${s(R.string.readme_h_today)}")
     daily.firstOrNull()?.let { today ->
         add("${s(R.string.readme_high)}: ${temp(today.highC)} · ${s(R.string.readme_low)}: ${temp(today.lowC)}")
-        add("${s(R.string.readme_precipitation)}: ${today.precipPct}%")
+        add("${s(R.string.readme_precipitation)}: ${today.precipPct?.let { "$it%" } ?: "?"}")
         // Today's MAXIMUM, like the two lines above it — this used to print
         // `current.uvIndex`, the instant reading, which under this heading read as a
         // daily figure and was 0 all evening (committente's report, Aug 2026: "UV 0
@@ -242,7 +242,7 @@ fun WeatherReport.toReadmeMarkdown(
                         TableCell(day.date.dayOfWeek.shortName(locale)),
                         TableCell(tempInt(day.highC)),
                         TableCell(tempInt(day.lowC)),
-                        TableCell("${day.precipPct}%"),
+                        TableCell(day.precipPct?.let { "$it%" } ?: "?"),
                         TableCell(translate(day.condition.description), day.condition.emoji)
                     )
                 }

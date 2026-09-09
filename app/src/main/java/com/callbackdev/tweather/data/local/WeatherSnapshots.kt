@@ -82,7 +82,10 @@ object WeatherSnapshots {
             put("$prefix.status", day.condition.label)
             put("$prefix.high_c", day.highC.toString())
             put("$prefix.low_c", day.lowC.toString())
-            put("$prefix.precip_pct", day.precipPct.toString())
+            // Nullable since Fase 29, written as the bare `null` every other value the
+            // model may not fill is written as (Fase 28): a key that left the file
+            // would be noise in the diff, a "0" would be a forecast nobody made.
+            put("$prefix.precip_pct", day.precipPct.orNull())
         }
     }
 

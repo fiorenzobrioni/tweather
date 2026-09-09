@@ -48,21 +48,17 @@ object AlertScheduler {
     fun shouldRun(
         settings: NotificationSettings,
         notificationsEnabled: Boolean,
-        hasWidgets: Boolean,
-        hasEnabledRules: Boolean = false
+        hasEnabledRules: Boolean = false,
+        hasWidgets: Boolean = false
     ): Boolean = alertsWanted(settings, notificationsEnabled, hasEnabledRules) || hasWidgets
 
     suspend fun reconcile(context: Context) {
         val settings = ServiceLocator.settingsStore(context).settings.first()
         val hasEnabledRules =
             ServiceLocator.ruleStore(context).rules.first().any { it.enabled }
-        if (shouldRun(
-                settings.notifications,
-                NotificationManagerCompat.from(context).areNotificationsEnabled(),
-                TweatherWidgetProvider.hasWidgets(context),
-                hasEnabledRules
-            )
-        ) {
+        val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val hasWidgets = TweatherWidgetProvider.hasWidgets(context)
+        if (shouldRun(settings.notifications, notificationsEnabled, hasEnabledRules, hasWidgets)) {
             val request = PeriodicWorkRequestBuilder<WeatherSyncWorker>(
                 settings.updateFrequencyMin.coerceAtLeast(15).toLong(), TimeUnit.MINUTES
             )

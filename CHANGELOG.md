@@ -8,6 +8,19 @@ All notable changes to tweather are documented here. The format follows
 
 ### Fixed
 
+- **A day the model gives no rain probability for says so, instead of "0%".** The
+  week table and `## Today` printed a zero whenever `precipitation_probability_max`
+  was missing from the response, which some models leave out; a zero is a forecast
+  of no rain, and "we were not told" is not that. The README now prints `?` there,
+  as it already did for an hour without one, the JSON and `forecast.diff` write
+  `null`, and a rule
+  reading `today.precip_pct` skips instead of firing `< 10` on nothing. Found in
+  Chiaro, where the same data layer lives, and carried here.
+- **A polar night is no longer described as a white night.** Above 84.6° of
+  latitude at the solstice the sun never climbs back up to astronomical twilight,
+  and `sky.crontab` said "the sun stays too high: no astronomical night" over a sky
+  that is dark at noon. The two skies now have two reasons. Nobody's town, but the
+  engine was wrong.
 - **A day is no longer called rainy because of one damp hour.** Any hour carrying a
   precipitation code used to label the whole day, so a single hour of 0.1 mm at 1%
   probability printed "Drizzle" across the week table and in the morning summary, and

@@ -36,6 +36,7 @@ fun skyNotes(resources: Resources): SkyNotes {
         polarNight = resources.getString(R.string.note_sky_polar_night),
         moonAbsent = resources.getString(R.string.note_sky_moon_absent),
         noDarkness = resources.getString(R.string.note_sky_no_darkness),
+        darkAllDay = resources.getString(R.string.note_sky_dark_all_day),
         darknessAllYear = resources.getString(R.string.note_sky_darkness_all_year),
         eclipticTooFlat = resources.getString(R.string.note_sky_ecliptic_flat),
         coreTooLow = resources.getString(R.string.note_sky_core_too_low),

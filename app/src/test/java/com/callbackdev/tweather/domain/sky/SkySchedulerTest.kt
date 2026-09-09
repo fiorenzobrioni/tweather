@@ -151,6 +151,35 @@ class SkySchedulerTest {
     }
 
     /**
+     * The OTHER way to have no dark window, and the opposite of a white night: near the
+     * pole in June the sun never climbs back up to 18° under the horizon, so there is
+     * no dusk and no dawn because it is dark all day. Until 8 set 2026 both skies were
+     * reported as NO_DARKNESS, and the Tonight card said "never gets fully dark" over a
+     * sky that is dark at noon. Only above 84.6° of latitude at the solstice — nobody's
+     * town — so the test is that the reason tells the two apart, not that anyone is
+     * there to read it.
+     */
+    @Test
+    fun `a day that never leaves darkness is not a white night`() {
+        val nearSouthPole = Coordinates(-89.5, 0.0)
+        val utc = ZoneId.of("Etc/UTC")
+        val solstice = LocalDate.of(2026, 6, 21)
+        assertEquals(
+            SkyOccurrence.None(SkyJobCatalog.DarknessWindow, SkyNotScheduled.DARK_ALL_DAY),
+            SkyScheduler.resolve(SkyJobCatalog.DarknessWindow, solstice, utc, nearSouthPole)
+        )
+        // The white night keeps its own reason: Copenhagen on the same date sees the
+        // sun set and never sink 18° under, which is the sky that never gets dark.
+        val copenhagen = Coordinates(55.6761, 12.5683)
+        assertEquals(
+            SkyOccurrence.None(SkyJobCatalog.DarknessWindow, SkyNotScheduled.NO_DARKNESS),
+            SkyScheduler.resolve(
+                SkyJobCatalog.DarknessWindow, solstice, ZoneId.of("Europe/Copenhagen"), copenhagen
+            )
+        )
+    }
+
+    /**
      * A city in another timezone renders on ITS clock. The engine returns instants, so
      * the test is that the instant lands at a plausible local hour THERE — a Tokyo
      * sunrise that reads 22:00 in Tokyo would be the file lying even though the

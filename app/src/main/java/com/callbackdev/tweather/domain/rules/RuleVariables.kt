@@ -89,7 +89,10 @@ object RuleVariables {
         // too, or `today.high > 25` would silently change meaning with the setting.
         today("today.high_c", RuleVariableKind.TEMPERATURE) { it.highC }
         today("today.low_c", RuleVariableKind.TEMPERATURE) { it.lowC }
-        today("today.precip_pct", RuleVariableKind.NUMBER) { it.precipPct.toDouble() }
+        // Nullable like `current.precipitation.chance_pct` above and for the same
+        // reason: the day may simply not carry a probability, and a rule that reads
+        // it then skips instead of firing `< 10` on a zero nobody forecast.
+        today("today.precip_pct", RuleVariableKind.NUMBER) { it.precipPct?.toDouble() }
         // The day's peak, not `current.uv_index`'s instant reading: a "put sunscreen
         // on" rule wants to fire in the morning, when the current index is still low.
         today("today.uv_max", RuleVariableKind.NUMBER) { it.uvIndexMax.toDouble() }
@@ -204,13 +207,15 @@ object RuleVariables {
         }
     )
 
+    /** [value] is nullable for the same reason [optional] exists: a reading the day
+     * does not carry leaves the variable unresolved, and its rule skips. */
     private fun MutableList<RuleVariable>.today(
         id: String,
         kind: RuleVariableKind,
-        value: (com.callbackdev.tweather.domain.model.DailyForecast) -> Double
+        value: (com.callbackdev.tweather.domain.model.DailyForecast) -> Double?
     ) = add(
         RuleVariable(id, kind) { report, _ ->
-            report.daily.firstOrNull()?.let { ResolvedValue(value(it)) }
+            report.daily.firstOrNull()?.let { day -> value(day)?.let { ResolvedValue(it) } }
         }
     )
 }

@@ -74,7 +74,9 @@ class SkyAlarmReceiver : BroadcastReceiver() {
         if (state.wasPosted(reminder.fingerprint)) return
 
         val city = SkyAlarmScheduler.activeCity(context) ?: return
-        val zone = runCatching { ZoneId.of(city.timezone) }.getOrElse { ZoneId.systemDefault() }
+        val zone = city.timezone
+            ?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+            ?: ZoneId.systemDefault()
         val report = ServiceLocator.weatherRepository(context).cachedReport(city)
         val now = Instant.now()
         val verdict = if (job.observable) {

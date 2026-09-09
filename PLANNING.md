@@ -2249,6 +2249,114 @@ giri di suite completi verdi di fila.
       verde su tre giri, lint 0
 - [ ] Da verificare su device: due città alternate, che è il caso per cui la riga esiste
 
+---
+
+## Fase 29 — Il riallineamento con Chiaro (committente, 9 set 2026)
+
+Richiesta: confrontare i due repository a partire da `UPSTREAM.md` di Chiaro e fare
+l'elenco di quanto serviva per riallinearli, poi eseguirlo. tweather non ha un
+`UPSTREAM.md` — il suo registro del rapporto con Chiaro sono le Fasi 19, 20, 21, 24,
+25 e 26 di questo file — quindi il confronto è stato fatto sul codice: la stessa
+riscrittura meccanica del seed di Chiaro (`tools/seed_core.py`, rinomina del package
+e quattro identificatori) applicata a tweather HEAD e confrontata file per file con il
+suo `:core`. Su 86 file condivisi, 55 erano identici prima e 66 lo sono dopo
+(misurati sul branch ribasato); ogni differenza rimasta è una divergenza registrata in
+`UPSTREAM.md` con la sua ragione.
+
+### Tre correzioni che il registro diceva «anche a monte» e a monte non c'erano
+
+- **`DailyForecast.precipPct` è `Int?`.** Il mapper faceva ancora `?: 0` su
+  `precipitation_probability_max`, che alcuni modelli non servono: uno zero è una
+  previsione di niente pioggia, «non ce l'hanno detto» non lo è. La Fase 26 aveva reso
+  nullable l'orario e lasciato il giornaliero. Portato il pacchetto intero di Chiaro
+  (`WeatherModels`, `RuleVariables` con la lambda di `today()` a `Double?`, il mapper,
+  `WeatherSnapshots.flattenForecast` che omette la chiave, i test), e adattate le
+  superfici nel registro di quest'app: il README stampa `?` (riga di `## Today` e
+  tabella della settimana, come già faceva la colonna dell'ora), il JSON scrive `null`
+  con `putNullableInt`, e `today.precip_pct` in `alerts.rules` fa saltare la regola
+  invece di leggere zero. Insieme è arrivata `WeatherCodes.FIRST_PRECIP_CODE` con
+  `isPrecipitation`: la costante che il mapper usa per il pavimento WMO sta ora nel
+  dominio accanto alla tabella dei codici, perché in Chiaro la legge anche
+  `ForecastOutcome`, e tenerla privata qui avrebbe lasciato il mapper diverso per una
+  riga.
+- **La stringa `"null"` nei commit: trovata, e poi trovata già decisa.** Sul `main`
+  locale (fermo al 6 set) `WeatherSnapshots.flatten` scriveva `current.precip_chance_pct`
+  con `.toString()` su un `Int?` e il widget stampava `Rain null%`; il branch aveva
+  portato il `?.let` di Chiaro, che omette la chiave. Il rebase su `origin/main` ha
+  trovato la Fase 28 (6 set, PR #35), che sullo stesso punto ha deciso il contrario e di
+  proposito: `history.diff` è un diff DI `weather_data.json`, quindi un valore che manca
+  è una riga che dice `null`, non una chiave che sparisce — `NullValue` nominato, insieme
+  di chiavi fisso, widget e Logs che lo leggono come assenza. La correzione di Chiaro è
+  stata ritirata e il giorno senza probabilità scrive `null` come ogni altro valore che
+  il modello non porta (`flattenForecast`, con il suo test). In Chiaro la chiave resta
+  omessa: il suo Diario è prosa e disegna l'assenza; il suo registro ora lo dice.
+- **`SkyNotScheduled.DARK_ALL_DAY`.** `darkness()` rispondeva `NO_DARKNESS` per due
+  cieli opposti: il sole che non scende mai 18° sotto l'orizzonte (notte bianca) e il
+  sole che non risale mai fin lì (notte polare profonda, sopra 84,6° al solstizio). La
+  colonna `∅` di `sky.crontab` diceva «the sun stays too high» su un cielo buio a
+  mezzogiorno. Portati `SkyScheduler.kt` e `SkySchedulerTest.kt` (identici a Chiaro);
+  qui il `when` esaustivo di `SkyDocument.reason()` ha avuto il suo ramo, `SkyNotes` il
+  campo `darkAllDay`, `SkyNotesFactory` e le stringhe la frase in due lingue
+  (`note_sky_dark_all_day`: «dark all day: the sun never climbs back up to twilight» /
+  «buio tutto il giorno: il sole non risale mai fino al crepuscolo»), e `SkyNotesTest`
+  la riga che lega l'inglese in Kotlin a quello nelle risorse.
+
+### Quello che differiva senza motivo, unificato
+
+- **I commenti dei file condivisi.** `LocationProvider`, `WeatherFreshness`,
+  `PowerSaveState` e i paragrafi condivisi di `WeatherRepository` erano identici nel
+  codice e diversi nei commenti: «Fase 20» qui e «Fase 3b» là, «il FAB» qui e «l'eroe»
+  là. Ora una sola formulazione in entrambi, **datata e non numerata** (i due PLANNING
+  numerano lo stesso lavoro in modo diverso e lo faranno sempre; il calendario no), con
+  le superfici nominate in modo neutro. I commenti che nominano una superficie che
+  esiste in una sola app restano diversi di proposito.
+- **`PowerSaving.kt` → `PowerSaveState.kt`**: il file prende il nome della classe come
+  ogni altro, così il diff del seed accoppia le due copie invece di segnalarne una
+  mancante e una in più.
+- **Il fuso in `SkyAlarmScheduler` e `SkyAlarmReceiver`**: `City.timezone` è `String?`
+  in entrambi i repo, e qui veniva passato nudo a `ZoneId.of` attraverso il platform
+  type — funzionava (il `runCatching` prendeva la `NullPointerException` e ripiegava sul
+  fuso di sistema), ma per caso. Ora `?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+  ?: ZoneId.systemDefault()`, come in Chiaro.
+- **L'ordine dei parametri di `AlertScheduler.shouldRun`**: `hasEnabledRules` prima di
+  `hasWidgets`, entrambi con default, come `SyncScheduler.shouldRun` in Chiaro e come il
+  prefisso di `alertsWanted`. I test usavano già gli argomenti nominati; è cambiata
+  solo la chiamata in `reconcile`.
+
+### Nell'altra direzione
+
+Il rebase ha mostrato che il confronto era stato fatto su un `main` locale fermo al 6
+set: le Fasi 27, 27b, 27c, 28, 28b e 28c erano a monte e non in Chiaro. Tre cose sono
+tornate a valle nella PR gemella: `Duration.hhMm()` nel dominio (Fase 28), la rimozione
+di `ForecastDiff.Hunk.dayLabel` con il suo test (Fase 28: un hunk porta la data, non una
+parola relativa che smette di essere vera la mattina dopo), e in `WeatherSnapshots` il
+`location` che ripiega sul paese come `City.label` e la chiave `astronomical.daylight_duration`.
+Non è tornata la regola del `null` scritto, che è del diff e non della prosa. In Chiaro
+sono stati portati anche i tre test che qui esistevano e là no — `SkyAlarmSchedulerTest`,
+`WeatherSyncWorkerTest`, `SkyNotifierTest` — e registrate in `UPSTREAM.md` le divergenze
+nate senza una riga nel registro.
+
+### Verifiche
+
+726 test, lint 0 errori; la CI del branch prima del rebase era verde. Su questa
+macchina tre casi falliscono anche su un checkout pulito di `origin/main`, con la CI di
+`main` verde, quindi sono dell'ambiente e non di questa fase: `SkyAlertStateStoreTest`
+per un `AccessDeniedException` di Windows sul rename di un file temporaneo, e i due test
+Compose degli header dei Logs (`ForecastHunkHeaderTest`, `HistoryFileHeaderTest`, Fase
+28) che non trovano il testo «displayed». Due nuovi qui: la giornata senza probabilità
+scrive `null`, la notte polare vicino al polo. La JVM locale ha locale italiano e due
+casi di `SkyDocumentTest` attendono i mesi in inglese: verdi con
+`JAVA_TOOL_OPTIONS="-Duser.language=en -Duser.country=US"`, come in CI. **Il test
+instabile visto sul `main` locale era già corretto a monte**: `WeatherViewModelTest`
+«battery saver…» falliva due volte su cinque per la corsa fra `awaitState` e la coda di
+`load()`, chiusa in `ee855ef` (Fase 27) con `awaitResume`; il branch è ribasato su quella
+base e il caso non si ripresenta. Su Chiaro: `:core` 354 e `:app` 251, lint 0 errori.
+
+- [ ] Da verificare su device (committente): un giorno senza probabilità stampa `?`
+  nel README e `null` nel JSON; il widget non stampa più `null%`.
+
+---
+
 ## Note trasversali
 
 - **Vincoli di design non negoziabili** (vedi `CLAUDE.md` e `DESIGN.md`): solo JetBrains Mono, griglia 4px, indent 20px, niente ombre (solo bordi 1px + glow del FAB), raggio 4px, controlli renderizzati come testo.

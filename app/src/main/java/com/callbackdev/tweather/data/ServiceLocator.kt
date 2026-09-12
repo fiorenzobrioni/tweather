@@ -5,12 +5,14 @@ import androidx.annotation.VisibleForTesting
 import androidx.room.Room
 import com.callbackdev.tweather.BuildConfig
 import com.callbackdev.tweather.data.local.ReportDiskCache
+import com.callbackdev.tweather.data.local.StoredDataSweep
 import com.callbackdev.tweather.data.local.TweatherDatabase
 import java.io.File
 import com.callbackdev.tweather.data.remote.OpenMeteoAirQualityApi
 import com.callbackdev.tweather.data.remote.OpenMeteoForecastApi
 import com.callbackdev.tweather.data.remote.OpenMeteoGeocodingApi
 import com.callbackdev.tweather.widget.TweatherWidgetUpdater
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -206,6 +208,14 @@ object ServiceLocator {
             )
             .build()
 
+        // One instance, two readers: the repository writes and reads entries, the
+        // sweep forgets the ones no place claims any more.
+        val diskCache = ReportDiskCache(File(appContext.filesDir, "report_cache"), json)
+        val sweep = StoredDataSweep(
+            historyDao = database.weatherHistoryDao(),
+            diskCache = diskCache
+        )
+
         return WeatherRepository(
             forecastApi = retrofit(OpenMeteoForecastApi.BASE_URL)
                 .create(OpenMeteoForecastApi::class.java),
@@ -215,11 +225,30 @@ object ServiceLocator {
                 .create(OpenMeteoGeocodingApi::class.java),
             historyDao = database.weatherHistoryDao(),
             // Survives process death so cold starts inside the TTL cost zero GETs
-            diskCache = ReportDiskCache(File(appContext.filesDir, "report_cache"), json),
+            diskCache = diskCache,
             json = json,
             // Every fetch that commits new data repaints the home widget, so it
             // needs no polling of its own (no-op when no widget is placed)
-            onHistoryCommitted = { TweatherWidgetUpdater.updateAll(appContext) }
+            onHistoryCommitted = { TweatherWidgetUpdater.updateAll(appContext) },
+            // ...and the same commit is where the storage tidies up after itself. The
+            // live set is read here and not inside the sweep because the sweep is in
+            // `local/` and has no business knowing about the saved-cities store.
+            onHousekeeping = { sweep.run(liveCityKeys(appContext)) }
         )
+    }
+
+    /**
+     * Every `City.cacheKey` the app still has a use for: the saved cities and, when
+     * there is one, the current GPS fix. Widget pins resolve city ids against that
+     * same saved list (or the GPS sentinel), so they add nothing here — and the GPS
+     * cells the reader drove through yesterday are deliberately NOT in it, which is
+     * the whole point of [StoredDataSweep].
+     */
+    private suspend fun liveCityKeys(appContext: Context): Set<String> {
+        val store = cityStore(appContext)
+        return buildSet {
+            store.cities.first().forEach { add(it.cacheKey) }
+            store.locationSettings.first().gpsCity?.let { add(it.cacheKey) }
+        }
     }
 }

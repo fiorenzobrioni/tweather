@@ -72,6 +72,28 @@ class ReportDiskCache(private val dir: File, private val json: Json) {
         }
     }
 
+    /**
+     * Files belonging to places the app no longer follows, once they are past
+     * [cutoffEpochMs] — the disk-cache half of `StoredDataSweep`.
+     *
+     * [prune] already bounds this directory, but it bounds it by count and it runs
+     * only on a write: a reader who removed a place, or who has driven through a
+     * dozen GPS cells, keeps up to [MAX_ENTRIES] responses on disk for places nothing
+     * will ever read again — and `allowBackup` carries them off the device. The age
+     * test is the same one [prune] applies, so an entry the offline fallback could
+     * still use is never the one taken away.
+     */
+    suspend fun forgetForeign(liveKeys: Set<String>, cutoffEpochMs: Long) {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val live = liveKeys.map(::fileName).toSet()
+                dir.listFiles()?.forEach { file ->
+                    if (file.name !in live && file.lastModified() < cutoffEpochMs) file.delete()
+                }
+            }
+        }
+    }
+
     /** cacheKey is `lat:lon` in hundredths — ':' is not filesystem-safe everywhere. */
     private fun fileName(cacheKey: String) = cacheKey.replace(':', '_') + ".json"
 

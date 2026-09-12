@@ -46,9 +46,21 @@ class WidgetCityStore(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it.remove(key(appWidgetId)) }
     }
 
-    /** Called from the provider's onDeleted so removed widgets leave nothing behind. */
+    /**
+     * Called from the provider's onDeleted so removed widgets leave nothing behind.
+     *
+     * Both keys, since 12 set 2026: [skyLine] arrived later (Fase 16e) and was never
+     * added here, so every widget removed after it shipped left its `widget_sky_` flag
+     * in the file forever — and a new widget that happened to be handed that id
+     * inherited a sky line nobody asked for.
+     */
     suspend fun forget(appWidgetIds: IntArray) {
-        dataStore.edit { prefs -> appWidgetIds.forEach { prefs.remove(key(it)) } }
+        dataStore.edit { prefs ->
+            appWidgetIds.forEach {
+                prefs.remove(key(it))
+                prefs.remove(skyKey(it))
+            }
+        }
     }
 
     /**
@@ -56,14 +68,27 @@ class WidgetCityStore(private val dataStore: DataStore<Preferences>) {
      * land on whichever widget inherited that number. One edit, and the moves are
      * snapshotted first: old and new sets can overlap (1→2 while 2→3), so removing
      * as we go would clobber a value we still need.
+     *
+     * Both keys, since 12 set 2026, and for the same reason [forget] takes both: the
+     * sky line arrived after this was written and was never added to it, so a restored
+     * widget came back without the line it had and left its old flag in the file. This
+     * is where the two apps' copies part — Chiaro has no `onRestored`, so there this
+     * whole method is unreachable and its leak is theoretical.
      */
     suspend fun remap(oldIds: IntArray, newIds: IntArray) {
         dataStore.edit { prefs ->
             val moved = oldIds.zip(newIds).mapNotNull { (old, new) ->
                 prefs[key(old)]?.let { new to it }
             }
-            oldIds.forEach { prefs.remove(key(it)) }
+            val movedSky = oldIds.zip(newIds).mapNotNull { (old, new) ->
+                prefs[skyKey(old)]?.let { new to it }
+            }
+            oldIds.forEach {
+                prefs.remove(key(it))
+                prefs.remove(skyKey(it))
+            }
             moved.forEach { (id, cityId) -> prefs[key(id)] = cityId }
+            movedSky.forEach { (id, enabled) -> prefs[skyKey(id)] = enabled }
         }
     }
 

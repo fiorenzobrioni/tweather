@@ -2355,6 +2355,100 @@ base e il caso non si ripresenta. Su Chiaro: `:core` 354 e `:app` 251, lint 0 er
 - [ ] Da verificare su device (committente): un giorno senza probabilità stampa `?`
   nel README e `null` nel JSON; il widget non stampa più `null%`.
 
+## Fase 30 — La spazzata delle righe orfane, portata da Chiaro (12 set 2026)
+
+Richiesta: leggere `UPSTREAM.md` di Chiaro e il documento di port allegato
+(`PORT_TWEATHER_orphan_sweep.md`), e applicare. Origine: la revisione dell'intero strato
+di storage fatta in Chiaro (`PLANNING.md` di là, stessa data), un terzo della quale è
+condiviso perché i file lo sono. Il documento di port era stato scritto **senza un
+checkout di tweather**, quindi ogni raccordo era marcato ⚠ e andava verificato qui: sono
+stati verificati tutti e sette, e tutti e sette combaciavano.
+
+### Il problema, in una riga
+
+Ogni retention delle due app è un conteggio e non una data, ed è la scelta giusta — un
+telefono spento per una settimana non deve tornare a un `history.diff` vuoto. Ma un
+conteggio non chiede mai **di chi** siano le righe, e l'app conia luoghi che smettono di
+esistere: una città tolta dalla lista, e soprattutto la pseudo-città GPS, che conia una
+`cacheKey` nuova per ognuna delle celle da ~1,1 km che ha mai adottato. Quelle righe non
+sono vecchie, sono **orfane**: nessuna lettura futura le toccherà mai.
+
+Due dei tre bug erano identici a Chiaro byte per byte, perché i file lo sono:
+`ReportDiskCache` limita la cartella per numero e pota solo in scrittura (e `allowBackup`
+si porta via i file dal dispositivo), e il `prune` globale della cronologia sfratta per
+età globale — quindi le righe di una cella abbandonata venivano evicted alla stessa
+velocità di quelle di una città seguita. Il terzo (`warning_records`) non esiste qui e
+non è stato portato.
+
+### Quel che si è fatto
+
+`StoredDataSweep` (`data/local/`) è la seconda retention, e la sola che guarda la chiave
+invece del conteggio: **una chiave che l'app non segue più, ferma da `Grace`, se ne va
+tutta intera**. Ha **due braccia** invece delle tre di Chiaro. Le regole sono le sue:
+
+- *Non segue più* è la lista delle città salvate più il fix GPS corrente, niente altro. I
+  pin dei widget si risolvono contro quella stessa lista (o contro il sentinella GPS),
+  quindi non hanno voce in capitolo; le celle attraversate ieri **non** ci sono, ed è
+  tutto il punto.
+- *Ferma da `Grace`* si misura dalla riga **più recente** della chiave, e la
+  cancellazione è tutto-o-niente per chiave: ri-aggiungere una città è un tap, e un
+  `history.diff` che tornasse con le pagine di mezzo strappate sarebbe peggio di uno che
+  torna vuoto.
+- `Grace` è **sette giorni**, la stessa settimana che la previsione raggiunge.
+- Un insieme di chiavi vive **vuoto** è uno stato vero (l'ultima città tolta, GPS spento)
+  e vuol dire «qui non è vivo niente», non «stai fermo». Room espande una lista vuota in
+  `NOT IN ()`, che SQLite non parsa, quindi passa un sentinella (`""`) che nessuna
+  `cacheKey` — sempre `<int>:<int>` — può valere.
+
+Gira **dove già gira l'altra**, cioè nel punto unico in cui atterrano dati nuovi
+(`WeatherRepository.recordHistory`), dietro un `onHousekeeping` iniettato da
+`ServiceLocator` come già faceva `onHistoryCommitted`: la spazzata ha bisogno della lista
+delle città salvate, che il repository per scelta non conosce. È `bestEffort` per conto
+suo e non dentro il blocco dell'altro hook, perché una pulizia che fallisce deve comunque
+lasciare al widget il suo repaint — e `bestEffort` è esattamente il `try/catch` che c'era,
+commenti compresi, estratto perché ora i chiamanti sono due. Nessuna migrazione: nessuno
+schema si muove.
+
+`ReportDiskCache.forgetForeign` è **verbatim** da Chiaro: quel file non deve divergere, e
+un `diff` dopo la rinomina del package lo conferma identico. Stessa cosa per il blocco di
+`WidgetCityStore.forget` qui sotto.
+
+### La chiave del cielo del widget, e dove le due copie si separano
+
+`WidgetCityStore.forget` cancellava `widget_city_<id>` e non `widget_sky_<id>`: la riga
+del cielo è arrivata dopo (Fase 16e) e nessuno l'ha aggiunta, quindi ogni widget rimosso
+lasciava il suo flag nel file per sempre e un widget nuovo a cui il sistema desse
+quell'id se lo ritrovava acceso. Il documento di port lo dava per **condizionale** («non
+ho potuto verificare se upstream ha la stessa chiave»): ce l'ha, e la riparazione è la
+stessa.
+
+Verificando quella, però, è saltato fuori quel che il documento non poteva vedere:
+**`remap` ha la stessa omissione, e qui — a differenza di Chiaro — è codice vivo**.
+`TweatherWidgetProvider.onRestored` lo chiama, quindi dopo un ripristino da backup un
+widget tornava senza la riga del cielo che aveva, e il vecchio flag restava nel file ad
+aspettare il prossimo id riciclato. Riparato con la stessa forma di `forget`, snapshot
+prima e rimozione dopo per entrambe le chiavi (vecchi e nuovi id possono sovrapporsi).
+**È qui che le due copie del file si separano di proposito**: in Chiaro `remap` è
+irraggiungibile — il suo receiver non ha un `onRestored` — e là il `PLANNING` lo registra
+come codice morto in attesa di una decisione di prodotto. La divergenza è dovuta a una
+differenza reale fra le due app, non a una deriva, ed è registrata in `UPSTREAM.md`.
+
+### Verifiche
+
+735 test verdi (726 prima, cioè i nove nuovi: i sei di `StoredDataSweepTest` e tre in
+`WidgetCityStoreTest` — la riga del cielo dentro `forget`, e le due di `remap`, che non
+aveva alcun test), lint 0 errori e 48 warning, gli stessi di prima. Su questa macchina
+(Linux) passano anche i tre casi che la Fase 29 aveva visto rossi su Windows. `StoredDataSweepTest` porta i sei casi di Chiaro senza le righe di
+`warning_records`: una città ancora seguita tiene i suoi commit per quanto vecchi siano,
+una non più seguita se ne va quando è ferma da oltre la `Grace`, una tolta un attimo fa
+tiene tutto, il tutto-o-niente per chiave, l'insieme vivo vuoto (il caso che rompe su
+`NOT IN ()`), e il disk cache che perde i file orfani vecchi tenendo sia il vivo sia il
+recente.
+
+- [ ] Da verificare su device (committente): tolta una città, dopo una settimana i suoi
+  commit spariscono dai Logs al primo fetch; rimosso un widget che mostrava la riga del
+  cielo, un widget nuovo non la eredita.
+
 ---
 
 ## Note trasversali

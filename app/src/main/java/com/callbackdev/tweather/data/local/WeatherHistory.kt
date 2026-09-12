@@ -60,6 +60,29 @@ interface WeatherHistoryDao {
     suspend fun prune(keep: Int)
 
     /**
+     * The retention that asks *whose* rows these are (12 set 2026): every commit of a
+     * place the app no longer follows, once that place has been gone long enough to be
+     * gone for real.
+     *
+     * [prune] bounds the table; it does not empty it. A removed place and, far more
+     * often, every ~1.1 km cell the GPS pseudo-city has ever minted keep their commits
+     * until the backstop happens to reach them — and it reaches them by global age, so
+     * an abandoned cell's rows are evicted at the same rate as a followed city's. That
+     * is the wrong question: those rows are not old, they are ORPHANED, and no future
+     * fetch will ever read them again.
+     *
+     * All or nothing per key, never row by row: a key is dropped only when its NEWEST
+     * row predates [cutoffEpochSeconds], so a place removed a moment ago keeps its whole
+     * history for as long as a re-add can still want it.
+     */
+    @Query(
+        "DELETE FROM weather_history WHERE city_key NOT IN (:liveKeys) AND city_key IN " +
+            "(SELECT city_key FROM weather_history GROUP BY city_key " +
+            "HAVING MAX(timestamp_epoch_s) < :cutoffEpochSeconds)"
+    )
+    suspend fun pruneForeign(liveKeys: List<String>, cutoffEpochSeconds: Long)
+
+    /**
      * Attaches fired user rules to the city's newest commit (Fase 11). An UPDATE
      * after the fact, not an insert-time field: the worker evaluates rules after
      * the fetch has committed — and on a cache HIT the data the rules ran on IS

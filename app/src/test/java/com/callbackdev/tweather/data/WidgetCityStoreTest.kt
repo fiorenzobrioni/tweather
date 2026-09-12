@@ -91,6 +91,47 @@ class WidgetCityStoreTest {
     }
 
     @Test
+    fun `forget takes the sky line with the widget`() = runBlocking {
+        // The sky flag arrived after `forget` was written (Fase 16e) and was not added
+        // to it, so every removed widget left one behind — and a new widget handed that
+        // id inherited a line nobody asked for.
+        val store = store()
+        store.pin(1, turinId)
+        store.setSkyLine(1, enabled = true)
+        store.setSkyLine(2, enabled = true)
+
+        store.forget(intArrayOf(1))
+
+        assertEquals(setOf(2), store.currentSkyLine())
+    }
+
+    @Test
+    fun `remap moves a pin onto the id restore handed the widget`() = runBlocking {
+        // Unlike Chiaro's, this method is reachable: the provider has an onRestored.
+        val store = store()
+        store.pin(1, turinId)
+        store.pin(2, romeId)
+
+        store.remap(oldIds = intArrayOf(1, 2), newIds = intArrayOf(2, 3))
+
+        // Old and new overlap (1→2 while 2→3), which is why the moves are snapshotted
+        assertEquals(mapOf(2 to turinId, 3 to romeId), store.current())
+    }
+
+    @Test
+    fun `remap takes the sky line with the widget`() = runBlocking {
+        // Same omission `forget` had: a restored widget came back without the line it
+        // had, and its old flag stayed in the file waiting for the next widget.
+        val store = store()
+        store.pin(1, turinId)
+        store.setSkyLine(1, enabled = true)
+
+        store.remap(oldIds = intArrayOf(1), newIds = intArrayOf(4))
+
+        assertEquals(setOf(4), store.currentSkyLine())
+    }
+
+    @Test
     fun `the pinned flow reports the map after a pin`() = runBlocking {
         // The updater observes `pinned` rather than polling, so the edit must reach the flow
         val store = store()

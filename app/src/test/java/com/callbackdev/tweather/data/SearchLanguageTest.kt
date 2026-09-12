@@ -61,6 +61,7 @@ class SearchLanguageTest {
         override suspend fun historyFor(cityKey: String, limit: Int) = emptyList<WeatherHistoryEntry>()
         override fun observeLatest(limit: Int): Flow<List<WeatherHistoryEntry>> = emptyFlow()
         override suspend fun prune(keep: Int) = Unit
+        override suspend fun pruneForeign(liveKeys: List<String>, cutoffEpochSeconds: Long) = Unit
         override suspend fun setFiredRulesOnLatest(cityKey: String, firedRulesJson: String) = Unit
         override suspend fun setSkyRunsOnLatest(cityKey: String, skyRunsJson: String) = Unit
     }

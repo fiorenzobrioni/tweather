@@ -50,7 +50,16 @@ class WeatherRepository(
      * Wired to the home-widget re-render in [ServiceLocator]; a cache HIT rightly
      * skips it, as nothing changed.
      */
-    private val onHistoryCommitted: suspend () -> Unit = {}
+    private val onHistoryCommitted: suspend () -> Unit = {},
+    /**
+     * The other thing that happens at that choke point: the sweep that drops what
+     * belongs to places the app no longer follows ([ReportDiskCache] and the history
+     * table, via `StoredDataSweep`). Injected rather than built here because it needs
+     * the saved-places list, which this class deliberately does not know —
+     * [ServiceLocator] wires it. A default of nothing means a test that does not care
+     * about retention gets none.
+     */
+    private val onHousekeeping: suspend () -> Unit = {}
 ) {
 
     private data class CacheEntry(val report: WeatherReport, val fetchedAt: Instant)
@@ -226,15 +235,27 @@ class WeatherRepository(
             )
         )
         historyDao.prune(HISTORY_RETENTION)
-        // A failing observer must never sink a successful fetch — but a cancelled
-        // caller still has to unwind, and runCatching would eat the cancellation
-        // too, letting a superseded load publish its stale report.
+        // The prune above does not ask whose rows these are, so a second one does.
+        // Its own best-effort call, not folded into the block below: housekeeping that
+        // fails must still leave the widget its repaint.
+        bestEffort { onHousekeeping() }
+        // A failing observer must never sink a successful fetch: the report is already
+        // cached and committed, and at worst the widget misses a repaint.
+        bestEffort { onHistoryCommitted() }
+    }
+
+    /**
+     * Runs [block] for its effect and lets it fail — but a cancelled caller still has
+     * to unwind, and a bare `runCatching` would eat the cancellation too, letting a
+     * superseded load publish its stale report.
+     */
+    private suspend fun bestEffort(block: suspend () -> Unit) {
         try {
-            onHistoryCommitted()
+            block()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // report already cached and committed; at worst the widget misses a repaint
+            // deliberately swallowed: see the call sites for what is being given up
         }
     }
 
